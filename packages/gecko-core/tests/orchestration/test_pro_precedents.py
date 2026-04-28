@@ -286,15 +286,68 @@ async def test_run_pro_debate_retrieves_and_injects_precedents(
 
 
 def test_prompts_version_default_is_v5(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Default load resolves to the v5 bundle (S2X-11)."""
+    """Default load resolves to a bundle that carries the v5 analyst guidance.
+
+    Note: v5.1 is the current default (Judge-only fix for the 2026-04-28
+    regression); it inherits the v5 analyst prompt verbatim, so the
+    `gecko_precedent` marker is still present. See
+    `test_prompts_version_default_is_v5_1` for the v5.1-specific assertion.
+    """
     from gecko_core.orchestration.pro import prompts as prompts_mod
 
     monkeypatch.delenv("GECKO_PROMPTS_PATH", raising=False)
     monkeypatch.delenv("GECKO_PRO_PROMPTS_VERSION", raising=False)
     prompts_mod.load_prompts.cache_clear()
     p = prompts_mod.load_prompts()
-    # v5 mentions gecko_precedent in the analyst — sanity check we loaded v5.
+    # v5/v5.1 mention gecko_precedent in the analyst — sanity check we did
+    # not regress to v4.
     assert "gecko_precedent" in p["analyst"].lower()
+
+
+def test_prompts_version_default_is_v5_1(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Default load resolves to the v5.1 bundle (Judge-only fix for the
+    2026-04-28 verdict_accuracy regression).
+
+    The three Judge changes must all be present in the loaded judge prompt:
+    (1) narrowed 'no named ICP' kill condition, (2) explicit-by-name SHIP
+    precedence over generic kill rules, (3) named-ICP sanity check before
+    applying the kill.
+    """
+    from gecko_core.orchestration.pro import prompts as prompts_mod
+
+    monkeypatch.delenv("GECKO_PROMPTS_PATH", raising=False)
+    monkeypatch.delenv("GECKO_PRO_PROMPTS_VERSION", raising=False)
+    prompts_mod.load_prompts.cache_clear()
+    p = prompts_mod.load_prompts()
+    judge = p["judge"]
+    # (1) The blunt v5 kill line must be gone.
+    assert "No named ICP after the full debate: KILL." not in judge
+    # (1) Replaced by the narrowed condition that requires both the idea
+    # text AND the Analyst to lack a named ICP.
+    assert "the Analyst could not identify one" in judge
+    # (2) SHIP-by-name precedence wins over generic kill rules.
+    assert "explicitly listed by name" in judge
+    # (3) Sanity-check section is present BEFORE the MANDATORY KILL block.
+    assert "NAMED-ICP SANITY CHECK" in judge
+    assert judge.index("NAMED-ICP SANITY CHECK") < judge.index("MANDATORY KILL RULES")
+
+
+def test_prompts_version_v5_rollback(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Setting GECKO_PRO_PROMPTS_VERSION=v5 loads the prior bundle unmodified
+    (no v5.1 sanity-check section, no narrowed kill condition).
+    """
+    from gecko_core.orchestration.pro import prompts as prompts_mod
+
+    monkeypatch.delenv("GECKO_PROMPTS_PATH", raising=False)
+    monkeypatch.setenv("GECKO_PRO_PROMPTS_VERSION", "v5")
+    prompts_mod.load_prompts.cache_clear()
+    p = prompts_mod.load_prompts()
+    judge = p["judge"]
+    # v5 still has the blunt kill line.
+    assert "No named ICP after the full debate: KILL." in judge
+    # v5 has no sanity-check section.
+    assert "NAMED-ICP SANITY CHECK" not in judge
+    prompts_mod.load_prompts.cache_clear()
 
 
 def test_prompts_version_v4_rollback(monkeypatch: pytest.MonkeyPatch) -> None:

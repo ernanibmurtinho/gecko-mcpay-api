@@ -43,16 +43,19 @@ from pathlib import Path
 
 REQUIRED_AGENTS = ("analyst", "critic", "architect", "scoper", "judge")
 
-# Bundled prompt versions. v5 is current default (S2X-11 — adds V1 source
-# guidance for gecko_precedent / hn / reddit / twit_sh / colosseum). v4 is
-# kept on disk as the rollback target — set GECKO_PRO_PROMPTS_VERSION=v4 to
-# pin the prior bundle without code changes.
+# Bundled prompt versions. v5.1 is the current default — Judge-only fix for
+# the 2026-04-28 verdict_accuracy regression (see docs/prompts/v5_1-changelog.md).
+# v5 (S2X-11 — adds V1 source guidance for gecko_precedent / hn / reddit /
+# twit_sh / colosseum) and v4 are retained on disk as rollback targets — set
+# GECKO_PRO_PROMPTS_VERSION=v5 (or v4) to pin a prior bundle without code
+# changes.
 _PROMPTS_DIR = Path(__file__).parent
 _BUNDLED_VERSIONS: dict[str, Path] = {
     "v4": _PROMPTS_DIR / "_default_prompts.json",
     "v5": _PROMPTS_DIR / "_default_prompts_v5.json",
+    "v5.1": _PROMPTS_DIR / "_default_prompts_v5_1.json",
 }
-_DEFAULT_VERSION = "v5"
+_DEFAULT_VERSION = "v5.1"
 _DEFAULT_PROMPTS_PATH = _BUNDLED_VERSIONS[_DEFAULT_VERSION]
 
 
@@ -85,10 +88,10 @@ def load_prompts() -> dict[str, str]:
     Resolution order:
 
     1. ``GECKO_PROMPTS_PATH`` (full path override) — wins when set.
-    2. ``GECKO_PRO_PROMPTS_VERSION`` (``v4`` or ``v5``) — selects which
-       bundled file to load. Default is ``v5`` (S2X-11). ``v4`` is the
-       rollback target.
-    3. Bundled default (``v5``).
+    2. ``GECKO_PRO_PROMPTS_VERSION`` (``v4``, ``v5``, or ``v5.1``) — selects
+       which bundled file to load. Default is ``v5.1`` (Judge fix for the
+       2026-04-28 regression). ``v5`` and ``v4`` are rollback targets.
+    3. Bundled default (``v5.1``).
     """
     override = os.environ.get("GECKO_PROMPTS_PATH")
     if override:
