@@ -48,10 +48,26 @@ _BLOCKED_DOMAINS: tuple[str, ...] = (
 )
 
 
+# Tavily's /search endpoint hard-caps query length at 400 chars. Reserving a
+# 20-char prefix below ("best sources about: ") leaves us 380 for the idea.
+# Pro tier idea strings can run 400-800 chars; truncate at a word boundary so
+# the query stays semantic. The full idea still feeds the agents — only the
+# discovery search query is shortened.
+_TAVILY_QUERY_BUDGET = 380
+
+
+def _truncate_for_tavily(idea: str) -> str:
+    if len(idea) <= _TAVILY_QUERY_BUDGET:
+        return idea
+    head = idea[:_TAVILY_QUERY_BUDGET]
+    last_space = head.rfind(" ")
+    return head[:last_space] if last_space > 200 else head
+
+
 def _search_sync(api_key: str, query: str, max_results: int) -> list[dict[str, Any]]:
     client = TavilyClient(api_key=api_key)
     response = client.search(
-        f"best sources about: {query}",
+        f"best sources about: {_truncate_for_tavily(query)}",
         max_results=max_results,
         search_depth="advanced",
         exclude_domains=list(_BLOCKED_DOMAINS),
