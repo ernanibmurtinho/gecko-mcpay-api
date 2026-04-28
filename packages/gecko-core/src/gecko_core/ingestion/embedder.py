@@ -115,9 +115,16 @@ async def embed(
     if not texts:
         return [], 0
 
-    settings = get_ingestion_settings()
-    api = client or AsyncOpenAI(api_key=settings.openai_api_key.get_secret_value())
-    model_name = model or settings.embed_model
+    # Only resolve settings when we actually need them — passing both `client`
+    # and `model` (the unit-test path, and the future bring-your-own-client
+    # path) must not require OPENAI_API_KEY in the env.
+    if client is None or model is None:
+        settings = get_ingestion_settings()
+        api = client or AsyncOpenAI(api_key=settings.openai_api_key.get_secret_value())
+        model_name = model or settings.embed_model
+    else:
+        api = client
+        model_name = model
 
     batches = list(_chunked(texts, batch_size))
     # Sequential at the call-site — protects rate limits and keeps cost

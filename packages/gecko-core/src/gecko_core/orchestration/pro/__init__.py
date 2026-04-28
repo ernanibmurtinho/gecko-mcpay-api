@@ -65,18 +65,65 @@ def _opening_prompt(idea: str, rag_context: str) -> str:
 
 
 def _extract_token_counts(reply: Any) -> tuple[int, int]:
-    """Best-effort token extraction from an AG2 reply.
+    """Best-effort token extraction from an AG2 reply *return value*.
 
-    AG2's `a_generate_reply` returns a string OR a dict with `content` plus
-    optional usage metadata. We don't depend on usage being present — when
-    it's missing we return zeros and let the caller treat tokens as
-    informational only. Budget enforcement leans on max_turns + wall.
+    AG2's `a_generate_reply` mostly returns a plain string — usage rides on
+    the wrapped client (see ``_client_usage_delta``). We still inspect the
+    return value first because some downstream adapters round-trip a dict
+    with ``usage``/``token_usage`` (notably stubbed test fixtures).
     """
     if isinstance(reply, dict):
         usage = reply.get("usage") or reply.get("token_usage") or {}
         if isinstance(usage, dict):
             return int(usage.get("prompt_tokens") or 0), int(usage.get("completion_tokens") or 0)
     return 0, 0
+
+
+def _sum_summary(summary: Any) -> tuple[int, int]:
+    """Sum prompt/completion tokens across all model keys in an AG2 usage summary.
+
+    AG2 stores per-model rollups under ``client.total_usage_summary`` shaped
+    like ``{"total_cost": float, "<model>": {"prompt_tokens": int, ...}, ...}``.
+    Summing across model keys handles the case where an agent rotates models
+    mid-debate (rare, but the schema permits it).
+    """
+    if not isinstance(summary, dict):
+        return 0, 0
+    p = 0
+    c = 0
+    for key, val in summary.items():
+        if key == "total_cost" or not isinstance(val, dict):
+            continue
+        p += int(val.get("prompt_tokens") or 0)
+        c += int(val.get("completion_tokens") or 0)
+    return p, c
+
+
+def _client_usage_delta(agent: Any, before: tuple[int, int]) -> tuple[int, int]:
+    """Return ``(tokens_in_delta, tokens_out_delta)`` since the ``before`` snapshot.
+
+    Pinned attribute path (AG2 0.12 / autogen-core 0.7): each ``ConversableAgent``
+    holds an ``OpenAIWrapper`` at ``agent.client``; that wrapper accumulates
+    usage at ``agent.client.total_usage_summary`` (a per-model dict). We
+    snapshot before each ``a_generate_reply`` and diff after — that gives
+    per-call deltas without reaching into private state.
+
+    Returns ``(0, 0)`` when ``client`` is None (e.g. fakes in unit tests),
+    in which case the caller falls back to the reply-shape extractor or
+    zero-token attribution.
+    """
+    client = getattr(agent, "client", None)
+    if client is None:
+        return 0, 0
+    after = _sum_summary(getattr(client, "total_usage_summary", None))
+    return max(after[0] - before[0], 0), max(after[1] - before[1], 0)
+
+
+def _client_usage_snapshot(agent: Any) -> tuple[int, int]:
+    client = getattr(agent, "client", None)
+    if client is None:
+        return 0, 0
+    return _sum_summary(getattr(client, "total_usage_summary", None))
 
 
 def _reply_text(reply: Any) -> str:
@@ -95,6 +142,7 @@ async def generate(
     llm_config: dict[str, Any] | None = None,
     on_event: Callable[[AgentEvent], Awaitable[None]] | None = None,
     budget: BudgetGuard | None = None,
+    model_matrix: dict[str, str] | None = None,
 ) -> DebateTranscript:
     """Run the 5-agent debate.
 
@@ -111,7 +159,12 @@ async def generate(
         raise ValueError("llm_config is required for pro.generate")
     budget = budget or BudgetGuard()
 
-    manager = build_groupchat(llm_config)
+    # Only forward `model_matrix` when supplied so legacy callers that
+    # monkeypatch `build_groupchat` with a single-arg signature still work.
+    if model_matrix is None:
+        manager = build_groupchat(llm_config)
+    else:
+        manager = build_groupchat(llm_config, model_matrix=model_matrix)
     chat = manager.groupchat
     agents_by_name = {a.name: a for a in chat.agents}
 
@@ -150,6 +203,8 @@ async def generate(
         )
 
         try:
+            # Snapshot client usage BEFORE the call so we can diff after.
+            usage_before = _client_usage_snapshot(agent)
             # Each agent sees the running transcript and replies once.
             reply = await agent.a_generate_reply(messages=list(chat.messages))
         except Exception as exc:
@@ -169,7 +224,15 @@ async def generate(
             break
 
         text = _reply_text(reply)
+        # Token attribution priority:
+        #   1. Reply-shape (covers test fakes that hand back {"usage": ...})
+        #   2. Wrapped-client usage delta (the production AG2 path)
+        # We never sum (1) and (2) — only one source is authoritative per
+        # turn, and AG2 production never returns dict-shape usage on the
+        # reply, so the client delta wins in real runs.
         tokens_in, tokens_out = _extract_token_counts(reply)
+        if tokens_in == 0 and tokens_out == 0:
+            tokens_in, tokens_out = _client_usage_delta(agent, usage_before)
 
         seq += 1
         await _emit(

@@ -18,7 +18,9 @@ BEFORE ingestion so a payment failure can't burn OpenAI/Tavily credits.
 from __future__ import annotations
 
 import logging
+import os
 from collections.abc import Awaitable, Callable
+from typing import Any
 from uuid import UUID
 
 from openai import AsyncOpenAI
@@ -206,16 +208,43 @@ async def _run_pro_debate(
     )
 
     orch = get_orchestration_settings()
-    llm_config: dict[str, object] = {
-        "config_list": [
-            {
-                "model": orch.chat_model,
-                "api_key": orch.llm_api_key,
-                "base_url": orch.llm_endpoint,
-            }
-        ],
-        "temperature": orch.temperature,
-    }
+
+    # S1-01/S1-02: route LLM traffic via the LLM_ROUTER env switch. When the
+    # env var is unset we keep the legacy llm_endpoint/llm_api_key/chat_model
+    # path so existing deployments are unaffected.
+    from gecko_core.orchestration.pro.pricing import compute_cost_usd
+    from gecko_core.orchestration.pro.router import (
+        model_matrix as _matrix_for,
+    )
+    from gecko_core.orchestration.pro.router import (
+        resolve_router,
+    )
+
+    if os.environ.get("LLM_ROUTER"):
+        cfg = resolve_router()
+        llm_config: dict[str, Any] = cfg.llm_config_for_model(
+            orch.chat_model, temperature=orch.temperature
+        )
+        # The matrix-driven path overrides the model per-agent inside
+        # build_groupchat. The base llm_config still needs a model field for
+        # the GroupChatManager + the auto-selector fallback path.
+        resolved_matrix: dict[str, str] = _matrix_for(cfg.router)
+        agent_matrix: dict[str, str] | None = resolved_matrix
+        # Cost-attribution lookup for the on_event closure.
+        _model_for: dict[str, str] = dict(resolved_matrix)
+    else:
+        llm_config = {
+            "config_list": [
+                {
+                    "model": orch.chat_model,
+                    "api_key": orch.llm_api_key,
+                    "base_url": orch.llm_endpoint,
+                }
+            ],
+            "temperature": orch.temperature,
+        }
+        agent_matrix = None
+        _model_for = {}
 
     async def _on_event(event: object) -> None:
         # event is gecko_core.orchestration.pro.AgentEvent — typed as object
@@ -242,10 +271,17 @@ async def _run_pro_debate(
         # happens at the ClawRouter layer; this row is for the per-agent
         # attribution view in the Pro UI.
         if ev.type == "turn_end" and ev.agent is not None:  # type: ignore[attr-defined]
-            cost = _estimate_agent_cost(
-                ev.tokens_in,  # type: ignore[attr-defined]
-                ev.tokens_out,  # type: ignore[attr-defined]
-            )
+            agent_name: str = ev.agent  # type: ignore[attr-defined]
+            tokens_in_val: int = ev.tokens_in  # type: ignore[attr-defined]
+            tokens_out_val: int = ev.tokens_out  # type: ignore[attr-defined]
+            # Prefer the per-model price table when we know which model the
+            # agent ran on (router-driven path); fall back to the generic
+            # estimate when LLM_ROUTER is unset and the matrix is empty.
+            model_str = _model_for.get(agent_name)
+            if model_str is not None:
+                cost = compute_cost_usd(model_str, tokens_in_val, tokens_out_val)
+            else:
+                cost = _estimate_agent_cost(tokens_in_val, tokens_out_val)
             try:
                 await store.append_session_cost(
                     session_id=session_id,
@@ -265,6 +301,7 @@ async def _run_pro_debate(
             llm_config=llm_config,
             on_event=_on_event,
             budget=BudgetGuard(),
+            model_matrix=agent_matrix,
         )
     except ImportError as exc:
         logger.warning("AG2 not installed; pro tier degraded to basic: %s", exc)

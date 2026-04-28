@@ -335,24 +335,46 @@ class GeckoAPIClient:
 
         # 2a. Pro tier with an events_token: stream the debate live, then
         # fall back to /result for the canonical ResearchResult payload.
+        retry_token: str | None = None
         if tier == "pro" and ack.get("events_url") and ack.get("events_token"):
             try:
-                await self._consume_pro_sse(ack, progress)
+                final_payload = await self._consume_pro_sse(ack, progress)
             except Exception as exc:
                 logger.warning("pro SSE failed, falling back to poll: %s", exc)
+            else:
+                # If the debate failed mid-flight, the SSE final event carries
+                # a `retry_token` (24h, single-use). Stash it on the result so
+                # the higher MCP layer can surface a "retry without recharge"
+                # prompt to the user. Pure data-passthrough — no side effects.
+                if isinstance(final_payload, dict):
+                    tok = final_payload.get("retry_token")
+                    if isinstance(tok, str) and tok:
+                        retry_token = tok
 
         # 2b. Poll until done (works for both basic and pro).
-        return await self._poll_result(sid, poll_interval_s, poll_deadline_s, ack)
+        try:
+            result = await self._poll_result(sid, poll_interval_s, poll_deadline_s, ack)
+        except GeckoAPIError:
+            if retry_token is not None:
+                # Surface the retry token alongside the failure so the MCP
+                # caller can offer a one-tap retry. We re-raise so the failure
+                # itself isn't silently swallowed.
+                raise
+            raise
+        if retry_token is not None and "retry_token" not in result:
+            result["retry_token"] = retry_token
+        return result
 
     async def _consume_pro_sse(
         self,
         ack: dict[str, Any],
         progress: Any | None,
-    ) -> None:
+    ) -> dict[str, Any] | None:
         """Open the SSE stream for a pro session and pump events to `progress`.
 
-        Tolerates one transient drop. On a second drop we return cleanly so
-        the caller falls through to the poll loop — no exception bubbles up.
+        Tolerates one transient drop. Returns the final SSE event payload
+        (so callers can pick up `retry_token` on failure), or None if the
+        stream closed without a final event.
         """
         from gecko_mcp.sse_client import stream_pro_events
 
@@ -370,7 +392,7 @@ class GeckoAPIClient:
             else:
                 progress(line)
 
-        await stream_pro_events(
+        return await stream_pro_events(
             events_url=events_url,
             events_token=events_token,
             progress=_on_progress,
@@ -458,6 +480,52 @@ class GeckoAPIClient:
                 f"project budget exceeded: spent ${spent:.4f} + estimated "
                 f"${estimated_cost_usd:.4f} > budget ${budget_usd:.2f}"
             )
+
+    async def retry_pro(
+        self,
+        session_id: str,
+        retry_token: str,
+        *,
+        progress: Any | None = None,
+        poll_interval_s: float = 4.0,
+        poll_deadline_s: float = 300.0,
+    ) -> dict[str, Any]:
+        """Redeem a `retry_token` for a failed Pro session.
+
+        POSTs /research/pro/{session_id}/retry?token=..., which is NOT gated
+        by x402 — the token IS the credential. On 202 we get a fresh
+        events_token, re-attach SSE, and poll /result the same way the
+        original `research()` call did. The original payment is honored.
+        """
+        if not session_id:
+            raise GeckoAPIError("retry_pro: session_id is required")
+        if not retry_token:
+            raise GeckoAPIError("retry_pro: retry_token is required")
+
+        http = await self._free_client()
+        try:
+            response = await http.post(
+                f"/research/pro/{session_id}/retry",
+                params={"token": retry_token},
+            )
+        except httpx.HTTPError as exc:
+            raise GeckoAPIError(f"could not reach gecko-api at {self.api_url}: {exc}") from exc
+        if response.status_code != 202:
+            raise GeckoAPIError(
+                f"/research/pro/{session_id}/retry returned {response.status_code}: "
+                f"{response.text[:300]}"
+            )
+        ack = _parse_json_object(response, f"/research/pro/{session_id}/retry")
+
+        # Re-attach SSE for the live debate, then poll /result for the canonical
+        # ResearchResult payload — same flow as the initial pro research call.
+        if ack.get("events_url") and ack.get("events_token"):
+            try:
+                await self._consume_pro_sse(ack, progress)
+            except Exception as exc:
+                logger.warning("retry SSE failed, falling back to poll: %s", exc)
+
+        return await self._poll_result(session_id, poll_interval_s, poll_deadline_s, ack)
 
     async def ask(self, session_id: str, question: str) -> dict[str, Any]:
         """POST /sessions/{id}/ask — free follow-up against a paid session."""

@@ -239,6 +239,145 @@ Resources:
         - Type: forward
           TargetGroupArn: !Ref ALBTargetGroup
 
+  # ── Bot-scanner blocklist (S1-08) ────────────────────────────
+  # Internet-wide HTTP scanners probe WordPress / dotfile / admin paths.
+  # Terminate them at the ALB with a fixed 403 so they never reach Fargate
+  # and don't pollute /ecs/gecko-api logs. Path-patterns are case-sensitive
+  # by default in ALB; scanners use lowercase variants overwhelmingly.
+  # Each rule consolidates up to 5 patterns (ALB max per condition).
+  #
+  # IMPORTANT: do NOT add `/.well-known/*` here — `/.well-known/x402`
+  # (our payment manifest) and `/.well-known/security.txt` must pass.
+
+  BlocklistRuleWordPressHTTPS:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Condition: HasCertificate
+    Properties:
+      ListenerArn: !Ref ALBListenerHTTPS
+      Priority: 10
+      Conditions:
+        - Field: path-pattern
+          PathPatternConfig:
+            Values:
+              - /wp-admin*
+              - /wp-login*
+              - /wp-content*
+              - /wp-includes*
+              - /xmlrpc.php*
+      Actions:
+        - Type: fixed-response
+          FixedResponseConfig:
+            StatusCode: '403'
+            ContentType: text/plain
+            MessageBody: ''
+
+  BlocklistRuleDotfilesHTTPS:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Condition: HasCertificate
+    Properties:
+      ListenerArn: !Ref ALBListenerHTTPS
+      Priority: 11
+      Conditions:
+        - Field: path-pattern
+          PathPatternConfig:
+            Values:
+              - /.env*
+              - /.git*
+              - /.aws*
+              - /.ssh*
+              - /.htaccess*
+      Actions:
+        - Type: fixed-response
+          FixedResponseConfig:
+            StatusCode: '403'
+            ContentType: text/plain
+            MessageBody: ''
+
+  BlocklistRuleAdminToolsHTTPS:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Condition: HasCertificate
+    Properties:
+      ListenerArn: !Ref ALBListenerHTTPS
+      Priority: 12
+      Conditions:
+        - Field: path-pattern
+          PathPatternConfig:
+            Values:
+              - /phpmyadmin*
+              - /admin*
+              - /administrator*
+              - /server-status*
+              - /vendor/phpunit*
+      Actions:
+        - Type: fixed-response
+          FixedResponseConfig:
+            StatusCode: '403'
+            ContentType: text/plain
+            MessageBody: ''
+
+  BlocklistRuleWordPressHTTP:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn: !Ref ALBListenerHTTP
+      Priority: 10
+      Conditions:
+        - Field: path-pattern
+          PathPatternConfig:
+            Values:
+              - /wp-admin*
+              - /wp-login*
+              - /wp-content*
+              - /wp-includes*
+              - /xmlrpc.php*
+      Actions:
+        - Type: fixed-response
+          FixedResponseConfig:
+            StatusCode: '403'
+            ContentType: text/plain
+            MessageBody: ''
+
+  BlocklistRuleDotfilesHTTP:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn: !Ref ALBListenerHTTP
+      Priority: 11
+      Conditions:
+        - Field: path-pattern
+          PathPatternConfig:
+            Values:
+              - /.env*
+              - /.git*
+              - /.aws*
+              - /.ssh*
+              - /.htaccess*
+      Actions:
+        - Type: fixed-response
+          FixedResponseConfig:
+            StatusCode: '403'
+            ContentType: text/plain
+            MessageBody: ''
+
+  BlocklistRuleAdminToolsHTTP:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn: !Ref ALBListenerHTTP
+      Priority: 12
+      Conditions:
+        - Field: path-pattern
+          PathPatternConfig:
+            Values:
+              - /phpmyadmin*
+              - /admin*
+              - /administrator*
+              - /server-status*
+              - /vendor/phpunit*
+      Actions:
+        - Type: fixed-response
+          FixedResponseConfig:
+            StatusCode: '403'
+            ContentType: text/plain
+            MessageBody: ''
+
   # ── api service (public, behind ALB) ─────────────────────────
 
   ApiSecurityGroup:
@@ -324,6 +463,11 @@ Resources:
               ValueFrom: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SSMPrefix}/GECKO_LLM_API_KEY
             - Name: CHAT_MODEL
               ValueFrom: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SSMPrefix}/CHAT_MODEL
+            # S1-01: Pro-tier router selector + OpenRouter key.
+            - Name: LLM_ROUTER
+              ValueFrom: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SSMPrefix}/LLM_ROUTER
+            - Name: OPENROUTER_API_KEY
+              ValueFrom: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SSMPrefix}/OPENROUTER_API_KEY
           LogConfiguration:
             LogDriver: awslogs
             Options:

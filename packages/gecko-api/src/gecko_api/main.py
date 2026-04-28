@@ -45,7 +45,14 @@ from x402.http.types import PaymentOption, RouteConfig
 from x402.mechanisms.svm.exact import ExactSvmServerScheme
 
 from gecko_api.auth import verify_frames_token
-from gecko_api.events_token import EventsTokenError, issue_token, verify_token
+from gecko_api.events_token import (
+    EVENTS_PREFIX,
+    RETRY_PREFIX,
+    EventsTokenError,
+    issue_retry_token,
+    issue_token,
+    verify_token,
+)
 from gecko_api.settings import Settings
 from gecko_api.x402_stub import StubFacilitatorClient
 
@@ -356,13 +363,40 @@ async def research_pro(req: ResearchRequest, request: Request) -> dict[str, Any]
 
 
 async def _run_pro_background(session_id: UUID, req: ResearchRequest) -> None:
-    """Run the gecko_core workflow under tier='pro' for an existing session."""
+    """Run the gecko_core workflow under tier='pro' for an existing session.
+
+    Thin wrapper kept for backwards compatibility with tests that patch
+    `_run_pro_background` directly. New paths should call `_run_pro_debate`.
+    """
+    await _run_pro_debate(
+        session_id=session_id,
+        idea=req.idea,
+        urls=req.urls,
+        project_id=req.project_id,
+    )
+
+
+async def _run_pro_debate(
+    *,
+    session_id: UUID,
+    idea: str,
+    urls: list[str] | None = None,
+    project_id: str | None = None,
+) -> None:
+    """Run a Pro debate against an existing session_id.
+
+    On failure: persist the error AND emit a synthetic `final` SSE event
+    carrying a fresh `retry_token` (24h TTL, retry-prefixed). The MCP client
+    extracts the token from the SSE final payload and surfaces a "retry
+    without recharge" prompt to the user. Single-use is enforced by the
+    status guard on the retry endpoint (failed → running burns the token).
+    """
     store = SessionStore.from_env()
     try:
         result = await gecko_core.research(
-            idea=req.idea,
+            idea=idea,
             tier="pro",
-            urls=req.urls,
+            urls=urls,
             auto_approve=True,
             skip_payment_gate=True,
             session_id=session_id,
@@ -371,7 +405,30 @@ async def _run_pro_background(session_id: UUID, req: ResearchRequest) -> None:
         await store.update_status(session_id, "complete")
     except Exception as exc:
         logger.exception("pro research session %s failed", session_id)
-        await store.set_error(session_id, f"{type(exc).__name__}: {exc}")
+        msg = f"{type(exc).__name__}: {exc}"
+        await store.set_error(session_id, msg)
+        # Emit a synthetic final event so any subscribed SSE client sees the
+        # failure (and retry_token) without waiting on the 300s timeout. The
+        # token is also embedded in the row content as JSON; the SSE handler
+        # surfaces it as the `retry_token` field on the outgoing payload.
+        try:
+            retry_token = issue_retry_token(session_id, _settings.events_secret)
+            failure_payload = json.dumps({"error": msg, "retry_token": retry_token})
+            # `seq` must be monotonically increasing; we don't know the last
+            # seq the workflow used, so pick a value high enough to clear it.
+            # The pro debate emits ~10-20 events; 1_000_000 is a safe ceiling.
+            await store.append_pro_event(
+                session_id=session_id,
+                seq=1_000_000,
+                event_type="final",
+                agent=None,
+                content=failure_payload,
+                tokens_in=0,
+                tokens_out=0,
+                ts=asyncio.get_event_loop().time(),
+            )
+        except Exception as inner:  # pragma: no cover — best-effort
+            logger.warning("could not emit failure-final SSE event: %s", inner)
 
 
 # ---------------------------------------------------------------------------
@@ -418,7 +475,12 @@ async def research_pro_events(session_id: str, request: Request) -> StreamingRes
 
     token = _resolve_events_token(request)
     try:
-        verify_token(token, _settings.events_secret, sid)
+        verify_token(
+            token,
+            _settings.events_secret,
+            sid,
+            expected_prefix=EVENTS_PREFIX,
+        )
     except EventsTokenError as exc:
         raise HTTPException(status_code=401, detail=str(exc)) from exc
 
@@ -439,7 +501,7 @@ async def research_pro_events(session_id: str, request: Request) -> StreamingRes
                 rows = await store.tail_pro_events(sid, after_id=last_id, limit=50)
                 for row in rows:
                     last_id = row.id
-                    payload = {
+                    payload: dict[str, Any] = {
                         "seq": row.seq,
                         "type": row.event_type,
                         "agent": row.agent,
@@ -448,6 +510,23 @@ async def research_pro_events(session_id: str, request: Request) -> StreamingRes
                         "tokens_out": row.tokens_out,
                         "ts": row.ts,
                     }
+                    # If this is a final event whose content is a JSON envelope
+                    # (failure path emits {"error": ..., "retry_token": ...}),
+                    # surface those fields at the top of the payload so the
+                    # MCP client can pick up `retry_token` without parsing
+                    # `content`. Successful finals leave content as-is.
+                    if row.event_type == "final" and isinstance(row.content, str):
+                        try:
+                            envelope = json.loads(row.content)
+                        except (json.JSONDecodeError, ValueError):
+                            envelope = None
+                        if isinstance(envelope, dict):
+                            tok = envelope.get("retry_token")
+                            err = envelope.get("error")
+                            if isinstance(tok, str) and tok:
+                                payload["retry_token"] = tok
+                            if isinstance(err, str) and err:
+                                payload["error"] = err
                     body = (
                         f"event: turn\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
                     ).encode()
@@ -473,6 +552,95 @@ async def research_pro_events(session_id: str, request: Request) -> StreamingRes
             "X-Accel-Buffering": "no",  # disable nginx buffering for SSE
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# /research/pro/{session_id}/retry — redeem a retry_token issued at the moment
+# a Pro session failed. Re-runs the same debate (same idea + project_id) under
+# the same session_id, honoring the original x402 payment. Single-use is
+# enforced by the status guard: only sessions in `failed` are retryable, and
+# the very first action of the retry handler is to flip status to `running` —
+# so the second redemption attempt sees a non-failed status and is rejected.
+# ---------------------------------------------------------------------------
+
+
+@app.post("/research/pro/{session_id}/retry", status_code=202)
+async def research_pro_retry(
+    session_id: str,
+    request: Request,
+) -> dict[str, Any]:
+    """Retry a failed Pro session without re-charging x402.
+
+    Auth: the `retry_token` IS the credential. It was issued (24h TTL) at
+    the moment of failure and is bound to this session. No bearer + no x402
+    here — possessing the token proves the user paid for the original run.
+
+    Status guard:
+        - `failed`     → accept, transition to `running`, kick off a new
+                         background debate.
+        - `running`    → 409 (a retry is already in flight).
+        - `complete`   → 409 (nothing to retry).
+        - any other    → 409 (defensive default).
+    """
+    try:
+        sid = UUID(session_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="invalid session_id") from exc
+
+    token = request.query_params.get("token") or ""
+    try:
+        verify_token(
+            token,
+            _settings.events_secret,
+            sid,
+            expected_prefix=RETRY_PREFIX,
+        )
+    except EventsTokenError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
+
+    store = SessionStore.from_env()
+    record = await store.get(sid)
+    if record is None:
+        raise HTTPException(status_code=404, detail="session not found")
+
+    # Status must be `failed`. Anything else burns the retry attempt.
+    if record.status != "failed":
+        raise HTTPException(
+            status_code=409,
+            detail=f"session is not retryable (status={record.status!r})",
+        )
+    if record.tier != "pro":
+        # Sprint 1 scope: retry is Pro-only. Basic retries pay again.
+        raise HTTPException(status_code=409, detail="retry is only supported on pro tier")
+
+    # Burn the token: flip status off `failed` BEFORE kicking off the task.
+    # A concurrent second-redemption attempt will see a non-failed status
+    # and be rejected. We use `pending` (the same status used for a freshly
+    # created session) so the existing /result polling treats this as in-
+    # flight; the DB CHECK constraint only allows the canonical SessionStatus
+    # set, so we cannot introduce a `running` value without a migration.
+    await store.update_status(sid, "pending")
+
+    task = asyncio.create_task(
+        _run_pro_debate(
+            session_id=sid,
+            idea=record.idea,
+            urls=None,
+            project_id=str(record.project_id) if record.project_id else None,
+        )
+    )
+    _BACKGROUND_TASKS.add(task)
+    task.add_done_callback(_BACKGROUND_TASKS.discard)
+
+    # Issue a fresh events_token for the renewed SSE subscription.
+    events_token = issue_token(sid, _settings.events_secret)
+    return {
+        "session_id": str(sid),
+        "status": "processing",
+        "poll_url": f"/sessions/{sid}/result",
+        "events_url": f"/research/pro/{sid}/events",
+        "events_token": events_token,
+    }
 
 
 @app.post("/sessions/{session_id}/ask", response_model=AskResult)

@@ -144,6 +144,47 @@ def check_wallet(wallet_path: object | None = None) -> list[CheckResult]:
     return results
 
 
+def check_llm_router(environ: dict[str, str] | None = None) -> list[CheckResult]:
+    """Surface the active LLM_ROUTER + per-agent model matrix as INFO lines.
+
+    Reads the matrix from ``gecko_core.orchestration.pro.router`` so doctor
+    output stays in lockstep with what AG2 actually runs at request time.
+    Defaults to ``openai`` when LLM_ROUTER is unset — same behavior as the
+    runtime resolver. Never fails the doctor (purely informational).
+    """
+    env = environ if environ is not None else dict(os.environ)
+    raw = (env.get("LLM_ROUTER") or "openai").strip().lower()
+    results: list[CheckResult] = [CheckResult(name="llm:router", ok=True, detail=raw, info=True)]
+    try:
+        from gecko_core.orchestration.pro.router import model_matrix
+
+        if raw not in {"openai", "openrouter", "clawrouter"}:
+            results.append(
+                CheckResult(
+                    name="llm:matrix",
+                    ok=True,
+                    detail=f"unknown router {raw!r}; runtime will raise at startup",
+                    info=True,
+                )
+            )
+            return results
+        matrix = model_matrix(raw)  # type: ignore[arg-type]
+        # Render in stable agent order so the line is grep-able.
+        order = ("analyst", "critic", "architect", "scoper", "judge")
+        rendered = ", ".join(f"{a}->{matrix[a]}" for a in order if a in matrix)
+        results.append(CheckResult(name="llm:matrix", ok=True, detail=rendered, info=True))
+    except Exception as exc:  # pragma: no cover — defensive
+        results.append(
+            CheckResult(
+                name="llm:matrix",
+                ok=True,
+                detail=f"could not load matrix: {exc.__class__.__name__}",
+                info=True,
+            )
+        )
+    return results
+
+
 def check_clawrouter(environ: dict[str, str] | None = None) -> CheckResult:
     """Probe the local ClawRouter proxy. INFO if unreachable (the proxy is
     user-managed and may not be running yet)."""
@@ -366,6 +407,7 @@ def run_doctor(
     results.append(check_gecko_api(environ))
     results.extend(check_optional_env(environ))
     results.extend(check_wallet())
+    results.extend(check_llm_router(environ))
     results.append(check_clawrouter(environ))
 
     # INFO checks never gate downstream probes.
