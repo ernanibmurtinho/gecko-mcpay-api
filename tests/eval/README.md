@@ -30,8 +30,11 @@ uv run python -m tests.eval.runner --baseline tests/eval/baselines/2026-04-29-mo
 | `--live --reruns 3` | 3 | $10-15 |
 
 Live cost is per-run — every full pass calls all 5 agents on all 20 ideas
-(plus the GPT-4o judge once per idea). The harness will refuse to run
-`--live` without `OPENAI_API_KEY` set.
+(plus the Claude Sonnet 4.6 judge once per idea). The harness will refuse
+to run `--live` without **both** `OPENAI_API_KEY` (for the AG2 agents,
+which run on `gpt-4o-mini` / `gpt-4o`) and `ANTHROPIC_API_KEY` (for the
+cross-family rubric judge) set. Fail-fast happens at the start of `_run_live`
+so we never burn LLM credits and then crash at scoring time.
 
 ## The 4 axes
 
@@ -66,8 +69,10 @@ alongside the mocks change.
 
 - Calls `gecko_core.orchestration.pro.generate(...)` directly. No `gecko-api`,
   no Supabase, no session_costs persistence. The harness owns its own JSON.
-- Rubric uses GPT-4o (`gpt-4o-2024-11-20` pinned) at temp=0 with
-  `response_format={"type": "json_object"}`.
+- Rubric uses Claude Sonnet 4.6 (`claude-sonnet-4-6`) at temp=0 with
+  forced `tool_choice` so the response is always a structured tool-use
+  block (no JSON-parsing risk). Cross-family judge (Claude scoring
+  GPT-family debates) reduces same-family bias.
 - Token costs estimated at OpenRouter passthrough rates for `gpt-4o-mini`.
   Actual numbers come back via AG2's client usage summary.
 

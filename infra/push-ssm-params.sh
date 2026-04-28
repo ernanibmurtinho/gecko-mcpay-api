@@ -62,6 +62,16 @@ declare -A PARAMS=(
   [GECKO_LLM_ENDPOINT]="GECKO_LLM_ENDPOINT"
   [GECKO_LLM_API_KEY]="GECKO_LLM_API_KEY"
   [CHAT_MODEL]="CHAT_MODEL"
+
+  # Sprint 1 LLM routing (S1-01) — added 2026-04-28
+  # LLM_ROUTER selects the OpenAI-compatible base URL: openai | openrouter | clawrouter
+  # OPENROUTER_API_KEY is required only when LLM_ROUTER=openrouter; empty for openai.
+  [LLM_ROUTER]="LLM_ROUTER"
+  [OPENROUTER_API_KEY]="OPENROUTER_API_KEY"
+
+  # Sprint 1 events token (S1-05) — added 2026-04-28
+  # HMAC secret for Pro tier SSE events tokens + retry tokens.
+  [EVENTS_SECRET]="EVENTS_SECRET"
 )
 
 echo "==> Region:     $REGION"
@@ -69,17 +79,36 @@ echo "==> SSM prefix: $SSM_PREFIX"
 echo "==> Env file:   $ENV_FILE"
 echo ""
 
+# Params that ECS task CFN references as `secrets:` ValueFrom — these MUST
+# exist in SSM even if empty, otherwise ResourceInitializationError on task
+# start ("invalid ssm parameters: ..."). For these, push a sentinel value
+# when the env var is empty; runtime code is expected to treat the sentinel
+# as "unset" (it does — see gecko_core.orchestration.pro.router for
+# OPENROUTER_API_KEY handling).
+declare -A REQUIRED_AT_BOOT=(
+  [LLM_ROUTER]="openai"
+  [OPENROUTER_API_KEY]="__unset__"
+  [EVENTS_SECRET]="__dev_change_me__"
+)
+
 SKIPPED=()
 PUSHED=()
+PLACEHOLDED=()
 
 for PARAM_NAME in "${!PARAMS[@]}"; do
   VAR_NAME="${PARAMS[$PARAM_NAME]}"
   VALUE="${!VAR_NAME:-}"
 
   if [[ -z "$VALUE" ]]; then
-    echo "  SKIP  $SSM_PREFIX/$PARAM_NAME  (${VAR_NAME} is empty in $ENV_FILE)"
-    SKIPPED+=("$PARAM_NAME")
-    continue
+    if [[ -n "${REQUIRED_AT_BOOT[$PARAM_NAME]:-}" ]]; then
+      VALUE="${REQUIRED_AT_BOOT[$PARAM_NAME]}"
+      echo "  PLACEHOLDER  $SSM_PREFIX/$PARAM_NAME  (${VAR_NAME} empty; pushing sentinel '$VALUE')"
+      PLACEHOLDED+=("$PARAM_NAME")
+    else
+      echo "  SKIP  $SSM_PREFIX/$PARAM_NAME  (${VAR_NAME} is empty in $ENV_FILE)"
+      SKIPPED+=("$PARAM_NAME")
+      continue
+    fi
   fi
 
   aws ssm put-parameter \
@@ -96,7 +125,11 @@ for PARAM_NAME in "${!PARAMS[@]}"; do
 done
 
 echo ""
-echo "==> Done. ${#PUSHED[@]} pushed, ${#SKIPPED[@]} skipped."
+echo "==> Done. ${#PUSHED[@]} pushed, ${#PLACEHOLDED[@]} placeholders, ${#SKIPPED[@]} skipped."
+if [[ ${#PLACEHOLDED[@]} -gt 0 ]]; then
+  echo "    Placeholder sentinels (set real values via .env or aws ssm put-parameter):"
+  for P in "${PLACEHOLDED[@]}"; do echo "      - $SSM_PREFIX/$P"; done
+fi
 
 if [[ ${#SKIPPED[@]} -gt 0 ]]; then
   echo ""

@@ -46,4 +46,10 @@ dev = [
     "pytest-asyncio>=0.23",
     "respx>=0.21",
     "types-cachetools>=5.0",
+    # Eval harness: live-mode rubric judge (Claude Sonnet 4.6).
+    # Mock mode does NOT import this; production never touches it.
+    "anthropic>=0.39",
+    # Eval harness: ideas.yaml loader.
+    "PyYAML>=6.0",
+    "types-PyYAML>=6.0",
 ]

@@ -3,8 +3,10 @@
 Two paths:
   1. Mock mode (default): a deterministic scorer that keys off lexical
      markers. Repeatable, $0, used in CI to validate the rubric itself.
-  2. Live mode: GPT-4o judge, temp=0, JSON-mode, pinned snapshot. Used
-     manually when calibrating prompts after meaningful agent changes.
+  2. Live mode: Claude Sonnet 4.6 judge, temp=0, JSON output via tool-use.
+     Used manually when calibrating prompts after meaningful agent
+     changes. Cross-family judge (Claude judging GPT-family debates)
+     reduces same-family bias in the rubric scores.
 
 Why a deterministic mock scorer rather than just the live judge with
 recorded fixtures: we want CI to fail when the rubric *itself* is broken
@@ -20,7 +22,6 @@ The 4 axes (each 0.0-10.0):
 
 from __future__ import annotations
 
-import json
 import os
 import re
 import statistics
@@ -29,7 +30,9 @@ from typing import Literal
 
 from tests.eval.mocks import MockTranscript
 
-JUDGE_MODEL = "gpt-4o-2024-11-20"  # pinned snapshot for reproducibility
+# Pinned Claude Sonnet 4.6 snapshot for reproducible judging.
+# Decision: A,A,A,B,B (Q5=B) — cross-family judge to avoid OpenAI-family bias.
+JUDGE_MODEL = "claude-sonnet-4-6"
 
 
 @dataclass(frozen=True)
@@ -194,7 +197,7 @@ def score_transcript_mock(transcript: MockTranscript, cohort_median_tokens: floa
 # --- Live-mode GPT-4o judge ---
 
 
-_JUDGE_PROMPT = """\
+_JUDGE_SYSTEM = """\
 You are scoring a 5-agent debate transcript for a startup-idea evaluation.
 The agents are: analyst, critic, architect, scoper, judge — in that order.
 
@@ -207,11 +210,31 @@ Score on 4 axes, each 0.0-10.0:
   4. cost_predictability — is the per-turn token usage balanced across agents
      (no agent dominates >40% of tokens)?
 
-Return ONLY JSON with these exact keys:
-{"agent_voice": 0.0, "source_grounding": 0.0, "verdict_justification": 0.0, "cost_predictability": 0.0}
-
-Transcript:
+Use the `submit_scores` tool to return your evaluation. Do not include any
+prose outside the tool call.
 """
+
+# Anthropic tool-use forces structured output without prompt-side JSON
+# parsing risk — much more reliable than asking for JSON in text.
+_SUBMIT_SCORES_TOOL = {
+    "name": "submit_scores",
+    "description": "Submit the 4-axis rubric scores for the debate transcript.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "agent_voice": {"type": "number", "minimum": 0.0, "maximum": 10.0},
+            "source_grounding": {"type": "number", "minimum": 0.0, "maximum": 10.0},
+            "verdict_justification": {"type": "number", "minimum": 0.0, "maximum": 10.0},
+            "cost_predictability": {"type": "number", "minimum": 0.0, "maximum": 10.0},
+        },
+        "required": [
+            "agent_voice",
+            "source_grounding",
+            "verdict_justification",
+            "cost_predictability",
+        ],
+    },
+}
 
 
 def _format_transcript_for_judge(transcript: MockTranscript) -> str:
@@ -227,33 +250,52 @@ def _format_transcript_for_judge(transcript: MockTranscript) -> str:
 
 
 def score_transcript_live(transcript: MockTranscript) -> RubricScores:
-    """Call GPT-4o as the judge. Requires OPENAI_API_KEY.
+    """Call Claude Sonnet 4.6 as the judge. Requires ANTHROPIC_API_KEY.
 
     Note: cohort_median_tokens isn't passed because the live judge is
     asked to assess intra-transcript balance, not cohort-relative cost.
     This is a known divergence between mock and live axis-4 semantics —
     documented in tests/eval/README.md.
     """
-    api_key = os.environ.get("OPENAI_API_KEY")
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         raise RuntimeError(
-            "OPENAI_API_KEY is not set; live rubric requires it. "
+            "ANTHROPIC_API_KEY is not set; live rubric requires it. "
             "Run without --live to use the deterministic mock scorer."
         )
 
-    # Lazy import — keep mock-mode path zero-dep on the openai SDK at import.
-    from openai import OpenAI
+    # Lazy import — keep mock-mode path zero-dep on the anthropic SDK at import.
+    from anthropic import Anthropic
 
-    client = OpenAI(api_key=api_key)
-    body = _JUDGE_PROMPT + _format_transcript_for_judge(transcript)
-    resp = client.chat.completions.create(
+    client = Anthropic(api_key=api_key)
+    transcript_body = _format_transcript_for_judge(transcript)
+    # Anthropic SDK uses TypedDicts for tools / tool_choice / messages — plain
+    # dict literals are runtime-correct but mypy can't infer them as the
+    # matching TypedDicts. Ignoring on this one line is cleaner than scattering
+    # casts through every literal.
+    resp = client.messages.create(  # type: ignore[call-overload]
         model=JUDGE_MODEL,
-        temperature=0,
-        response_format={"type": "json_object"},
-        messages=[{"role": "user", "content": body}],
+        max_tokens=512,
+        temperature=0.0,
+        system=_JUDGE_SYSTEM,
+        tools=[_SUBMIT_SCORES_TOOL],
+        tool_choice={"type": "tool", "name": "submit_scores"},
+        messages=[{"role": "user", "content": transcript_body}],
     )
-    raw = resp.choices[0].message.content or "{}"
-    data = json.loads(raw)
+
+    # Forced tool_choice means the response always contains a tool_use block.
+    tool_use = next(
+        (block for block in resp.content if getattr(block, "type", None) == "tool_use"),
+        None,
+    )
+    if tool_use is None:
+        raise RuntimeError(
+            "Anthropic judge response missing tool_use block; got: "
+            f"{[getattr(b, 'type', '?') for b in resp.content]}"
+        )
+    data = tool_use.input
+    if not isinstance(data, dict):
+        raise RuntimeError(f"Anthropic judge tool input is not a dict: {type(data).__name__}")
     return RubricScores(
         agent_voice=float(data.get("agent_voice", 0.0)),
         source_grounding=float(data.get("source_grounding", 0.0)),

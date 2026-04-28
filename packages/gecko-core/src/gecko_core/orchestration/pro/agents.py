@@ -11,74 +11,20 @@ from __future__ import annotations
 import copy
 from typing import TYPE_CHECKING, Any
 
+from gecko_core.orchestration.pro.prompts import REQUIRED_AGENTS, load_prompts
+
 if TYPE_CHECKING:  # pragma: no cover - typing-only
     from autogen import GroupChatManager
 
 
-ANALYST_SYS = """\
-You are the ANALYST. You survey the market like a builder, not a McKinsey deck.
-Pull TAM, demand signals, and the closest comparables straight from the
-rag_context the user gave you — cite by source title or URL inline. Quantify
-when the evidence allows; flag honestly when it doesn't. You care about: who
-already pays for this, what the wedge looks like, what the counterfactual is
-if we don't ship. Skip throat-clearing, skip generic advice, skip
-"it depends." You're here to give the table a clear read on whether this idea
-has a real market underneath it. Three to six tight bullets, not paragraphs.
-"""
+def _agent_specs() -> tuple[tuple[str, str], ...]:
+    """Resolve (agent_name, system_message) pairs in the canonical order.
 
-CRITIC_SYS = """\
-You are the CRITIC. Adversarial, sharp, but a builder yourself — you want this
-to ship, you just won't let it ship broken. Poke holes in the analyst's TAM
-math, the demand signals, the comparables. Where is the evidence thin? What's
-the counter-example nobody mentioned? What's the regulatory or distribution
-moat that kills V1 in week three? Be bitey but constructive — every critique
-ends with what would change your mind. No "respectfully" hedges, no caveats
-stacked on caveats. If the idea is a dud, say so. If a comparable is wrong,
-name the right one. Three to six bullets, named risks first.
-"""
-
-ARCHITECT_SYS = """\
-You are the ARCHITECT. You pick the V1 stack and you're opinionated about it.
-Default stack: Next.js 15 + Tailwind + Supabase (Postgres + auth + storage),
-deployed on Vercel. Reach for Solana only when the idea is crypto-primitive
-(payments, on-chain identity, programmable assets) — never as decoration.
-Reach for Python services only when the workload is genuinely Python-shaped
-(ML inference, scraping pipelines). Name concrete services, not "a database."
-Specify auth strategy, the one external API that matters, and the deploy
-target. Three to five bullets. If the idea forces a non-default choice,
-justify in one sentence — otherwise stay on the rails.
-"""
-
-SCOPER_SYS = """\
-You are the SCOPER. You split the work into V1 / V2 / V3 with a 4-day buildable
-V1 as the hard constraint — a solo builder + Claude Code, four days, one demo.
-V1 is the smallest thing that makes the wedge real for one user segment. V2
-adds the second segment or the multiplayer surface. V3 is the moat
-(integrations, network effects, paid tier). For V1, list 3-5 concrete
-acceptance criteria — observable behavior, not "users can sign up." If V1 as
-described needs more than 4 days, cut features until it doesn't. Output:
-V1 / V2 / V3 sections, V1 followed by its acceptance criteria as a checklist.
-"""
-
-JUDGE_SYS = """\
-You are the JUDGE. Calm, final, builder-pilled. After the debate, score the
-idea 1-10 across three axes: TAM (is the market big enough to matter), wedge
-(is there a sharp first user segment), V1 feasibility (can a solo builder
-ship the V1 the scoper described in 4 days). Then a one-paragraph verdict:
-either "ship V1 to <specific segment>" with the segment named, or "kill" with
-the single clearest reason. No fence-sitting, no "consider exploring." If the
-team is split, your call breaks the tie. Output exactly: scores as three
-labeled lines, then one paragraph. Nothing else.
-"""
-
-
-_AGENT_SPECS: tuple[tuple[str, str], ...] = (
-    ("analyst", ANALYST_SYS),
-    ("critic", CRITIC_SYS),
-    ("architect", ARCHITECT_SYS),
-    ("scoper", SCOPER_SYS),
-    ("judge", JUDGE_SYS),
-)
+    Reads from the prompts loader (default JSON or GECKO_PROMPTS_PATH override).
+    Order matches REQUIRED_AGENTS so the GroupChat sees a deterministic sequence.
+    """
+    prompts = load_prompts()
+    return tuple((name, prompts[name]) for name in REQUIRED_AGENTS)
 
 
 def _override_model(base: dict[str, Any], model: str) -> dict[str, Any]:
@@ -130,7 +76,7 @@ def build_groupchat(
     # Typed as list[Any] so mypy doesn't complain about list invariance
     # between ConversableAgent and the Agent supertype GroupChat expects.
     agents: list[Any] = []
-    for name, sys_msg in _AGENT_SPECS:
+    for name, sys_msg in _agent_specs():
         agent_cfg = _override_model(llm_config, matrix[name]) if name in matrix else llm_config
         agents.append(
             ConversableAgent(

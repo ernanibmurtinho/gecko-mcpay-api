@@ -84,11 +84,22 @@ def test_unknown_idea_id_errors() -> None:
         runner._load_ideas(filter_id="nonexistent")
 
 
-def test_live_without_api_key_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_live_without_openai_key_errors(monkeypatch: pytest.MonkeyPatch) -> None:
     """The --live path must fail loudly if OPENAI_API_KEY is missing,
     rather than silently degrading or making a half-call."""
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-anthropic")
     import asyncio
 
     with pytest.raises(SystemExit, match="OPENAI_API_KEY"):
+        asyncio.run(runner._run_live("any idea"))
+
+
+def test_live_without_anthropic_key_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    """If OPENAI is set but ANTHROPIC isn't, fail before spending on agents."""
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key-openai")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    import asyncio
+
+    with pytest.raises(SystemExit, match="ANTHROPIC_API_KEY"):
         asyncio.run(runner._run_live("any idea"))

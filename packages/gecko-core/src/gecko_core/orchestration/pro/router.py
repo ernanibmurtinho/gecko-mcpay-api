@@ -118,7 +118,10 @@ def resolve_router(environ: dict[str, str] | None = None) -> RouterConfig:
 
     if router == "openrouter":
         api_key = env.get("OPENROUTER_API_KEY") or ""
-        if not api_key:
+        # Treat known SSM-placeholder sentinels as unset. The push-ssm script
+        # writes "__unset__" so the ECS task definition can resolve the secret
+        # ARN even when the operator hasn't provisioned a real key yet.
+        if api_key in ("", "__unset__", "__dev_change_me__"):
             # Fail fast at startup, not at first agent reply.
             raise ValueError(
                 "LLM_ROUTER=openrouter requires OPENROUTER_API_KEY to be set in the environment"

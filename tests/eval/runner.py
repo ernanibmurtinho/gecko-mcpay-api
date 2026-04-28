@@ -34,7 +34,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-import yaml  # type: ignore[import-untyped]
+import yaml
 
 from tests.eval.mocks import MOCK_TRANSCRIPTS, MockTranscript, get_mock_transcript
 from tests.eval.rubric import (
@@ -108,8 +108,15 @@ async def _run_live(idea_text: str) -> MockTranscript:
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
         raise SystemExit(
-            "OPENAI_API_KEY is not set; --live requires it. "
+            "OPENAI_API_KEY is not set; --live requires it for the 5 AG2 agents. "
             "Run without --live to use mock mode (default, $0)."
+        )
+    # Also fail-fast check for the rubric judge so we don't burn $$$ on agents
+    # only to crash at scoring time.
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        raise SystemExit(
+            "ANTHROPIC_API_KEY is not set; --live requires it for the Sonnet 4.6 "
+            "rubric judge. Run without --live to use mock mode (default, $0)."
         )
 
     llm_config = {
