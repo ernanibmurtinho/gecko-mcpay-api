@@ -22,6 +22,7 @@ import logging
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
@@ -55,6 +56,11 @@ from gecko_api.events_token import (
     verify_token,
 )
 from gecko_api.settings import Settings
+from gecko_api.wallets import (
+    check_project_budget,
+    ensure_project_wallet,
+    increment_project_spent_safe,
+)
 from gecko_api.x402_stub import StubFacilitatorClient
 
 logger = logging.getLogger(__name__)
@@ -150,6 +156,13 @@ _BACKGROUND_TASKS: set[asyncio.Task[None]] = set()
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     load_dotenv()
     logger.info("gecko-api starting (X402_MODE=%s)", _settings.x402_mode)
+    if not _settings.is_privy_configured():
+        logger.warning(
+            "Privy unconfigured — per-project wallet provisioning disabled. "
+            "Set PRIVY_APP_ID and PRIVY_APP_SECRET to enable."
+        )
+    else:
+        logger.info("Privy configured: per-project wallet provisioning ON")
     yield
 
 
@@ -258,7 +271,7 @@ def _route_price_usd(route: str) -> float:
 
 
 @app.post("/research", status_code=202)
-async def research(req: ResearchRequest, request: Request) -> dict[str, Any]:
+async def research(req: ResearchRequest, request: Request) -> Any:
     """Kick off a research session. Returns 202 + session_id immediately.
 
     The full pipeline runs as a background task — frames.ag's /x402/fetch
@@ -266,8 +279,32 @@ async def research(req: ResearchRequest, request: Request) -> dict[str, Any]:
     fast we let payment settle synchronously while research keeps running;
     the client polls GET /sessions/{id}/result for completion.
     """
-    # Create the session row up front so the client has a handle to poll.
     store = SessionStore.from_env()
+
+    # S2-06: per-project budget cap pre-flight. Reject at-or-over-cap projects
+    # with a 402 carrying a `project_budget_exceeded` error before we burn any
+    # work. The wallet's own balance is the cryptographic ceiling at mainnet
+    # time; this column-driven gate is the v1 server-side enforcement.
+    if req.project_id:
+        try:
+            project_uuid = UUID(req.project_id)
+        except ValueError:
+            project_uuid = None
+        if project_uuid is not None:
+            blocked = await check_project_budget(store=store, project_id=project_uuid)
+            if blocked is not None:
+                return blocked
+            # S2-05: lazy wallet provisioning on first paid call when a
+            # project pre-exists without one. Soft-skips when Privy isn't
+            # configured; never blocks the call.
+            try:
+                await ensure_project_wallet(
+                    settings=_settings, store=store, project_id=project_uuid
+                )
+            except Exception:  # pragma: no cover — best-effort
+                logger.exception("research: ensure_project_wallet failed")
+
+    # Create the session row up front so the client has a handle to poll.
     session_id: UUID = await store.create(idea=req.idea, tier="basic")
 
     # Persist the price the user just paid so the economics view is accurate
@@ -324,6 +361,17 @@ async def _run_research_background(session_id: UUID, req: ResearchRequest) -> No
         )
         await store.set_result(session_id, result.model_dump(mode="json"))
         await store.update_status(session_id, "complete")
+        # S2-06: roll the session price into projects.spent_usd. The atomic
+        # RPC handles concurrent completes for the same project. Failure is
+        # swallowed inside the helper — spend tracking is best-effort.
+        if req.project_id:
+            try:
+                pid = UUID(req.project_id)
+            except ValueError:
+                pid = None
+            if pid is not None:
+                price = Decimal(str(_route_price_usd("POST /research")))
+                await increment_project_spent_safe(store=store, project_id=pid, delta_usd=price)
     except NotImplementedError as exc:
         logger.warning("research session %s not implemented: %s", session_id, exc)
         await store.set_error(session_id, f"NotImplemented: {exc}")
@@ -333,7 +381,7 @@ async def _run_research_background(session_id: UUID, req: ResearchRequest) -> No
 
 
 @app.post("/research/pro", status_code=202)
-async def research_pro(req: ResearchRequest, request: Request) -> dict[str, Any]:
+async def research_pro(req: ResearchRequest, request: Request) -> Any:
     """Kick off a pro-tier research session (5-agent debate via AG2).
 
     Async contract identical to /research:
@@ -343,6 +391,26 @@ async def research_pro(req: ResearchRequest, request: Request) -> dict[str, Any]
     on GET /research/pro/{session_id}/events to subscribe to the SSE stream.
     """
     store = SessionStore.from_env()
+
+    # S2-06: same pre-flight gate as /research — block the paid call when
+    # the project has hit its cap. S2-05: lazy-provision the project's
+    # Privy wallet if missing.
+    if req.project_id:
+        try:
+            project_uuid = UUID(req.project_id)
+        except ValueError:
+            project_uuid = None
+        if project_uuid is not None:
+            blocked = await check_project_budget(store=store, project_id=project_uuid)
+            if blocked is not None:
+                return blocked
+            try:
+                await ensure_project_wallet(
+                    settings=_settings, store=store, project_id=project_uuid
+                )
+            except Exception:  # pragma: no cover — best-effort
+                logger.exception("research_pro: ensure_project_wallet failed")
+
     session_id: UUID = await store.create(idea=req.idea, tier="pro")
 
     payload = getattr(request.state, "payment_payload", None)
@@ -420,6 +488,14 @@ async def _run_pro_debate(
         )
         await store.set_result(session_id, result.model_dump(mode="json"))
         await store.update_status(session_id, "complete")
+        if project_id:
+            try:
+                pid = UUID(project_id)
+            except ValueError:
+                pid = None
+            if pid is not None:
+                price = Decimal(str(_route_price_usd("POST /research/pro")))
+                await increment_project_spent_safe(store=store, project_id=pid, delta_usd=price)
     except Exception as exc:
         logger.exception("pro research session %s failed", session_id)
         msg = f"{type(exc).__name__}: {exc}"
@@ -837,7 +913,25 @@ async def create_project(
             "wallet_provider": "frames-policy",
             "created_at": None,
         }
-    return _project_row_to_out(record).model_dump()
+
+    # S2-05: eagerly provision a Privy wallet at project creation time when
+    # configured. ensure_project_wallet is idempotent and a soft-skip on
+    # sentinel creds, so devnet without Privy stays a no-op here.
+    try:
+        wallet_snapshot = await ensure_project_wallet(
+            settings=_settings,
+            store=store,
+            project_id=project_id,
+        )
+    except Exception:  # pragma: no cover — best-effort
+        logger.exception("create_project: ensure_project_wallet failed")
+        wallet_snapshot = None
+
+    out = _project_row_to_out(record).model_dump()
+    if wallet_snapshot and wallet_snapshot.privy_wallet_address:
+        out["wallet_address"] = wallet_snapshot.privy_wallet_address
+        out["wallet_provider"] = "privy-direct"
+    return out
 
 
 @app.get("/projects")
@@ -891,6 +985,65 @@ async def get_project(
         for s in sessions
     ]
     return payload
+
+
+@app.get("/projects/{project_id}/economics")
+@limiter.limit("60/minute")
+async def get_project_economics(
+    project_id: str,
+    request: Request,
+    username: str = Depends(verify_frames_token),
+) -> dict[str, Any]:
+    """Project-scoped economics view consumed by `gecko-mcp project <id>`
+    and the V3 dashboard. Returns wallet info, budget rollup, and the 5
+    most recent paid sessions. 404 on missing/wrong-owner project (no
+    existence leak)."""
+    try:
+        pid = UUID(project_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="project not found") from None
+    store = SessionStore.from_env()
+    record = await store.get_project_by_id_for_user(username=username, project_id=pid)
+    if record is None:
+        raise HTTPException(status_code=404, detail="project not found")
+    sessions = await store.list_project_paid_sessions(pid, limit=5)
+
+    privy_wallet_id = record.get("privy_wallet_id")
+    privy_wallet_address = record.get("privy_wallet_address")
+    cap = float(record.get("budget_cap_usd") or 0.0)
+    spent = float(record.get("spent_usd") or 0.0)
+    remaining = max(0.0, cap - spent)
+
+    return {
+        "project_id": str(record["id"]),
+        "name": record.get("name"),
+        "wallet": {
+            "privy_wallet_id": privy_wallet_id,
+            "privy_wallet_address": privy_wallet_address,
+            # On-chain USDC balance read deferred to a follow-up — Privy v2
+            # doesn't surface SPL token balances cleanly and the Solana RPC
+            # plumbing is shared with the x402 settlement path; wiring it up
+            # without a cache risks hammering the RPC on dashboard polls.
+            "balance_usdc": None,
+        },
+        "budget": {
+            "cap_usd": f"{cap:.2f}",
+            "spent_usd": f"{spent:.2f}",
+            "remaining_usd": f"{remaining:.2f}",
+        },
+        "recent_sessions": [
+            {
+                "session_id": str(s.get("id", "")),
+                "tier": s.get("tier"),
+                "cost_usd": _float_or_none(s.get("cost_total_usd")) or 0.0,
+                "paid_usd": _float_or_none(s.get("price_usd")) or 0.0,
+                "x402_tx_signature": s.get("x402_tx_signature"),
+                "network": s.get("network"),
+                "created_at": str(s["created_at"]) if s.get("created_at") is not None else None,
+            }
+            for s in sessions
+        ],
+    }
 
 
 @app.delete("/projects/{name}", status_code=204)

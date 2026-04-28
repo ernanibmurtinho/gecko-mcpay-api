@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 from gecko_mcp.doctor import run_doctor
 from gecko_mcp.economics import economics as economics_cmd
 from gecko_mcp.llm import llm as llm_group
+from gecko_mcp.project import project as project_cmd
 from gecko_mcp.quickstart import quickstart as quickstart_cmd
 from gecko_mcp.server import serve
 from gecko_mcp.wallet import wallet as wallet_group
@@ -80,6 +81,7 @@ def _find_dotenv_upwards(start: Path) -> Path | None:
 main.add_command(wallet_group)
 main.add_command(llm_group)
 main.add_command(economics_cmd)
+main.add_command(project_cmd)
 main.add_command(quickstart_cmd)
 
 

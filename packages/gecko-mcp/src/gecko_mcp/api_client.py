@@ -646,6 +646,34 @@ class GeckoAPIClient:
                 f"/projects/{name} returned {response.status_code}: {response.text[:300]}"
             )
 
+    async def get_project_economics(self, project_id: str) -> dict[str, Any]:
+        """GET /projects/{project_id}/economics — bearer-authed (S2-09).
+
+        Returns the wallet/budget/recent-sessions snapshot for the project.
+        Surfaces a clean error if the API hasn't deployed the endpoint yet
+        (web3-engineer's S2-05/S2-06 lands first; this method is wired so
+        the MCP side is ready the moment it ships).
+        """
+        http = await self._free_client()
+        path = f"/projects/{project_id}/economics"
+        try:
+            response = await http.get(path, headers=self._auth_headers())
+        except httpx.HTTPError as exc:
+            raise GeckoAPIError(f"could not reach gecko-api at {self.api_url}: {exc}") from exc
+        if response.status_code == 401:
+            raise GeckoAPIError("unauthorized — re-run `gecko-mcp wallet new`")
+        if response.status_code == 404:
+            # 404 is overloaded: project-not-found OR endpoint-not-deployed
+            # (web3-engineer's commit pending). Probe /healthz so the user
+            # knows which one applies.
+            raise GeckoAPIError(
+                f"project {project_id!r} not found, or this gecko-api build "
+                "has not yet deployed /projects/{id}/economics (S2-05/06)"
+            )
+        if response.status_code >= 400:
+            raise GeckoAPIError(f"{path} returned {response.status_code}: {response.text[:300]}")
+        return _parse_json_object(response, path)
+
     async def list_sources(self, session_id: str) -> list[dict[str, Any]]:
         """GET /sessions/{id}/sources — free."""
         http = await self._free_client()

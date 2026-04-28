@@ -70,13 +70,20 @@ def _swap_client(monkeypatch: pytest.MonkeyPatch) -> _FakeClient:
 
 
 async def test_list_tools_exposes_three_tools() -> None:
+    # Name kept for git history; surface is 4 tools as of S2-09.
     tools = await list_tools()
     names = {t.name for t in tools}
-    assert names == {"gecko_research", "gecko_ask", "gecko_sources"}
+    assert names == {
+        "gecko_research",
+        "gecko_ask",
+        "gecko_sources",
+        "gecko_project_economics",
+    }
     by_name = {t.name: t for t in tools}
     assert by_name["gecko_research"].inputSchema["required"] == ["idea"]
     assert by_name["gecko_ask"].inputSchema["required"] == ["session_id", "question"]
     assert by_name["gecko_sources"].inputSchema["required"] == ["session_id"]
+    assert by_name["gecko_project_economics"].inputSchema["required"] == ["project_id"]
 
 
 async def test_gecko_research_wrapper(_swap_client: _FakeClient) -> None:

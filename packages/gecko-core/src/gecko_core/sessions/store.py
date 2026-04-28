@@ -522,6 +522,34 @@ class SessionStore:
         row = await asyncio.to_thread(_insert)
         return UUID(str(row["id"]))
 
+    async def get_project_by_id_for_user(
+        self,
+        username: str,
+        project_id: UUID,
+    ) -> dict[str, Any] | None:
+        """Look up a project by (owner, id). None if missing, wrong owner, or soft-deleted.
+
+        Used by per-project endpoints (S2-09 economics, S2-05 wallet ops) to
+        enforce ownership without leaking existence — an authenticated user
+        querying someone else's project sees the same 404 they'd see for an
+        unknown UUID.
+        """
+
+        def _select() -> list[dict[str, Any]]:
+            res = (
+                self._client.table(self.PROJECTS_TABLE)
+                .select("*")
+                .eq("frames_username", username)
+                .eq("id", str(project_id))
+                .is_("deleted_at", None)
+                .limit(1)
+                .execute()
+            )
+            return cast(list[dict[str, Any]], res.data or [])
+
+        rows = await asyncio.to_thread(_select)
+        return rows[0] if rows else None
+
     async def get_project(self, username: str, name: str) -> dict[str, Any] | None:
         """Look up a project by (owner, name). None if missing or soft-deleted."""
 
@@ -783,6 +811,35 @@ class SessionStore:
                 .select("id,idea,status,cost_total_usd,created_at")
                 .eq("project_id", str(project_id))
                 .is_("deleted_at", None)
+                .order("created_at", desc=True)
+                .limit(limit)
+                .execute()
+            )
+            return cast(list[dict[str, Any]], res.data or [])
+
+        return await asyncio.to_thread(_select)
+
+    async def list_project_paid_sessions(
+        self,
+        project_id: UUID,
+        limit: int = 5,
+    ) -> list[dict[str, Any]]:
+        """Recent paid sessions for the project economics view (S2-09).
+
+        Selects only the columns the project-scoped economics endpoint needs:
+        tier, price paid, cost rollup, on-chain tx signature, network, and
+        timestamp. Filters to sessions that actually settled (have a
+        non-null x402_tx_signature) so the dashboard isn't polluted by 402s
+        the user abandoned mid-flow.
+        """
+
+        def _select() -> list[dict[str, Any]]:
+            res = (
+                self._client.table(self.SESSIONS_TABLE)
+                .select("id,tier,price_usd,cost_total_usd,x402_tx_signature,network,created_at")
+                .eq("project_id", str(project_id))
+                .is_("deleted_at", None)
+                .not_.is_("x402_tx_signature", None)
                 .order("created_at", desc=True)
                 .limit(limit)
                 .execute()

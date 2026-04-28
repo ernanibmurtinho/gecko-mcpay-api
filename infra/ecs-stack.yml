@@ -475,6 +475,13 @@ Resources:
               ValueFrom: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SSMPrefix}/CDP_API_KEY_ID
             - Name: CDP_API_KEY_SECRET
               ValueFrom: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SSMPrefix}/CDP_API_KEY_SECRET
+            # S2-05: Privy v2 server-side wallet credentials (per-project
+            # wallet provisioning). gecko_core.wallets.privy treats
+            # `__unset__` as truly unset.
+            - Name: PRIVY_APP_ID
+              ValueFrom: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SSMPrefix}/PRIVY_APP_ID
+            - Name: PRIVY_APP_SECRET
+              ValueFrom: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SSMPrefix}/PRIVY_APP_SECRET
           LogConfiguration:
             LogDriver: awslogs
             Options:

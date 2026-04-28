@@ -65,6 +65,14 @@ _SOURCES_DESCRIPTION = (
     "running `gecko_ask`."
 )
 
+_PROJECT_ECONOMICS_DESCRIPTION = (
+    "Per-project economics snapshot (S2-09): privy wallet address, live USDC "
+    "balance, budget cap + spend, and the 5 most recent paid sessions. Use "
+    "this to answer 'how much have I spent on project X?' and 'does my "
+    "project wallet have enough balance for the next run?'. Distinct from "
+    "`session_id`-scoped economics — pass a project UUID."
+)
+
 
 @server.list_tools()  # type: ignore[no-untyped-call,untyped-decorator]
 async def list_tools() -> list[Tool]:
@@ -149,6 +157,23 @@ async def list_tools() -> list[Tool]:
                 "required": ["session_id"],
             },
         ),
+        Tool(
+            name="gecko_project_economics",
+            description=_PROJECT_ECONOMICS_DESCRIPTION,
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "project_id": {
+                        "type": "string",
+                        "description": (
+                            "Project UUID. Get one from `gecko project list` "
+                            "or the V2 web app at app.geckovision.tech."
+                        ),
+                    },
+                },
+                "required": ["project_id"],
+            },
+        ),
     ]
 
 
@@ -181,6 +206,10 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
     if name == "gecko_sources":
         sources = await client.list_sources(session_id=str(arguments["session_id"]))
         return [TextContent(type="text", text=json.dumps(sources, indent=2))]
+
+    if name == "gecko_project_economics":
+        result = await client.get_project_economics(project_id=str(arguments["project_id"]))
+        return [TextContent(type="text", text=json.dumps(result, indent=2))]
 
     raise ValueError(f"unknown tool: {name}")
 

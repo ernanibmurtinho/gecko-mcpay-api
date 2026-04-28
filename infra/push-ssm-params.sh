@@ -79,6 +79,12 @@ declare -A PARAMS=(
   # without an init error before mainnet onboarding completes.
   [CDP_API_KEY_ID]="CDP_API_KEY_ID"
   [CDP_API_KEY_SECRET]="CDP_API_KEY_SECRET"
+
+  # Sprint 2 (S2-05) — Privy v2 server-side wallet credentials. Required
+  # only when per-project wallet provisioning is desired; sentinels keep the
+  # task booting cleanly until onboarding completes.
+  [PRIVY_APP_ID]="PRIVY_APP_ID"
+  [PRIVY_APP_SECRET]="PRIVY_APP_SECRET"
 )
 
 echo "==> Region:     $REGION"
@@ -101,6 +107,10 @@ declare -A REQUIRED_AT_BOOT=(
   # real values — see gecko_core.payments.cdp.is_unconfigured.
   [CDP_API_KEY_ID]="__unset__"
   [CDP_API_KEY_SECRET]="__unset__"
+  # Privy creds — same sentinel pattern as CDP. gecko_core.wallets.privy
+  # treats `__unset__` as truly unset and lazy-skips wallet provisioning.
+  [PRIVY_APP_ID]="__unset__"
+  [PRIVY_APP_SECRET]="__unset__"
 )
 
 SKIPPED=()

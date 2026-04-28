@@ -21,6 +21,7 @@ from typing import Literal
 
 from gecko_core.payments.cdp import is_unconfigured
 from gecko_core.payments.networks import NetworkConfig, resolve_network
+from gecko_core.wallets.privy import is_privy_configured as _privy_configured
 from pydantic import BaseModel
 
 X402Mode = Literal["stub", "live", "frames"]
@@ -47,6 +48,12 @@ class Settings(BaseModel):
     cdp_api_key_id: str | None = None
     cdp_api_key_secret: str | None = None
 
+    # Privy v2 server-side wallet credentials (S2-05). Both required for
+    # per-project wallet provisioning; absent values just skip provisioning
+    # silently (lazy-create on first paid call still works once configured).
+    privy_app_id: str | None = None
+    privy_app_secret: str | None = None
+
     # Pricing — basic and pro tiers exposed as separate routes.
     research_basic_price: str = "$20.00"
     research_pro_price: str = "$0.75"
@@ -58,6 +65,17 @@ class Settings(BaseModel):
     events_secret: str = "dev-events-secret-not-for-production"
 
     model_config = {"frozen": True, "arbitrary_types_allowed": True}
+
+    def is_privy_configured(self) -> bool:
+        """True iff PRIVY_APP_ID + PRIVY_APP_SECRET are set + non-sentinel.
+
+        Delegates to `gecko_core.wallets.privy.is_privy_configured` so the
+        sentinel list stays in one place.
+        """
+        return _privy_configured(
+            app_id=self.privy_app_id,
+            app_secret=self.privy_app_secret,
+        )
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -83,6 +101,13 @@ class Settings(BaseModel):
         # surface them in /healthz when present without exposing secrets.
         cdp_key_id = os.environ.get("CDP_API_KEY_ID")
         cdp_key_secret = os.environ.get("CDP_API_KEY_SECRET")
+
+        # Privy creds — pulled regardless of network. When sentinel-detected,
+        # is_privy_configured() returns False and the api lazy-skips wallet
+        # provisioning. We do NOT hard-fail at boot; devnet without a Privy
+        # account still serves users without project_id.
+        privy_app_id = os.environ.get("PRIVY_APP_ID")
+        privy_app_secret = os.environ.get("PRIVY_APP_SECRET")
 
         if mode != "stub":
             missing: list[str] = []
@@ -126,6 +151,8 @@ class Settings(BaseModel):
             network_config=net,
             cdp_api_key_id=cdp_key_id,
             cdp_api_key_secret=cdp_key_secret,
+            privy_app_id=privy_app_id,
+            privy_app_secret=privy_app_secret,
             research_basic_price=basic_price,
             research_pro_price=pro_price,
             events_secret=events_secret,
