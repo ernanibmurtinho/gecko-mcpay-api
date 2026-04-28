@@ -468,6 +468,13 @@ Resources:
               ValueFrom: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SSMPrefix}/LLM_ROUTER
             - Name: OPENROUTER_API_KEY
               ValueFrom: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SSMPrefix}/OPENROUTER_API_KEY
+            # S2-02: CDP facilitator credentials (used only when
+            # X402_NETWORK=solana-mainnet; gecko-core treats `__unset__`
+            # sentinels as truly unset).
+            - Name: CDP_API_KEY_ID
+              ValueFrom: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SSMPrefix}/CDP_API_KEY_ID
+            - Name: CDP_API_KEY_SECRET
+              ValueFrom: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SSMPrefix}/CDP_API_KEY_SECRET
           LogConfiguration:
             LogDriver: awslogs
             Options:

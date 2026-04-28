@@ -72,6 +72,13 @@ declare -A PARAMS=(
   # Sprint 1 events token (S1-05) — added 2026-04-28
   # HMAC secret for Pro tier SSE events tokens + retry tokens.
   [EVENTS_SECRET]="EVENTS_SECRET"
+
+  # Sprint 2 (S2-02/03) — CDP facilitator credentials. Required when
+  # X402_NETWORK=solana-mainnet. On devnet they're ignored. Pushed even when
+  # empty (sentinels) so the ECS task def `secrets:` ValueFrom resolves
+  # without an init error before mainnet onboarding completes.
+  [CDP_API_KEY_ID]="CDP_API_KEY_ID"
+  [CDP_API_KEY_SECRET]="CDP_API_KEY_SECRET"
 )
 
 echo "==> Region:     $REGION"
@@ -89,6 +96,11 @@ declare -A REQUIRED_AT_BOOT=(
   [LLM_ROUTER]="openai"
   [OPENROUTER_API_KEY]="__unset__"
   [EVENTS_SECRET]="__dev_change_me__"
+  # CDP creds: sentinel keeps ECS task spinning up before onboarding. Code
+  # treats `__unset__` as truly unset and refuses to boot mainnet without
+  # real values — see gecko_core.payments.cdp.is_unconfigured.
+  [CDP_API_KEY_ID]="__unset__"
+  [CDP_API_KEY_SECRET]="__unset__"
 )
 
 SKIPPED=()
@@ -141,8 +153,11 @@ fi
 
 echo ""
 echo "Quick reference for two big knobs:"
-echo "  X402_NETWORK=solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1   # devnet"
-echo "  X402_NETWORK=solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp   # mainnet-beta"
+echo "  X402_NETWORK=solana-devnet                              # devnet (default)"
+echo "  X402_NETWORK=solana-mainnet                             # mainnet-beta (CDP)"
+echo "  # Legacy CAIP-2 form still accepted with a deprecation warning:"
+echo "  # X402_NETWORK=solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1  # devnet"
+echo "  # X402_NETWORK=solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp  # mainnet-beta"
 echo "  RESEARCH_BASIC_PRICE='\$0.10'                           # devnet test"
 echo "  RESEARCH_BASIC_PRICE='\$0.50'                           # mainnet starter"
 echo "  RESEARCH_BASIC_PRICE='\$20.00'                          # production target"

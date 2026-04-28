@@ -31,6 +31,7 @@ from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from gecko_core.models import AskResult, SourceInfo, Tier
+from gecko_core.payments.cdp import CDPCredentials, build_cdp_facilitator_client
 from gecko_core.sessions.store import SessionStore
 from pydantic import BaseModel, Field
 from slowapi import Limiter
@@ -66,16 +67,32 @@ logger = logging.getLogger(__name__)
 
 
 def _build_facilitator(settings: Settings) -> FacilitatorClient:
-    """Pick the right facilitator client for the configured mode.
+    """Pick the right facilitator client for the configured mode + network.
 
     Stub returns a fake settle. Live and frames talk to a real facilitator
-    over HTTP. Same protocol both sides; the rest of the stack doesn't care.
+    over HTTP. On `solana-mainnet` we route to CDP (Coinbase Developer
+    Platform) and sign every verify/settle with a fresh JWT bearer token.
+    Same protocol surface in all three cases — the rest of the stack
+    doesn't care which client it's holding.
     """
     if settings.x402_mode == "stub":
         return StubFacilitatorClient(network=settings.x402_network)
-    # Live + frames both go through HTTPFacilitatorClient. Frames-specific
-    # auth headers can be wired later via FacilitatorConfig.create_headers.
+
+    # Live + frames talk to a real facilitator. Mainnet → CDP with JWT auth;
+    # devnet → public x402.org (or whatever X402_FACILITATOR_URL overrides).
     assert settings.x402_facilitator_url is not None  # checked in Settings.from_env
+    if settings.x402_network == "solana-mainnet":
+        # `from_env` already verified non-sentinel CDP creds for mainnet.
+        assert settings.cdp_api_key_id is not None
+        assert settings.cdp_api_key_secret is not None
+        creds = CDPCredentials.from_env_values(
+            settings.cdp_api_key_id,
+            settings.cdp_api_key_secret,
+        )
+        return build_cdp_facilitator_client(
+            creds,
+            base_url=settings.x402_facilitator_url,
+        )
     return HTTPFacilitatorClient(FacilitatorConfig(url=settings.x402_facilitator_url))
 
 

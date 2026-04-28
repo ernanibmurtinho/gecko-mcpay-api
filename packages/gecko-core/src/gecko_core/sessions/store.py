@@ -69,6 +69,27 @@ class SessionEconomics(BaseModel):
     model_config = {"frozen": True}
 
 
+class ProjectWallet(BaseModel):
+    """Read model for a project's Privy wallet + budget snapshot.
+
+    Fields mirror the columns added in migration 013_project_wallets.sql.
+    `privy_wallet_id` / `privy_wallet_address` are nullable until S2-05
+    lazy-provisioning runs. `budget_cap_usd` / `spent_usd` are NUMERIC in
+    Postgres; we surface them as Decimal so callers don't lose precision
+    when comparing against the cap.
+    """
+
+    privy_wallet_id: str | None
+    privy_wallet_address: str | None
+    budget_cap_usd: Decimal
+    spent_usd: Decimal
+
+    model_config = {"frozen": True}
+
+
+SettlementNetwork = Literal["solana-devnet", "solana-mainnet"]
+
+
 class SessionRecord(BaseModel):
     """Internal projection of a `sessions` row.
 
@@ -162,6 +183,34 @@ class SessionStore:
         Solana explorer link shown on stage during the demo.
         """
         patch: dict[str, Any] = {"x402_tx_signature": tx_signature}
+
+        def _update() -> None:
+            (
+                self._client.table(self.SESSIONS_TABLE)
+                .update(patch)
+                .eq("id", str(session_id))
+                .execute()
+            )
+
+        await asyncio.to_thread(_update)
+
+    async def set_settlement_network(
+        self,
+        session_id: UUID,
+        network: SettlementNetwork,
+    ) -> None:
+        """Persist which Solana cluster this session's x402 tx settled on.
+
+        Used during the cutover canary (10% mainnet rollout) so forensic
+        queries can attribute tx signatures to devnet vs mainnet without
+        round-tripping to an explorer. Migration 012 adds the column with
+        a CHECK constraint matching `SettlementNetwork`.
+
+        `session_id` is the unit (we don't yet have a separate
+        `x402_settlements` table — the signature lives on the session row).
+        Renamed from the spec's `settlement_id` to reflect that.
+        """
+        patch: dict[str, Any] = {"network": network}
 
         def _update() -> None:
             (
@@ -629,6 +678,98 @@ class SessionStore:
 
         await asyncio.to_thread(_update)
 
+    async def set_project_wallet(
+        self,
+        project_id: UUID,
+        *,
+        privy_wallet_id: str,
+        privy_wallet_address: str,
+    ) -> None:
+        """Bind a Privy v2 embedded wallet to a project (Sprint 2 S2-05).
+
+        Sets both columns in one update so callers don't have to deal with
+        a half-provisioned project. Idempotent at the row level — calling
+        twice with the same values is a no-op; calling with a different
+        `privy_wallet_id` will trip the unique index from migration 013.
+        """
+        patch: dict[str, Any] = {
+            "privy_wallet_id": privy_wallet_id,
+            "privy_wallet_address": privy_wallet_address,
+        }
+
+        def _update() -> None:
+            (
+                self._client.table(self.PROJECTS_TABLE)
+                .update(patch)
+                .eq("id", str(project_id))
+                .execute()
+            )
+
+        await asyncio.to_thread(_update)
+
+    async def get_project_wallet(self, project_id: UUID) -> ProjectWallet | None:
+        """Return the project's wallet + budget snapshot, or None if missing.
+
+        Filters out soft-deleted projects. `privy_wallet_id` /
+        `privy_wallet_address` are NULL for projects that haven't been
+        lazy-provisioned yet — callers must handle that case.
+        """
+
+        def _select() -> list[dict[str, Any]]:
+            res = (
+                self._client.table(self.PROJECTS_TABLE)
+                .select("privy_wallet_id,privy_wallet_address,budget_cap_usd,spent_usd")
+                .eq("id", str(project_id))
+                .is_("deleted_at", None)
+                .limit(1)
+                .execute()
+            )
+            return cast(list[dict[str, Any]], res.data or [])
+
+        rows = await asyncio.to_thread(_select)
+        if not rows:
+            return None
+        row = rows[0]
+        return ProjectWallet(
+            privy_wallet_id=row.get("privy_wallet_id"),
+            privy_wallet_address=row.get("privy_wallet_address"),
+            budget_cap_usd=Decimal(str(row.get("budget_cap_usd") or 0)),
+            spent_usd=Decimal(str(row.get("spent_usd") or 0)),
+        )
+
+    async def increment_project_spent(
+        self,
+        project_id: UUID,
+        delta_usd: Decimal,
+    ) -> Decimal:
+        """Atomically add `delta_usd` to projects.spent_usd. Returns the new total.
+
+        Implemented via the `gecko_increment_project_spent` RPC so concurrent
+        session-completion handlers can't race on a read-modify-write. The
+        RPC performs `UPDATE projects SET spent_usd = spent_usd + $1
+        WHERE id = $2 RETURNING spent_usd` — see migration 013 (or its
+        follow-up that ships the RPC) for the exact definition.
+
+        NOTE: until the trigger lands (web3-engineer, Sprint 2), the API is
+        responsible for calling this on each session settle. Negative deltas
+        are allowed for refund flows.
+        """
+
+        def _rpc() -> Any:
+            res = self._client.rpc(
+                "gecko_increment_project_spent",
+                {
+                    "p_project_id": str(project_id),
+                    "p_delta_usd": str(delta_usd),
+                },
+            ).execute()
+            return res.data
+
+        data = await asyncio.to_thread(_rpc)
+        if data is None:
+            raise RuntimeError(f"increment_project_spent: project {project_id} not found")
+        return Decimal(str(data))
+
     async def list_project_sessions(
         self,
         project_id: UUID,
@@ -834,7 +975,9 @@ __all__ = [
     "PaymentMode",
     "ProEventRow",
     "ProEventType",
+    "ProjectWallet",
     "SessionEconomics",
     "SessionRecord",
     "SessionStore",
+    "SettlementNetwork",
 ]
