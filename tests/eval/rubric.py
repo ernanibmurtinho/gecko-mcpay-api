@@ -257,10 +257,13 @@ def score_transcript_live(transcript: MockTranscript) -> RubricScores:
     This is a known divergence between mock and live axis-4 semantics —
     documented in tests/eval/README.md.
     """
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    # Anthropic SDK reads ANTHROPIC_API_KEY by default. Accept CLAUDE_API_KEY
+    # as a fallback alias because some local .env conventions use the
+    # provider-neutral "CLAUDE" name.
+    api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("CLAUDE_API_KEY")
     if not api_key:
         raise RuntimeError(
-            "ANTHROPIC_API_KEY is not set; live rubric requires it. "
+            "ANTHROPIC_API_KEY (or CLAUDE_API_KEY) is not set; live rubric requires it. "
             "Run without --live to use the deterministic mock scorer."
         )
 

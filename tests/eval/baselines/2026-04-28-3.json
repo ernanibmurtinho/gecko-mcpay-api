@@ -1,0 +1,294 @@
+{
+  "date": "2026-04-28",
+  "git_sha": "ade5c6f",
+  "mode": "live",
+  "reruns": 1,
+  "ideas": [
+    {
+      "id": "bad-uber-for-dogwalkers",
+      "expected_verdict": "kill",
+      "actual_verdict": "kill",
+      "scores": {
+        "agent_voice": 5.5,
+        "source_grounding": 4.0,
+        "verdict_justification": 5.0,
+        "cost_predictability": 4.5
+      },
+      "wall_seconds": 22.105,
+      "tokens_total": 5638,
+      "cost_usd": 0.0012
+    },
+    {
+      "id": "bad-another-todo-app",
+      "expected_verdict": "kill",
+      "actual_verdict": "kill",
+      "scores": {
+        "agent_voice": 7.5,
+        "source_grounding": 4.0,
+        "verdict_justification": 7.0,
+        "cost_predictability": 6.5
+      },
+      "wall_seconds": 26.594,
+      "tokens_total": 6618,
+      "cost_usd": 0.0015
+    },
+    {
+      "id": "bad-tax-ai-no-lawyer",
+      "expected_verdict": "kill",
+      "actual_verdict": "kill",
+      "scores": {
+        "agent_voice": 7.5,
+        "source_grounding": 5.5,
+        "verdict_justification": 6.0,
+        "cost_predictability": 7.0
+      },
+      "wall_seconds": 24.881,
+      "tokens_total": 6164,
+      "cost_usd": 0.0014
+    },
+    {
+      "id": "bad-gpt-wrapper-marketing",
+      "expected_verdict": "kill",
+      "actual_verdict": "kill",
+      "scores": {
+        "agent_voice": 7.5,
+        "source_grounding": 5.5,
+        "verdict_justification": 6.5,
+        "cost_predictability": 6.0
+      },
+      "wall_seconds": 24.613,
+      "tokens_total": 6241,
+      "cost_usd": 0.0014
+    },
+    {
+      "id": "bad-crypto-social",
+      "expected_verdict": "kill",
+      "actual_verdict": "kill",
+      "scores": {
+        "agent_voice": 8.5,
+        "source_grounding": 5.5,
+        "verdict_justification": 6.5,
+        "cost_predictability": 6.0
+      },
+      "wall_seconds": 29.147,
+      "tokens_total": 6223,
+      "cost_usd": 0.0014
+    },
+    {
+      "id": "bad-ai-resume-builder",
+      "expected_verdict": "kill",
+      "actual_verdict": "kill",
+      "scores": {
+        "agent_voice": 7.5,
+        "source_grounding": 5.5,
+        "verdict_justification": 6.5,
+        "cost_predictability": 6.0
+      },
+      "wall_seconds": 27.444,
+      "tokens_total": 5710,
+      "cost_usd": 0.0012
+    },
+    {
+      "id": "bad-ar-shopping-glasses",
+      "expected_verdict": "kill",
+      "actual_verdict": "ship",
+      "scores": {
+        "agent_voice": 5.5,
+        "source_grounding": 4.0,
+        "verdict_justification": 5.0,
+        "cost_predictability": 4.5
+      },
+      "wall_seconds": 24.269,
+      "tokens_total": 5742,
+      "cost_usd": 0.0013
+    },
+    {
+      "id": "bad-gpt-therapy",
+      "expected_verdict": "kill",
+      "actual_verdict": "kill",
+      "scores": {
+        "agent_voice": 8.5,
+        "source_grounding": 5.5,
+        "verdict_justification": 6.5,
+        "cost_predictability": 7.0
+      },
+      "wall_seconds": 27.34,
+      "tokens_total": 5918,
+      "cost_usd": 0.0013
+    },
+    {
+      "id": "bad-nft-loyalty",
+      "expected_verdict": "kill",
+      "actual_verdict": "kill",
+      "scores": {
+        "agent_voice": 8.5,
+        "source_grounding": 6.0,
+        "verdict_justification": 7.0,
+        "cost_predictability": 6.5
+      },
+      "wall_seconds": 25.908,
+      "tokens_total": 6169,
+      "cost_usd": 0.0014
+    },
+    {
+      "id": "bad-meeting-summarizer",
+      "expected_verdict": "kill",
+      "actual_verdict": "kill",
+      "scores": {
+        "agent_voice": 5.5,
+        "source_grounding": 5.0,
+        "verdict_justification": 6.0,
+        "cost_predictability": 4.0
+      },
+      "wall_seconds": 24.063,
+      "tokens_total": 5600,
+      "cost_usd": 0.0012
+    },
+    {
+      "id": "good-devbrief",
+      "expected_verdict": "ship",
+      "actual_verdict": "ship",
+      "scores": {
+        "agent_voice": 5.5,
+        "source_grounding": 5.0,
+        "verdict_justification": 6.0,
+        "cost_predictability": 4.0
+      },
+      "wall_seconds": 22.428,
+      "tokens_total": 5753,
+      "cost_usd": 0.0012
+    },
+    {
+      "id": "good-mcp-postgres-explainer",
+      "expected_verdict": "ship",
+      "actual_verdict": "ship",
+      "scores": {
+        "agent_voice": 7.5,
+        "source_grounding": 4.5,
+        "verdict_justification": 6.0,
+        "cost_predictability": 7.0
+      },
+      "wall_seconds": 24.828,
+      "tokens_total": 6075,
+      "cost_usd": 0.0014
+    },
+    {
+      "id": "good-vet-tele-rx",
+      "expected_verdict": "ship",
+      "actual_verdict": "ship",
+      "scores": {
+        "agent_voice": 5.5,
+        "source_grounding": 4.5,
+        "verdict_justification": 4.0,
+        "cost_predictability": 3.5
+      },
+      "wall_seconds": 22.684,
+      "tokens_total": 6051,
+      "cost_usd": 0.0013
+    },
+    {
+      "id": "good-repo-grounded-research",
+      "expected_verdict": "ship",
+      "actual_verdict": "kill",
+      "scores": {
+        "agent_voice": 5.5,
+        "source_grounding": 4.5,
+        "verdict_justification": 7.0,
+        "cost_predictability": 3.5
+      },
+      "wall_seconds": 21.107,
+      "tokens_total": 5580,
+      "cost_usd": 0.0012
+    },
+    {
+      "id": "good-clinical-trial-screener",
+      "expected_verdict": "ship",
+      "actual_verdict": "kill",
+      "scores": {
+        "agent_voice": 5.5,
+        "source_grounding": 4.5,
+        "verdict_justification": 6.5,
+        "cost_predictability": 4.0
+      },
+      "wall_seconds": 24.152,
+      "tokens_total": 5849,
+      "cost_usd": 0.0013
+    },
+    {
+      "id": "good-cli-stripe-replay",
+      "expected_verdict": "ship",
+      "actual_verdict": "kill",
+      "scores": {
+        "agent_voice": 5.5,
+        "source_grounding": 4.5,
+        "verdict_justification": 7.0,
+        "cost_predictability": 4.0
+      },
+      "wall_seconds": 22.427,
+      "tokens_total": 5878,
+      "cost_usd": 0.0013
+    },
+    {
+      "id": "good-mcp-airtable-typed",
+      "expected_verdict": "ship",
+      "actual_verdict": "ship",
+      "scores": {
+        "agent_voice": 7.5,
+        "source_grounding": 4.5,
+        "verdict_justification": 6.0,
+        "cost_predictability": 6.5
+      },
+      "wall_seconds": 30.706,
+      "tokens_total": 6989,
+      "cost_usd": 0.0016
+    },
+    {
+      "id": "good-cap-table-diff",
+      "expected_verdict": "ship",
+      "actual_verdict": "kill",
+      "scores": {
+        "agent_voice": 7.5,
+        "source_grounding": 5.5,
+        "verdict_justification": 5.0,
+        "cost_predictability": 6.5
+      },
+      "wall_seconds": 25.169,
+      "tokens_total": 5899,
+      "cost_usd": 0.0013
+    },
+    {
+      "id": "good-faa-part107-checklist",
+      "expected_verdict": "ship",
+      "actual_verdict": "ship",
+      "scores": {
+        "agent_voice": 4.5,
+        "source_grounding": 4.0,
+        "verdict_justification": 5.5,
+        "cost_predictability": 3.0
+      },
+      "wall_seconds": 28.093,
+      "tokens_total": 5535,
+      "cost_usd": 0.0012
+    },
+    {
+      "id": "good-grant-budget-rewriter",
+      "expected_verdict": "ship",
+      "actual_verdict": "kill",
+      "scores": {
+        "agent_voice": 8.0,
+        "source_grounding": 4.5,
+        "verdict_justification": 7.0,
+        "cost_predictability": 6.5
+      },
+      "wall_seconds": 25.529,
+      "tokens_total": 6510,
+      "cost_usd": 0.0015
+    }
+  ],
+  "aggregate": {
+    "kill_rate": 0.7,
+    "verdict_accuracy": 0.7,
+    "median_score": 6.125,
+    "median_cost_usd": 0.0013
+  }
+}

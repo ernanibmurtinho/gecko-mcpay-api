@@ -6,6 +6,7 @@ calls — `--live` is the manual escape hatch.
 
 from __future__ import annotations
 
+import inspect
 import json
 from pathlib import Path
 
@@ -96,10 +97,26 @@ def test_live_without_openai_key_errors(monkeypatch: pytest.MonkeyPatch) -> None
 
 
 def test_live_without_anthropic_key_errors(monkeypatch: pytest.MonkeyPatch) -> None:
-    """If OPENAI is set but ANTHROPIC isn't, fail before spending on agents."""
+    """If OPENAI is set but neither ANTHROPIC nor CLAUDE key is set,
+    fail before spending on agents."""
     monkeypatch.setenv("OPENAI_API_KEY", "test-key-openai")
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("CLAUDE_API_KEY", raising=False)
     import asyncio
 
     with pytest.raises(SystemExit, match="ANTHROPIC_API_KEY"):
         asyncio.run(runner._run_live("any idea"))
+
+
+def test_live_accepts_claude_api_key_alias() -> None:
+    """CLAUDE_API_KEY should satisfy the Anthropic-key check.
+
+    Asserted against the rubric module directly (not via _run_live) so we
+    don't depend on network behavior with a fake OpenAI key.
+    """
+    from tests.eval import rubric
+
+    # Inspect the source — both names must appear in the live-mode env check.
+    src = inspect.getsource(rubric.score_transcript_live)
+    assert "ANTHROPIC_API_KEY" in src
+    assert "CLAUDE_API_KEY" in src

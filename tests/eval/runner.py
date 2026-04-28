@@ -113,10 +113,10 @@ async def _run_live(idea_text: str) -> MockTranscript:
         )
     # Also fail-fast check for the rubric judge so we don't burn $$$ on agents
     # only to crash at scoring time.
-    if not os.environ.get("ANTHROPIC_API_KEY"):
+    if not (os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("CLAUDE_API_KEY")):
         raise SystemExit(
-            "ANTHROPIC_API_KEY is not set; --live requires it for the Sonnet 4.6 "
-            "rubric judge. Run without --live to use mock mode (default, $0)."
+            "ANTHROPIC_API_KEY (or CLAUDE_API_KEY) is not set; --live requires it for "
+            "the Sonnet 4.6 rubric judge. Run without --live to use mock mode (default, $0)."
         )
 
     llm_config = {
