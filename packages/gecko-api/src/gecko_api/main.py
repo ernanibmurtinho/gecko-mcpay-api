@@ -82,7 +82,17 @@ def _build_facilitator(settings: Settings) -> FacilitatorClient:
     doesn't care which client it's holding.
     """
     if settings.x402_mode == "stub":
-        return StubFacilitatorClient(network=settings.x402_network)
+        # Stub must advertise the same network identifier the routes register
+        # under. The x402 lib reconciles route.network against
+        # facilitator.get_supported().kinds[*].network at init time; a mismatch
+        # raises RouteConfigurationError. Routes use CAIP-2 (chain id), so the
+        # stub does too.
+        stub_network = (
+            settings.network_config.chain_id
+            if settings.network_config
+            else settings.x402_network
+        )
+        return StubFacilitatorClient(network=stub_network)
 
     # Live + frames talk to a real facilitator. Mainnet → CDP with JWT auth;
     # devnet → public x402.org (or whatever X402_FACILITATOR_URL overrides).
@@ -104,6 +114,15 @@ def _build_facilitator(settings: Settings) -> FacilitatorClient:
 
 def _build_routes(settings: Settings) -> dict[str, RouteConfig]:
     pay_to = settings.gecko_wallet_address or "STUB_WALLET_ADDRESS_NOT_FOR_LIVE"
+    # The x402 lib's RouteConfig.PaymentOption.network expects the CAIP-2
+    # chain id (e.g. "solana:EtW..."), NOT the friendly name. The lib runs a
+    # facilitator-support check at registration time; passing "solana-devnet"
+    # raises RouteConfigurationError("Facilitator doesn't support \"exact\"
+    # on \"solana-devnet\"") on the first request. The friendly name lives
+    # only in our env / settings / runbook for human ergonomics.
+    chain_id = (
+        settings.network_config.chain_id if settings.network_config else settings.x402_network
+    )
     return {
         "POST /research": RouteConfig(
             accepts=[
@@ -111,7 +130,7 @@ def _build_routes(settings: Settings) -> dict[str, RouteConfig]:
                     scheme="exact",
                     pay_to=pay_to,
                     price=settings.research_basic_price,
-                    network=settings.x402_network,
+                    network=chain_id,
                 ),
             ],
             description="Run a Builder Bootstrap research session (basic tier)",
@@ -122,7 +141,7 @@ def _build_routes(settings: Settings) -> dict[str, RouteConfig]:
                     scheme="exact",
                     pay_to=pay_to,
                     price=settings.research_pro_price,
-                    network=settings.x402_network,
+                    network=chain_id,
                 ),
             ],
             description="Run a Builder Bootstrap research session (pro tier)",
