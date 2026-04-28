@@ -1,0 +1,36 @@
+name: Pro tier eval (mock)
+
+# Mock-mode runs are zero-cost and fast (~3s). They run on every PR and
+# nightly on main to catch regressions in the rubric or canned transcripts.
+# Live runs (`--live`) are manual-only — kicked off from Actions tab when
+# the routing matrix or pro/agents.py prompts are meaningfully changed.
+
+on:
+  pull_request:
+    paths:
+      - "tests/eval/**"
+      - "packages/gecko-core/src/gecko_core/orchestration/pro/**"
+      - ".github/workflows/eval.yml"
+  schedule:
+    - cron: "0 7 * * *"  # 07:00 UTC nightly
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mock:
+    name: Eval harness (mock mode)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.5.30"
+      - name: Sync workspace
+        run: uv sync
+      - name: Run eval harness (mock)
+        run: uv run python -m tests.eval.runner --no-save
+      - name: Run eval self-tests
+        run: uv run pytest tests/eval -v
