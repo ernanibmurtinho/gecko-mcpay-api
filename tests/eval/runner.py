@@ -34,6 +34,8 @@ import statistics
 import subprocess
 import sys
 import time
+import uuid
+from collections import Counter
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -45,6 +47,11 @@ from tests.eval.rubric import (
     score_transcript_live,
     score_transcript_mock,
 )
+
+# Stable namespace for deriving deterministic UUIDs from `(idea_id, index)`.
+# We do not need cryptographic uniqueness — only that two runs of the harness
+# produce the same precedent UUIDs so transcript diffing stays reproducible.
+_PRECEDENT_NS = uuid.UUID("00000000-0000-4000-8000-000000000001")
 
 EVAL_DIR = Path(__file__).parent
 SUITES_DIR = EVAL_DIR / "suites"
@@ -127,8 +134,92 @@ def _transcript_total_tokens(t: MockTranscript) -> int:
     return sum(turn["tokens_in"] + turn["tokens_out"] for turn in t.values())
 
 
-async def _run_live(idea_text: str) -> MockTranscript:
-    """Run the real Pro debate; return a transcript shaped like a MockTranscript."""
+def _build_mock_precedents(idea_id: str, raw: list[dict[str, Any]] | None) -> list[Any] | None:
+    """Convert the JSON-side `mock_precedents` list into `GeckoPrecedent` models.
+
+    Returns `None` when the suite entry has no precedents, so the orchestrator
+    falls back to its empty-state path (renders "No prior precedents found.").
+    UUIDs are derived deterministically from `(idea_id, index)` so re-running
+    the harness produces stable IDs — useful for diffing live runs.
+
+    Lazy-imports the model so this helper stays free for callers that never
+    flip `--live`.
+    """
+    if not raw:
+        return None
+    from gecko_core.sessions.store import GeckoPrecedent
+
+    out: list[Any] = []
+    for i, p in enumerate(raw):
+        out.append(
+            GeckoPrecedent(
+                id=uuid.uuid5(_PRECEDENT_NS, f"{idea_id}:{i}"),
+                session_id=None,
+                user_id=None,
+                idea_summary=str(p["idea_summary"]),
+                verdict=p["verdict"],
+                key_comparables=list(p.get("key_comparables", [])),
+                similarity=float(p["similarity"]) if p.get("similarity") is not None else None,
+            )
+        )
+    return out
+
+
+def _build_live_llm_config(api_key: str) -> dict[str, Any]:
+    """Per-agent llm_config wrapper for live runs.
+
+    The `config_list` here is the *base* — the orchestrator deep-copies and
+    overrides `model` per agent when a `model_matrix` is supplied. We pin a
+    single api_key on the wrapper so AG2's OpenAIWrapper picks it up across
+    every model in the matrix.
+    """
+    return {
+        "config_list": [{"model": "gpt-4o-mini", "api_key": api_key}],
+        "temperature": 0.2,
+    }
+
+
+# Per-agent model assignment for live runs. The Judge gets `gpt-4o` because
+# the v5.x prompt contains a 5-step conditional pipeline that `gpt-4o-mini`
+# fails to execute reliably (see docs/prompts/v5_3-changelog.md and the
+# Apr-28 live runs at tests/eval/live_runs/2026-04-28-general*.json).
+# Critic/Architect/Scoper/Analyst stay on gpt-4o-mini for cost.
+_LIVE_MODEL_MATRIX: dict[str, str] = {
+    "analyst": "gpt-4o-mini",
+    "critic": "gpt-4o-mini",
+    "architect": "gpt-4o-mini",
+    "scoper": "gpt-4o-mini",
+    "judge": "gpt-4o",
+}
+
+# Per-agent temperature for live runs.
+#   - Critic at 0.1: stop freelancing extra kill criteria sample-to-sample.
+#   - Judge at 0.0: deterministic execution of the v5.x decision pipeline so
+#     verdict variance across the 3-rerun majority vote comes from genuine
+#     pipeline ambiguity, not from sampling jitter.
+#   - Analyst/Architect/Scoper at 0.3: keep some lexical diversity so the
+#     Critic and Judge don't see five copies of the same paragraph.
+_LIVE_TEMPERATURE_MATRIX: dict[str, float] = {
+    "analyst": 0.3,
+    "critic": 0.1,
+    "architect": 0.3,
+    "scoper": 0.3,
+    "judge": 0.0,
+}
+
+
+async def _run_live(
+    idea_text: str,
+    *,
+    rag_context: str = "",
+    precedents: list[Any] | None = None,
+) -> MockTranscript:
+    """Run the real Pro debate; return a transcript shaped like a MockTranscript.
+
+    `rag_context` and `precedents` default to empty so existing test callers
+    (`tests/eval/test_runner.py`) keep working. Production callers from
+    `_evaluate_one` thread the per-idea seed values from the suite JSON.
+    """
     # Imported here so mock mode doesn't pay AG2 import cost.
     import os
 
@@ -148,11 +239,15 @@ async def _run_live(idea_text: str) -> MockTranscript:
             "the Sonnet 4.6 rubric judge. Run without --live to use mock mode (default, $0)."
         )
 
-    llm_config = {
-        "config_list": [{"model": "gpt-4o-mini", "api_key": api_key}],
-        "temperature": 0.3,
-    }
-    transcript = await generate(idea=idea_text, rag_context="", llm_config=llm_config)
+    llm_config = _build_live_llm_config(api_key)
+    transcript = await generate(
+        idea=idea_text,
+        rag_context=rag_context,
+        llm_config=llm_config,
+        model_matrix=_LIVE_MODEL_MATRIX,
+        temperature_matrix=_LIVE_TEMPERATURE_MATRIX,
+        precedents=precedents,
+    )
     out: MockTranscript = {}
     for turn in transcript.turns:
         out[turn.agent] = {
@@ -173,6 +268,20 @@ def _normalize_verdict(v: str) -> str:
     return "kill" if v in ("kill", "pivot") else v
 
 
+def _majority_verdict(verdicts: list[str]) -> str:
+    """Pick the most common verdict across reruns.
+
+    Ties are broken by `Counter.most_common`'s insertion order — i.e. the
+    earliest-occurring verdict in the rerun sequence wins. This is fine
+    because the harness already documents `reruns >= 1` and most calibration
+    runs use `reruns=1` (no ties possible). For `reruns=3`, ties (1-1-1)
+    are rare and treating either as "winner" is acceptable noise.
+    """
+    if not verdicts:
+        return "unknown"
+    return Counter(verdicts).most_common(1)[0][0]
+
+
 async def _evaluate_one(
     idea: dict[str, Any],
     *,
@@ -187,14 +296,27 @@ async def _evaluate_one(
     tokens_accum: list[int] = []
     cost_accum: list[float] = []
 
+    # Per-idea seed values for the live path. Mock mode ignores these
+    # (the canned transcripts are pre-baked).
+    rag_context = str(idea.get("rag_context", "")) if live else ""
+    precedents = _build_mock_precedents(idea["id"], idea.get("mock_precedents")) if live else None
+
+    expected = idea.get("expected_verdict")
+
     for _ in range(reruns):
         t0 = time.perf_counter()
         if live:
-            transcript = await _run_live(idea["text"])
-            scores = score_transcript_live(transcript)
+            transcript = await _run_live(
+                idea["text"],
+                rag_context=rag_context,
+                precedents=precedents,
+            )
+            scores = score_transcript_live(transcript, expected_verdict=expected)
         else:
             transcript = get_mock_transcript(idea["id"])
-            scores = score_transcript_mock(transcript, cohort_median_tokens)
+            scores = score_transcript_mock(
+                transcript, cohort_median_tokens, expected_verdict=expected
+            )
         wall = time.perf_counter() - t0
 
         score_accum.append(scores)
@@ -206,7 +328,8 @@ async def _evaluate_one(
         cost_accum.append(_estimate_cost(in_total, out_total))
         wall_accum.append(wall)
 
-    # Average scores across reruns; verdict = mode-equivalent (first one).
+    # Average scores across reruns; verdict = majority vote so a single
+    # unlucky sample can't tip a borderline ship to kill (or vice versa).
     avg = RubricScores(
         agent_voice=round(statistics.mean(s.agent_voice for s in score_accum), 2),
         source_grounding=round(statistics.mean(s.source_grounding for s in score_accum), 2),
@@ -214,16 +337,33 @@ async def _evaluate_one(
             statistics.mean(s.verdict_justification for s in score_accum), 2
         ),
         cost_predictability=round(statistics.mean(s.cost_predictability for s in score_accum), 2),
+        verdict_correctness=round(statistics.mean(s.verdict_correctness for s in score_accum), 2),
     )
     return IdeaResult(
         id=idea["id"],
         expected_verdict=idea["expected_verdict"],
-        actual_verdict=verdicts[0],
+        actual_verdict=_majority_verdict(verdicts),
         scores=avg.to_dict(),
         wall_seconds=round(statistics.mean(wall_accum), 3),
         tokens_total=int(statistics.mean(tokens_accum)),
         cost_usd=round(statistics.mean(cost_accum), 4),
     )
+
+
+_OTHER_AXES = ("agent_voice", "source_grounding", "verdict_justification", "cost_predictability")
+
+
+def _weighted_idea_score(scores: dict[str, float]) -> float:
+    """Per-idea quality score: verdict_correctness counts 2x the rubric axes.
+
+    Used by `_aggregate` to surface a single tunable signal during prompt
+    iteration. The gate metric (`verdict_accuracy`) is unchanged so ADRs
+    pinned to the 0.85 threshold keep their meaning.
+    """
+    correctness = scores.get("verdict_correctness", 0.0)
+    others = [scores.get(k, 0.0) for k in _OTHER_AXES]
+    # Weighted mean with weights (2, 1, 1, 1, 1) → total weight 6.
+    return round((2.0 * correctness + sum(others)) / 6.0, 3)
 
 
 def _aggregate(results: list[IdeaResult]) -> dict[str, Any]:
@@ -232,6 +372,7 @@ def _aggregate(results: list[IdeaResult]) -> dict[str, Any]:
             "kill_rate": 0.0,
             "verdict_accuracy": 0.0,
             "median_score": 0.0,
+            "median_weighted_score": 0.0,
             "median_cost_usd": 0.0,
             "n": 0,
         }
@@ -242,10 +383,15 @@ def _aggregate(results: list[IdeaResult]) -> dict[str, Any]:
     )
     kills = sum(1 for r in results if _normalize_verdict(r.actual_verdict) == "kill")
     median_scores = [statistics.median(r.scores.values()) for r in results]
+    weighted_scores = [_weighted_idea_score(r.scores) for r in results]
     return {
         "kill_rate": round(kills / len(results), 3),
         "verdict_accuracy": round(correct / len(results), 3),
         "median_score": round(statistics.median(median_scores), 3),
+        # `median_weighted_score` is the prompt-iteration north star — it
+        # rewards getting the verdict right (2x weight) without changing the
+        # gate's `verdict_accuracy >= 0.85` contract.
+        "median_weighted_score": round(statistics.median(weighted_scores), 3),
         "median_cost_usd": round(statistics.median(r.cost_usd for r in results), 4),
         "n": len(results),
     }
@@ -413,15 +559,43 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="skip writing a new baseline JSON (useful for ad-hoc inspection)",
     )
+    p.add_argument(
+        "--prompts-version",
+        type=str,
+        default=None,
+        help=(
+            "pin a specific Pro prompts bundle (e.g. v5.3, v5.4); sets "
+            "GECKO_PRO_PROMPTS_VERSION for the duration of the run. Used by "
+            "the A/B harness in tests/eval/ab.py."
+        ),
+    )
     return p
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
 
+    # Apply --prompts-version BEFORE the orchestrator imports load_prompts
+    # (which is `lru_cache`-d). Setting the env var is sufficient because
+    # `_run_live` lazy-imports the orchestrator module per call.
+    if args.prompts_version is not None:
+        import os
+
+        os.environ["GECKO_PRO_PROMPTS_VERSION"] = args.prompts_version
+        # Bust the lru_cache in case the loader was already imported (e.g.
+        # by another in-process call from the A/B harness).
+        try:
+            from gecko_core.orchestration.pro.prompts import load_prompts
+
+            load_prompts.cache_clear()
+        except ImportError:
+            # Mock-mode runs may not have gecko_core importable; that's fine.
+            pass
+
     print(
         f"Pro eval harness | suite={args.suite} | "
         f"mode={'LIVE' if args.live else 'mock'} | reruns={args.reruns}"
+        f"{' | prompts=' + args.prompts_version if args.prompts_version else ''}"
         f"{' | filter=' + args.idea if args.idea else ''}"
     )
 

@@ -1,4 +1,4 @@
-"""4-axis rubric for scoring Pro tier debate transcripts.
+"""5-axis rubric for scoring Pro tier debate transcripts.
 
 Two paths:
   1. Mock mode (default): a deterministic scorer that keys off lexical
@@ -13,11 +13,16 @@ recorded fixtures: we want CI to fail when the rubric *itself* is broken
 (weights wrong, axis mis-keyed). Recorded fixtures would just be replaying
 yesterday's noise.
 
-The 4 axes (each 0.0-10.0):
+The 5 axes (each 0.0-10.0):
   - agent_voice: each of the 5 agents stays in persona
   - source_grounding: claims are tied to retrieved sources
   - verdict_justification: judge's call follows from the debate
   - cost_predictability: per-turn tokens within ±20% of the cohort median
+  - verdict_correctness: judge's verdict matches the suite's
+    `expected_verdict` (10 = exact match, 5 = pivot-vs-kill softening,
+    0 = wrong). Computed deterministically from `extract_verdict` against
+    `expected_verdict`; never asked of the live LLM judge so it doesn't
+    bias the other four axes.
 """
 
 from __future__ import annotations
@@ -41,6 +46,10 @@ class RubricScores:
     source_grounding: float
     verdict_justification: float
     cost_predictability: float
+    # Defaults to 0.0 so legacy callers that construct `RubricScores(...)` with
+    # only the original four axes keep type-checking. The runner always passes
+    # an explicit value derived from `compute_verdict_correctness`.
+    verdict_correctness: float = 0.0
 
     def median(self) -> float:
         return statistics.median(
@@ -49,6 +58,7 @@ class RubricScores:
                 self.source_grounding,
                 self.verdict_justification,
                 self.cost_predictability,
+                self.verdict_correctness,
             ]
         )
 
@@ -58,10 +68,38 @@ class RubricScores:
             "source_grounding": self.source_grounding,
             "verdict_justification": self.verdict_justification,
             "cost_predictability": self.cost_predictability,
+            "verdict_correctness": self.verdict_correctness,
         }
 
 
 Verdict = Literal["kill", "ship", "pivot", "unknown"]
+
+
+def compute_verdict_correctness(actual: str, expected: str | None) -> float:
+    """Map (actual, expected) verdicts to a 0-10 correctness score.
+
+    - Exact match → 10.0.
+    - `pivot` predicted when expected is `kill` (or vice versa) → 5.0,
+      mirroring the runner's `_normalize_verdict` rule that treats pivot
+      as kill-equivalent. The half-credit captures "right intuition,
+      softened framing."
+    - `unknown` predicted (judge text was unparseable) → 0.0.
+    - Anything else → 0.0.
+
+    `expected=None` returns 5.0 (neutral) so callers that don't know
+    the expected verdict don't get penalized.
+    """
+    if expected is None:
+        return 5.0
+    a = actual.strip().lower()
+    e = expected.strip().lower()
+    if a == e:
+        return 10.0
+    if a == "unknown":
+        return 0.0
+    if {a, e} == {"pivot", "kill"}:
+        return 5.0
+    return 0.0
 
 
 def extract_verdict(judge_text: str) -> Verdict:
@@ -184,13 +222,27 @@ def _score_cost_predictability(transcript: MockTranscript, cohort_median_tokens:
     return round(score, 2)
 
 
-def score_transcript_mock(transcript: MockTranscript, cohort_median_tokens: float) -> RubricScores:
-    """Deterministic mock scorer — no LLM, no network."""
+def score_transcript_mock(
+    transcript: MockTranscript,
+    cohort_median_tokens: float,
+    *,
+    expected_verdict: str | None = None,
+) -> RubricScores:
+    """Deterministic mock scorer — no LLM, no network.
+
+    `expected_verdict` is optional so existing single-axis tests in
+    `tests/eval/test_rubric.py` keep their two-arg call signature. When
+    omitted, `verdict_correctness` is the neutral 5.0; the runner always
+    passes the suite's expected_verdict.
+    """
+    judge_text = transcript.get("judge", {"text": ""})["text"]
+    actual = extract_verdict(judge_text)
     return RubricScores(
         agent_voice=_score_agent_voice(transcript),
         source_grounding=_score_source_grounding(transcript),
         verdict_justification=_score_verdict_justification(transcript),
         cost_predictability=_score_cost_predictability(transcript, cohort_median_tokens),
+        verdict_correctness=compute_verdict_correctness(actual, expected_verdict),
     )
 
 
@@ -249,13 +301,21 @@ def _format_transcript_for_judge(transcript: MockTranscript) -> str:
     return "\n\n".join(parts)
 
 
-def score_transcript_live(transcript: MockTranscript) -> RubricScores:
+def score_transcript_live(
+    transcript: MockTranscript,
+    *,
+    expected_verdict: str | None = None,
+) -> RubricScores:
     """Call Claude Sonnet 4.6 as the judge. Requires ANTHROPIC_API_KEY.
 
     Note: cohort_median_tokens isn't passed because the live judge is
     asked to assess intra-transcript balance, not cohort-relative cost.
     This is a known divergence between mock and live axis-4 semantics —
     documented in tests/eval/README.md.
+
+    `verdict_correctness` is computed deterministically (not asked of the
+    Anthropic judge) so telling it the expected answer doesn't bias the
+    other four axes.
     """
     # Anthropic SDK reads ANTHROPIC_API_KEY by default. Accept CLAUDE_API_KEY
     # as a fallback alias because some local .env conventions use the
@@ -299,9 +359,11 @@ def score_transcript_live(transcript: MockTranscript) -> RubricScores:
     data = tool_use.input
     if not isinstance(data, dict):
         raise RuntimeError(f"Anthropic judge tool input is not a dict: {type(data).__name__}")
+    actual = extract_verdict(transcript.get("judge", {"text": ""})["text"])
     return RubricScores(
         agent_voice=float(data.get("agent_voice", 0.0)),
         source_grounding=float(data.get("source_grounding", 0.0)),
         verdict_justification=float(data.get("verdict_justification", 0.0)),
         cost_predictability=float(data.get("cost_predictability", 0.0)),
+        verdict_correctness=compute_verdict_correctness(actual, expected_verdict),
     )

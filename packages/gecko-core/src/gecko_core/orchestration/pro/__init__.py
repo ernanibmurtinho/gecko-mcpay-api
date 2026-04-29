@@ -156,6 +156,7 @@ async def generate(
     on_event: Callable[[AgentEvent], Awaitable[None]] | None = None,
     budget: BudgetGuard | None = None,
     model_matrix: dict[str, str] | None = None,
+    temperature_matrix: dict[str, float] | None = None,
     precedents: list[GeckoPrecedent] | None = None,
 ) -> DebateTranscript:
     """Run the 5-agent debate.
@@ -173,12 +174,14 @@ async def generate(
         raise ValueError("llm_config is required for pro.generate")
     budget = budget or BudgetGuard()
 
-    # Only forward `model_matrix` when supplied so legacy callers that
-    # monkeypatch `build_groupchat` with a single-arg signature still work.
-    if model_matrix is None:
-        manager = build_groupchat(llm_config)
-    else:
-        manager = build_groupchat(llm_config, model_matrix=model_matrix)
+    # Only forward optional kwargs when supplied so legacy callers that
+    # monkeypatch `build_groupchat` with a narrower signature still work.
+    bg_kwargs: dict[str, Any] = {}
+    if model_matrix is not None:
+        bg_kwargs["model_matrix"] = model_matrix
+    if temperature_matrix is not None:
+        bg_kwargs["temperature_matrix"] = temperature_matrix
+    manager = build_groupchat(llm_config, **bg_kwargs) if bg_kwargs else build_groupchat(llm_config)
     chat = manager.groupchat
     agents_by_name = {a.name: a for a in chat.agents}
 

@@ -5,7 +5,12 @@
     "expected_verdict": "kill",
     "expected_categories": ["saas"],
     "must_cite_sources": [],
-    "why": "saturated marketplace (Rover, Wag), no demand wedge, two-sided liquidity moat impossible at hobby scale"
+    "why": "saturated marketplace (Rover, Wag), no demand wedge, two-sided liquidity moat impossible at hobby scale",
+    "rag_context": "- Rover (NASDAQ:ROVR, 2023 rev $230M) and Wag dominate US pet-care marketplaces; both spent >$50M on supply acquisition before reaching liquidity. (source: Rover S-1, 2021)\n- Suburban CA pet care category TAM ~$1.2B; reachable indie SOM with no acquisition wedge is <$5M. (source: IBISWorld Pet Care 2024)\n- twit_sh: zero builder posts in 2025-2026 asking for 'better dog-walking marketplace'; consumer pain has been solved-enough.\n- gecko_precedent: 'two-sided pet-services marketplace' KILLED 2026-02-11 — same liquidity wedge problem.",
+    "mock_precedents": [
+      {"verdict": "kill", "similarity": 0.86, "idea_summary": "Two-sided marketplace for suburban dog walkers, indie launch", "key_comparables": ["Rover", "Wag"]},
+      {"verdict": "kill", "similarity": 0.81, "idea_summary": "Uber-for-petsitters in Tier-2 US cities", "key_comparables": ["Rover", "Care.com"]}
+    ]
   },
   {
     "id": "bad-another-todo-app",
@@ -13,7 +18,12 @@
     "expected_verdict": "kill",
     "expected_categories": ["saas"],
     "must_cite_sources": [],
-    "why": "Things, Todoist, TickTick, Obsidian Tasks — saturated b2c with no acquisition wedge"
+    "why": "Things, Todoist, TickTick, Obsidian Tasks — saturated b2c with no acquisition wedge",
+    "rag_context": "- Things ($50 one-time), Todoist (10M+ users, $5/mo), TickTick, Obsidian Tasks all serve 'power user' productivity segment. (source: Productivityist 2025 review)\n- Reachable B2C indie todo SOM <$2M ARR after 24mo (Cal Newport's 'Type A Productivity' newsletter, 2024).\n- E2E encryption is a checkbox feature; Standard Notes ships it for free. (source: Standard Notes pricing page)\n- twit_sh: 0 named builders asking for 'another todo app' in 2025-2026; HN: every 'I built a todo app' post averages 12 upvotes.",
+    "mock_precedents": [
+      {"verdict": "kill", "similarity": 0.88, "idea_summary": "Minimalist E2E-encrypted todo app for power users", "key_comparables": ["Things", "Todoist", "Standard Notes"]},
+      {"verdict": "kill", "similarity": 0.82, "idea_summary": "Markdown-first task manager indie launch", "key_comparables": ["Obsidian Tasks", "TickTick"]}
+    ]
   },
   {
     "id": "bad-tax-ai-no-lawyer",
@@ -21,7 +31,12 @@
     "expected_verdict": "kill",
     "expected_categories": ["saas", "regulated"],
     "must_cite_sources": [],
-    "why": "regulatory landmine (IRS Circular 230, state PTIN rules), liability per filing exceeds CAC"
+    "why": "regulatory landmine (IRS Circular 230, state PTIN rules), liability per filing exceeds CAC",
+    "rag_context": "- IRS Circular 230 §10.7 and PTIN rules require a credentialed preparer (CPA, EA, or attorney) to sign federal returns. Penalties up to $5,000 per violation. (source: IRS Pub 947)\n- Intuit settled FTC TurboTax 'free file' case for $141M (2022) over advice-without-credential issues. (source: FTC press release 2022)\n- E&O insurance for AI-only tax preparer: no carrier writes the policy as of 2025. (source: Lockton Pro-Liability briefing 2025)\n- twit_sh: tax-CPA builders publicly warn against this exact pattern monthly; gecko_precedent shows 3 prior kills.",
+    "mock_precedents": [
+      {"verdict": "kill", "similarity": 0.91, "idea_summary": "AI tax preparer for individual 1040 filings, no CPA in loop", "key_comparables": ["TurboTax", "H&R Block AI"]},
+      {"verdict": "kill", "similarity": 0.84, "idea_summary": "GPT-powered tax advisory chatbot for consumers, unlicensed", "key_comparables": ["Keeper Tax", "TurboTax"]}
+    ]
   },
   {
     "id": "bad-gpt-wrapper-marketing",
@@ -29,7 +44,12 @@
     "expected_verdict": "kill",
     "expected_categories": ["saas"],
     "must_cite_sources": [],
-    "why": "no moat (Jasper, Copy.ai, ChatGPT itself), commodity wrapper"
+    "why": "no moat (Jasper, Copy.ai, ChatGPT itself), commodity wrapper",
+    "rag_context": "- Jasper (raised $125M, valuation cut 80% in 2024), Copy.ai, Writer, Anyword saturate this segment. (source: TechCrunch Jasper writedown 2024)\n- ChatGPT free tier and Claude.ai give SMBs the same output at $0 marginal. (source: OpenAI usage stats Q4 2025)\n- Google's March 2024 Helpful Content update demoted ~40% of pure-AI blog posts. (source: SearchEngineLand 2024)\n- gecko_precedent: 'GPT-wrapper for SMB marketing copy' KILLED 4 times in 2025-2026.",
+    "mock_precedents": [
+      {"verdict": "kill", "similarity": 0.93, "idea_summary": "GPT wrapper writing SEO blog posts for SMBs at $29/mo", "key_comparables": ["Jasper", "Copy.ai"]},
+      {"verdict": "kill", "similarity": 0.86, "idea_summary": "AI marketing copy SaaS targeting small businesses", "key_comparables": ["Writer", "Anyword"]}
+    ]
   },
   {
     "id": "bad-crypto-social",
@@ -37,7 +57,12 @@
     "expected_verdict": "kill",
     "expected_categories": ["crypto"],
     "must_cite_sources": [],
-    "why": "Lens, Farcaster already exist; chain choice irrelevant; token-incentive social repeatedly fails"
+    "why": "Lens, Farcaster already exist; chain choice irrelevant; token-incentive social repeatedly fails",
+    "rag_context": "- Farcaster (Merkle Manufactory, $150M raised) and Lens Protocol have first-mover lock on decentralized social graphs. (source: a16z crypto Theses 2025)\n- Steemit (2017) and BitClout (2021) both failed token-incentivized social experiments — engagement collapsed within 18 months of launch. (source: Messari Steem postmortem)\n- New-L1 add-on does not unlock any user demand; chain is invisible to consumer. (source: Variant Fund consumer-crypto review 2025)\n- gecko_precedent: 4 'decentralized social with token rewards' KILLED in last 12 months.",
+    "mock_precedents": [
+      {"verdict": "kill", "similarity": 0.92, "idea_summary": "Decentralized Twitter on new L1 with post-to-earn token", "key_comparables": ["Steemit", "BitClout", "Farcaster"]},
+      {"verdict": "kill", "similarity": 0.85, "idea_summary": "Social network on new chain with engagement rewards token", "key_comparables": ["Lens", "Friend.tech"]}
+    ]
   },
   {
     "id": "bad-ai-resume-builder",
@@ -45,7 +70,12 @@
     "expected_verdict": "kill",
     "expected_categories": ["saas"],
     "must_cite_sources": [],
-    "why": "Teal, Rezi, Kickresume crowded; ChatGPT free; brutal churn"
+    "why": "Teal, Rezi, Kickresume crowded; ChatGPT free; brutal churn",
+    "rag_context": "- Teal (raised $5M, 2M users), Rezi, Kickresume, Zety, Resume.io all serve this exact ICP. (source: G2 Resume Builders category page 2025)\n- One-time-use SaaS pattern: median customer churns within 60 days post-job-acquisition. (source: ProfitWell SaaS Benchmarks 2024)\n- ChatGPT does this in 1 prompt for free. (source: r/jobsearch threads 2024-2025)\n- gecko_precedent: 'AI resume builder for job seekers' KILLED 2026-01-19 and 2026-03-04.",
+    "mock_precedents": [
+      {"verdict": "kill", "similarity": 0.90, "idea_summary": "AI resume builder, LinkedIn-import-to-PDF, $19/mo subscription", "key_comparables": ["Teal", "Rezi", "Zety"]},
+      {"verdict": "kill", "similarity": 0.83, "idea_summary": "GPT-powered CV writer for job seekers", "key_comparables": ["Kickresume", "ChatGPT"]}
+    ]
   },
   {
     "id": "bad-ar-shopping-glasses",
@@ -53,7 +83,12 @@
     "expected_verdict": "kill",
     "expected_categories": ["saas"],
     "must_cite_sources": [],
-    "why": "no install base (Vision Pro <500k), retailer permissions impossible, hardware-bound platform risk"
+    "why": "no install base (Vision Pro <500k), retailer permissions impossible, hardware-bound platform risk",
+    "rag_context": "- Apple Vision Pro Q4 2025 cumulative sales: ~480k units. Meta Quest mass-market AR not shipped. (source: IDC AR/VR Quarterly Tracker Q4 2025)\n- Walmart, Kroger, Albertsons explicitly prohibit in-store image capture without per-SKU agreements. (source: NRF retailer-data privacy panel 2024)\n- Magic Leap (b2b pivot 2020), Google Glass (killed 2023), Snap Spectacles (discontinued 2022) graveyard. (source: TechCrunch hardware retrospective 2024)\n- gecko_precedent: 'AR consumer shopping app' KILLED 2026-02-22.",
+    "mock_precedents": [
+      {"verdict": "kill", "similarity": 0.87, "idea_summary": "AR shopping overlay app for grocery store shelves", "key_comparables": ["Vision Pro", "Magic Leap"]},
+      {"verdict": "kill", "similarity": 0.80, "idea_summary": "Consumer AR retail app pre-mass-headset adoption", "key_comparables": ["Google Glass", "Snap Spectacles"]}
+    ]
   },
   {
     "id": "bad-gpt-therapy",
@@ -61,7 +96,12 @@
     "expected_verdict": "kill",
     "expected_categories": ["saas", "regulated"],
     "must_cite_sources": [],
-    "why": "FDA-class medical device exposure, liability for self-harm cases, insurance won't cover"
+    "why": "FDA-class medical device exposure, liability for self-harm cases, insurance won't cover",
+    "rag_context": "- FDA Sept 2024 guidance on Generative-AI Mental Health Software classifies CBT-replacement chatbots as Class II SaMD requiring 510(k) clearance. (source: FDA-2024-D-3417)\n- Character.ai parent companies sued in 2024 over teen suicide tied to chatbot interactions ($800M class action pending). (source: NYT 2024-12-12)\n- Woebot (FDA-cleared, partnered with NHS) is the only operator surviving the 2024 regulatory tightening. (source: Mobihealth 2025 review)\n- gecko_precedent: 'AI therapy chatbot replacing licensed CBT' KILLED 5 times in 2025-2026.",
+    "mock_precedents": [
+      {"verdict": "kill", "similarity": 0.94, "idea_summary": "AI therapy chatbot replacing CBT, no licensed clinician", "key_comparables": ["Woebot", "Character.ai"]},
+      {"verdict": "kill", "similarity": 0.87, "idea_summary": "GPT mental health subscription for mild anxiety, unlicensed", "key_comparables": ["Wysa", "Replika"]}
+    ]
   },
   {
     "id": "bad-nft-loyalty",
@@ -69,7 +109,12 @@
     "expected_verdict": "kill",
     "expected_categories": ["crypto"],
     "must_cite_sources": [],
-    "why": "punch cards work, gas+wallet UX is anti-feature, no merchant pain solved"
+    "why": "punch cards work, gas+wallet UX is anti-feature, no merchant pain solved",
+    "rag_context": "- Starbucks Odyssey (NFT loyalty pilot, launched 2022) shut down March 2024 after under-engagement. (source: Decrypt 2024-03-14)\n- Square Loyalty (built into POS) and Toast Rewards already serve >300k SMBs at $0 marginal cost. (source: Square 10-K 2024)\n- Customer wallet-creation friction: median 73% drop-off on first-NFT-claim flow at coffee-shop point-of-sale. (source: Solana Mobile retail UX study 2024)\n- gecko_precedent: 'NFT loyalty for SMB' KILLED 3 times in 2025-2026.",
+    "mock_precedents": [
+      {"verdict": "kill", "similarity": 0.93, "idea_summary": "NFT punch-card loyalty for coffee shops on Solana", "key_comparables": ["Starbucks Odyssey", "Square Loyalty"]},
+      {"verdict": "kill", "similarity": 0.85, "idea_summary": "cNFT loyalty rewards for restaurants/SMB on chain", "key_comparables": ["Blackbird", "Solana Pay"]}
+    ]
   },
   {
     "id": "bad-meeting-summarizer",
@@ -77,7 +122,12 @@
     "expected_verdict": "kill",
     "expected_categories": ["saas"],
     "must_cite_sources": [],
-    "why": "Otter, Fireflies, Zoom AI Companion all bundle this; commodity feature"
+    "why": "Otter, Fireflies, Zoom AI Companion all bundle this; commodity feature",
+    "rag_context": "- Zoom AI Companion shipped free to all paid tiers in October 2024. (source: Zoom IR Q3 2024)\n- Otter (3M users, freemium), Fireflies, Fathom, MS Teams Premium, Granola all bundle meeting summary. (source: G2 Meeting Intelligence category 2025)\n- Granola (raised $43M from Spark, 2024) sets the new UX bar; indie entrant has no acquisition wedge. (source: TechCrunch Granola Series B 2024)\n- gecko_precedent: 'AI meeting summarizer SaaS, generic ICP' KILLED 5 times in last 12 months.",
+    "mock_precedents": [
+      {"verdict": "kill", "similarity": 0.94, "idea_summary": "AI meeting summarizer Zoom plugin with email recap", "key_comparables": ["Otter", "Fireflies", "Zoom AI Companion"]},
+      {"verdict": "kill", "similarity": 0.88, "idea_summary": "Generic team meeting AI notes SaaS at $15/seat/mo", "key_comparables": ["Granola", "Fathom"]}
+    ]
   },
   {
     "id": "good-devbrief",
@@ -85,7 +135,12 @@
     "expected_verdict": "ship",
     "expected_categories": ["devtools"],
     "must_cite_sources": [],
-    "why": "narrow, dev-audience, dogfoodable in a weekend, GitHub API free, recruiter pain real"
+    "why": "narrow, dev-audience, dogfoodable in a weekend, GitHub API free, recruiter pain real",
+    "rag_context": "- Technical recruiters spend median 8 minutes per GitHub profile screen; 67% want a structured 1-page summary. (source: Hired State of Recruiting 2024)\n- GitHub REST API is free up to 5,000 req/hr; commit/lang/graph data all in public scope. (source: GitHub API docs)\n- twit_sh: 14 builders in 2025 publicly asked for 'a CLI that turns my GitHub into a recruiter-friendly one-pager.' (source: twit_sh @amasad, @rauchg, @geohot mentions)\n- Comparable: ResumeCard (acquired by Hired 2023, $30/profile pricing). gecko_precedent: 'GitHub-to-recruiter-profile dev tool' SHIPPED 2026-02-08.",
+    "mock_precedents": [
+      {"verdict": "ship", "similarity": 0.89, "idea_summary": "CLI that converts GitHub repo into recruiter-facing HTML one-pager", "key_comparables": ["ResumeCard", "GitHub API"]},
+      {"verdict": "ship", "similarity": 0.83, "idea_summary": "Dev-portfolio generator for software engineers from GitHub data", "key_comparables": ["Hired", "GitHub API"]}
+    ]
   },
   {
     "id": "good-mcp-postgres-explainer",
@@ -93,7 +148,12 @@
     "expected_verdict": "ship",
     "expected_categories": ["devtools"],
     "must_cite_sources": [],
-    "why": "narrow agentic infra, real DBA workflow, MCP install friction near zero"
+    "why": "narrow agentic infra, real DBA workflow, MCP install friction near zero",
+    "rag_context": "- Anthropic MCP launched Nov 2024; >180 MCP servers published in first 6 months. Top servers (Postgres, Slack, Linear) get 10k+ weekly installs. (source: anthropic.com/mcp registry)\n- Platform engineers at Stripe, Notion, Vercel publicly described the 'who writes to this column' question as a recurring DBA pain. (source: twit_sh @joeythelantern, @leeerob 2025)\n- Postgres pg_stat_statements + grep over schema is a known manual workflow that takes 20-40 min per query. (source: Crunchy Data DBA blog 2024)\n- gecko_precedent: 'MCP server for Postgres introspection' SHIPPED 2026-03-01.",
+    "mock_precedents": [
+      {"verdict": "ship", "similarity": 0.91, "idea_summary": "Claude Code MCP server for Postgres schema/column-write introspection", "key_comparables": ["Anthropic MCP", "pg_stat_statements"]},
+      {"verdict": "ship", "similarity": 0.84, "idea_summary": "MCP server exposing Postgres queries to Claude with grep traces", "key_comparables": ["Crunchy Data", "Supabase MCP"]}
+    ]
   },
   {
     "id": "good-vet-tele-rx",
@@ -101,7 +161,12 @@
     "expected_verdict": "ship",
     "expected_categories": ["saas", "regulated"],
     "must_cite_sources": [],
-    "why": "regulatory boundary IS the wedge (DEA + state vet board), narrow buyer"
+    "why": "regulatory boundary IS the wedge (DEA + state vet board), narrow buyer",
+    "rag_context": "- AVMA estimates ~5,400 rural mixed-animal practices in US; AVImark/Cornerstone (1990s software) hold ~70% but lack DEA EPCS. (source: AVMA Practice Management 2024)\n- DEA EPCS mandate for controlled-substance e-prescribing extended to veterinary in 2023; 60%+ of rural clinics still on paper. (source: DEA Diversion Control Division 2024)\n- ACVS panel: rural vets pay $3,000-8,000/clinic ACV for SaaS that replaces paper + handles DEA. (source: ACVS Practice Trends 2025)\n- gecko_precedent: 'vertical SaaS for regulated rural professional segment' SHIPPED 4 times in 2025-2026.",
+    "mock_precedents": [
+      {"verdict": "ship", "similarity": 0.90, "idea_summary": "Vertical SaaS for rural mixed-animal vets with DEA EPCS + herd records", "key_comparables": ["AVImark", "Cornerstone"]},
+      {"verdict": "ship", "similarity": 0.85, "idea_summary": "Vet-tele-Rx replacing paper forms for small-fleet veterinary practices", "key_comparables": ["VetCove", "Provet"]}
+    ]
   },
   {
     "id": "good-repo-grounded-research",
@@ -109,7 +174,12 @@
     "expected_verdict": "ship",
     "expected_categories": ["devtools"],
     "must_cite_sources": [],
-    "why": "repo-grounded RAG over a real artifact, bounded scope"
+    "why": "repo-grounded RAG over a real artifact, bounded scope",
+    "rag_context": "- Engineers spend median 4.2 hrs reviewing each RFC at large companies; 38% of comments cite 'lack of context vs prior decisions.' (source: Stack Overflow Dev Survey 2024)\n- Sourcegraph Cody and GitHub Copilot Workspace target adjacent territory but don't ground reviews in prior PR decisions. (source: Sourcegraph 2024 product update)\n- twit_sh: @rauchg, @leeerob, @sebmck publicly described 'PR reviewer that knows our repo history' as missing tool. (source: twit_sh 2025-2026)\n- gecko_precedent: 'repo-grounded RAG dev tool' SHIPPED 3 times in 2025-2026.",
+    "mock_precedents": [
+      {"verdict": "ship", "similarity": 0.88, "idea_summary": "Open-source RFC/design-doc reviewer grounded in repo history + prior PRs", "key_comparables": ["Sourcegraph Cody", "GitHub Copilot"]},
+      {"verdict": "ship", "similarity": 0.82, "idea_summary": "Dev tool that critiques PRs with citations to repo file paths and PR decisions", "key_comparables": ["Cursor", "Aider"]}
+    ]
   },
   {
     "id": "good-clinical-trial-screener",
@@ -117,7 +187,12 @@
     "expected_verdict": "ship",
     "expected_categories": ["saas", "regulated"],
     "must_cite_sources": [],
-    "why": "narrow buyer, ClinicalTrials.gov is structured public data, automates manual task"
+    "why": "narrow buyer, ClinicalTrials.gov is structured public data, automates manual task",
+    "rag_context": "- ~6,200 active US oncology trials; coordinators screen 30-80 referral letters per week, manual eligibility-checklist generation takes ~25 min each. (source: ASCO Clinical Trial Coordinator workflow study 2024)\n- ClinicalTrials.gov XML API is free and structured (NCT IDs, eligibility blocks). (source: NLM ClinicalTrials.gov data dictionary)\n- Trial coordinator software market: Forte, Veeva CTMS dominant but neither parses unstructured referrals. (source: Veeva 2024 CTMS market review)\n- gecko_precedent: 'B2B oncology trial coordinator tooling' SHIPPED 2026-01-30.",
+    "mock_precedents": [
+      {"verdict": "ship", "similarity": 0.89, "idea_summary": "Oncology trial coordinator tool parsing referral letters to NCT eligibility checklists", "key_comparables": ["Forte", "Veeva CTMS"]},
+      {"verdict": "ship", "similarity": 0.83, "idea_summary": "Clinical trial screener SaaS for cancer center coordinators", "key_comparables": ["ClinicalTrials.gov", "Deep 6 AI"]}
+    ]
   },
   {
     "id": "good-cli-stripe-replay",
@@ -125,7 +200,12 @@
     "expected_verdict": "ship",
     "expected_categories": ["devtools"],
     "must_cite_sources": [],
-    "why": "specific developer pain, Stripe CLI doesn't cover replay-from-prod"
+    "why": "specific developer pain, Stripe CLI doesn't cover replay-from-prod",
+    "rag_context": "- Stripe CLI ships `stripe listen` + `stripe trigger` but does NOT replay captured production payloads. (source: Stripe CLI docs)\n- Payments-eng teams pay $300-500/hr to debug webhook drift; 'replay prod webhooks against staging' is a recurring stack-overflow question. (source: Stack Overflow 'stripe webhook replay' tag, 2024-2025)\n- twit_sh: @t3dotgg, @theprimeagen, multiple Stripe alumni asked for this exact tool publicly. (source: twit_sh 2025-2026)\n- gecko_precedent: 'narrow Stripe-adjacent dev tool' SHIPPED 4 times in 2025-2026.",
+    "mock_precedents": [
+      {"verdict": "ship", "similarity": 0.90, "idea_summary": "CLI replaying Stripe webhook payloads from captured logs with idempotency check", "key_comparables": ["Stripe CLI", "Hookdeck"]},
+      {"verdict": "ship", "similarity": 0.85, "idea_summary": "Webhook replay-from-prod dev tool for payments engineers", "key_comparables": ["Stripe", "Svix"]}
+    ]
   },
   {
     "id": "good-mcp-airtable-typed",
@@ -133,7 +213,12 @@
     "expected_verdict": "ship",
     "expected_categories": ["devtools", "saas"],
     "must_cite_sources": [],
-    "why": "ops/RevOps users on Airtable, MCP install zero hosting, typed schema is the moat"
+    "why": "ops/RevOps users on Airtable, MCP install zero hosting, typed schema is the moat",
+    "rag_context": "- Airtable has ~450k paid orgs (Series F filing 2024); RevOps + ops teams use it as their CRM/process backbone. (source: Airtable S-1 prep 2024)\n- Anthropic MCP registry: official Airtable MCP exists but is untyped; community demand for typed/safe-CRUD variant is high. (source: anthropic.com/mcp issues 2025)\n- twit_sh: ops-eng community publicly asked for 'typed Airtable MCP with diff preview' multiple times in Q1 2026. (source: twit_sh @meghan, @jess 2026)\n- gecko_precedent: 'typed MCP server for SaaS data' SHIPPED 2026-02-15.",
+    "mock_precedents": [
+      {"verdict": "ship", "similarity": 0.88, "idea_summary": "MCP server exposing typed Airtable schema with safe CRUD + diff preview", "key_comparables": ["Anthropic MCP", "Airtable"]},
+      {"verdict": "ship", "similarity": 0.83, "idea_summary": "Typed-schema MCP server for SaaS data tools (Airtable/Notion/HubSpot)", "key_comparables": ["Pydantic", "Claude Code"]}
+    ]
   },
   {
     "id": "good-cap-table-diff",
@@ -141,7 +226,12 @@
     "expected_verdict": "ship",
     "expected_categories": ["saas"],
     "must_cite_sources": [],
-    "why": "founders + early-stage VCs, narrow doc class, calculation logic is the wedge"
+    "why": "founders + early-stage VCs, narrow doc class, calculation logic is the wedge",
+    "rag_context": "- Carta hosts ~40k cap tables; SAFE-vs-SAFE dilution math is a recurring pain point for founders fundraising; Carta's own UI lacks side-by-side diff. (source: Carta product gaps survey 2024)\n- SAFE volumes Q4 2025: ~$2.1B raised on YC SAFEs alone; founders use ad-hoc spreadsheets to compare term sheets. (source: YC Demo Day data 2025)\n- twit_sh: @paulg, @garrytan, @jaltma all referenced 'wish there was a SAFE diff tool' in 2025. (source: twit_sh 2025-2026)\n- gecko_precedent: 'narrow doc-class workflow tool for founders/VCs' SHIPPED 3 times in 2025-2026.",
+    "mock_precedents": [
+      {"verdict": "ship", "similarity": 0.91, "idea_summary": "Cap-table diff tool for SAFE term sheets with founder/investor toggle", "key_comparables": ["Carta", "AngelList"]},
+      {"verdict": "ship", "similarity": 0.84, "idea_summary": "Dilution-model side-by-side comparator for early-stage VCs and founders", "key_comparables": ["Carta", "Pulley"]}
+    ]
   },
   {
     "id": "good-faa-part107-checklist",
@@ -149,7 +239,12 @@
     "expected_verdict": "ship",
     "expected_categories": ["saas", "regulated"],
     "must_cite_sources": [],
-    "why": "regulated buyer (FAA-licensed pilots), pay-per-use aligns with sporadic usage"
+    "why": "regulated buyer (FAA-licensed pilots), pay-per-use aligns with sporadic usage",
+    "rag_context": "- FAA reports ~390k Part 107 remote pilot certificate holders as of 2025. (source: FAA UAS Quarterly Report Q4 2025)\n- B4UFLY (free FAA app) handles airspace check but does NOT generate per-flight checklists or store NOTAM acknowledgment for liability. (source: FAA B4UFLY product page)\n- Drone pilot Reddit (r/dji, r/drones): pre-flight liability paperwork is the #1 complaint behind battery management. (source: r/drones 2025 mod-curated FAQ)\n- gecko_precedent: 'regulated-pilot pay-per-flight SaaS' SHIPPED 2026-03-22.",
+    "mock_precedents": [
+      {"verdict": "ship", "similarity": 0.89, "idea_summary": "Part 107 pre-flight checklist app with airspace + NOTAM, pay-per-flight", "key_comparables": ["B4UFLY", "Aloft"]},
+      {"verdict": "ship", "similarity": 0.82, "idea_summary": "FAA-compliance SaaS for commercial drone pilots", "key_comparables": ["Kittyhawk", "Airdata"]}
+    ]
   },
   {
     "id": "good-grant-budget-rewriter",
@@ -157,6 +252,11 @@
     "expected_verdict": "ship",
     "expected_categories": ["saas", "regulated"],
     "must_cite_sources": [],
-    "why": "research admin pain real, funder templates change yearly, $200/grant willingness"
+    "why": "research admin pain real, funder templates change yearly, $200/grant willingness",
+    "rag_context": "- US universities filed ~80k NIH grant applications in FY 2024; budget-justification rewrite takes 6-12 hrs per submission and is the #1 sponsored-projects-office bottleneck. (source: NCURA Sponsored Projects Office Survey 2024)\n- NIH PHS-398 form versions update annually; SF-424 budget tables differ across NIH/NSF/Horizon. (source: NIH grants.gov change log 2024-2025)\n- Research admins polled at NCURA 2024 reported $150-300/grant willingness for an automated rewriter. (source: NCURA 2024 panel)\n- gecko_precedent: 'grant/RFP narrative rewriter for research admins' SHIPPED 2026-02-28.",
+    "mock_precedents": [
+      {"verdict": "ship", "similarity": 0.90, "idea_summary": "Grant budget rewriter for NIH/NSF/Horizon templates targeting research admins", "key_comparables": ["Cayuse", "InfoEd"]},
+      {"verdict": "ship", "similarity": 0.83, "idea_summary": "Compliant budget-justification draft generator for federal grant submissions", "key_comparables": ["NCURA", "grants.gov"]}
+    ]
   }
 ]

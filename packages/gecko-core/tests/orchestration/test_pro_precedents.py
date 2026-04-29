@@ -304,15 +304,17 @@ def test_prompts_version_default_is_v5(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "gecko_precedent" in p["analyst"].lower()
 
 
-def test_prompts_version_default_is_v5_3(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Default load resolves to the v5.3 bundle (Judge-only keyword-trigger
-    fix for v5.2 STEP 2 exact-name matching gap and STEP 4 saturation-list
-    softening).
+def test_prompts_version_default_is_v5_4(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Default load resolves to the v5.4 bundle (Judge + Critic rewrite that
+    flips recency bias and caps quota-driven kill seeding).
 
-    v5.3 keeps v5.2's strict numbered execution pipeline but adds explicit
-    "Trigger if idea text contains:" keyword conditions per STEP 2 entry, and
-    mirrors the same keyword-trigger structure in STEP 4. Live evidence:
-    tests/eval/live_runs/2026-04-28-general-3.json (v5.2, 0.65).
+    Live evidence chain: tests/eval/live_runs/2026-04-28-general*.json showed
+    accuracy 0.55 (v5.0) → 0.65 (v5.1) → 0.65 (v5.2) → 0.50 (v5.3, WORST).
+    v5.4 collapses the brittle 12-entry STEP 2 keyword-trigger list to a single
+    named-buyer + named-artifact + V1_FEASIBLE_IN_4_DAYS=yes rule, reorders the
+    pipeline so STEP 3 is the DEFAULT SHIP (KILL becomes the LAST block read by
+    gpt-4o-mini), trims STEP 4 from 13 triggers to 4 hard-kill triggers, and
+    caps the Critic at 1-3 risks plus one Change-my-mind clause.
     """
     from gecko_core.orchestration.pro import prompts as prompts_mod
 
@@ -321,34 +323,67 @@ def test_prompts_version_default_is_v5_3(monkeypatch: pytest.MonkeyPatch) -> Non
     prompts_mod.load_prompts.cache_clear()
     p = prompts_mod.load_prompts()
     judge = p["judge"]
-    # Pipeline structure is present (inherited from v5.2).
+    critic = p["critic"]
+
+    # 4-step pipeline (v5.4 dropped the v5.3 STEP 5 — STEP 3 is now default).
     assert "DECISION PIPELINE" in judge
     assert "STEP 1" in judge
     assert "STEP 2" in judge
     assert "STEP 3" in judge
     assert "STEP 4" in judge
-    assert "STEP 5" in judge
-    # STEP 2 named-example list (inherited).
-    assert "cap-table-diff" in judge
-    assert "stripe-replay" in judge
-    assert "grant-budget-rewriter" in judge
-    assert "mcp-postgres-explainer" in judge
-    assert "faa-part107-checklist" in judge
-    # STEP 4 (KILL check) must come AFTER STEP 2 (named SHIP exit).
-    assert judge.index("STEP 2") < judge.index("STEP 4")
-    # NAMED-ICP sanity check still present.
+    assert "STEP 5" not in judge
+
+    # STEP 3 is the DEFAULT SHIP and comes BEFORE STEP 4 KILL — that's the
+    # recency-bias flip that v5.4 exists to enable.
+    assert "DEFAULT SHIP" in judge
+    assert judge.index("STEP 3") < judge.index("STEP 4")
+
+    # NAMED-ICP sanity check still present (inherited from v5.2/v5.3).
     assert "NAMED-ICP SANITY CHECK" in judge
     assert "No named ICP after the full debate: KILL." not in judge
-    # v5.3-specific: STEP 2 entries each carry a Trigger line.
+
+    # STEP 2 collapsed: per-entry "Trigger: idea text contains" lines from v5.3
+    # are gone; the named entries survive only as an illustrative appendix.
+    assert 'Trigger: idea text contains "cap table"' not in judge
+    assert 'Trigger: idea text contains "MCP"' not in judge
+    assert 'Trigger: idea text contains "Part 107"' not in judge
+    assert "cap-table-diff" in judge  # appendix is still there
+    assert "stripe-replay" in judge
+    assert "grant-budget-rewriter" in judge
+
+    # STEP 4 trimmed to 4 hard-kill triggers (a)-(d). The Uber liquidity-wedge
+    # trigger is the canonical one we want to keep firing.
+    assert "(a) Uber" in judge
+    assert "(b) AI-therapy" in judge
+    assert "(c) Generic GPT-wrapper" in judge
+    assert "(d) Consumer-social-with-token" in judge
+
+    # Critic cap: the v5.3 ">= 2 named, idea-specific kill criteria" quota is
+    # gone, replaced by the 1-3 risks + Change-my-mind clause.
+    assert ">= 2 named" not in critic
+    assert "FLOOR-LEVEL skepticism" not in critic
+    assert "1-3 named" in critic
+    assert "Change my mind by:" in critic
+    assert "do NOT generate kill criteria" in critic.lower() or (
+        "do not generate kill criteria" in critic.lower()
+    )
+
+
+def test_prompts_version_v5_3_rollback(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Setting GECKO_PRO_PROMPTS_VERSION=v5.3 loads the prior bundle unmodified
+    (5-step pipeline with per-entry keyword Triggers in STEP 2 and STEP 4)."""
+    from gecko_core.orchestration.pro import prompts as prompts_mod
+
+    monkeypatch.delenv("GECKO_PROMPTS_PATH", raising=False)
+    monkeypatch.setenv("GECKO_PRO_PROMPTS_VERSION", "v5.3")
+    prompts_mod.load_prompts.cache_clear()
+    p = prompts_mod.load_prompts()
+    judge = p["judge"]
+    # v5.3 carries the 5-step pipeline and the per-entry keyword triggers.
+    assert "STEP 5" in judge
     assert 'Trigger: idea text contains "cap table"' in judge
-    assert 'Trigger: idea text contains ("stripe"' in judge
-    assert 'Trigger: idea text contains "MCP"' in judge
-    assert 'Trigger: idea text contains "Part 107"' in judge
-    # v5.3-specific: STEP 4 entries carry keyword Trigger lines mirroring
-    # STEP 2's structure (saturation kills must fire on idea-text keywords).
     assert 'Trigger: idea text contains ("Uber"' in judge
-    assert 'Trigger: idea text contains ("meeting"' in judge
-    assert 'Trigger: idea text contains ("resume"' in judge
+    prompts_mod.load_prompts.cache_clear()
 
 
 def test_prompts_version_v5_2_rollback(monkeypatch: pytest.MonkeyPatch) -> None:

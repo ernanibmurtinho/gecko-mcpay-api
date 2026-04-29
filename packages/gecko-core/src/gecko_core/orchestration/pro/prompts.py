@@ -43,17 +43,20 @@ from pathlib import Path
 
 REQUIRED_AGENTS = ("analyst", "critic", "architect", "scoper", "judge")
 
-# Bundled prompt versions. v5.3 is the current default — Judge-only fix for
-# v5.2 STEP 2 keyword-trigger gap (entries matched only by exact dash-cased
-# name) and STEP 4 saturation-list softening (kills regressed to ships). See
-# docs/prompts/v5_3-changelog.md. v5.2 was a Judge-only structural fix for v5.1
-# under-shipping ideas explicitly named in MANDATORY SHIP rules
-# (docs/prompts/v5_2-changelog.md). v5.1 was a Judge-only fix for the
-# 2026-04-28 verdict_accuracy regression (docs/prompts/v5_1-changelog.md).
-# v5 (S2X-11 — adds V1 source guidance for gecko_precedent / hn / reddit /
-# twit_sh / colosseum) and v4 are retained on disk as rollback targets — set
-# GECKO_PRO_PROMPTS_VERSION=v5.2 (or v5.1, v5, v4) to pin a prior bundle without
-# code changes.
+# Bundled prompt versions. v5.4 is the current default — Judge + Critic
+# rewrite to flip recency bias and stop quota-driven kill seeding after the
+# v5.0→v5.3 accuracy slide (0.55 → 0.65 → 0.65 → 0.50 on
+# tests/eval/live_runs/2026-04-28-general*.json). v5.4 collapses the brittle
+# 12-entry STEP 2 keyword-trigger list to a single named-buyer + named-artifact
+# rule, reorders the pipeline so STEP 3 is the DEFAULT SHIP (KILL becomes the
+# last block read by gpt-4o-mini), trims STEP 4 from 13 triggers to 4 hard-kill
+# triggers, and caps the Critic's kill-criteria quota. See
+# docs/prompts/v5_4-changelog.md. v5.3 (Judge keyword-trigger structural fix —
+# docs/prompts/v5_3-changelog.md), v5.2 (numbered execution pipeline —
+# docs/prompts/v5_2-changelog.md), v5.1 (2026-04-28 regression fix —
+# docs/prompts/v5_1-changelog.md), v5 (S2X-11 source weighting), and v4 are
+# retained on disk as rollback targets — set GECKO_PRO_PROMPTS_VERSION=v5.3
+# (or v5.2, v5.1, v5, v4) to pin a prior bundle without code changes.
 _PROMPTS_DIR = Path(__file__).parent
 _BUNDLED_VERSIONS: dict[str, Path] = {
     "v4": _PROMPTS_DIR / "_default_prompts.json",
@@ -61,8 +64,9 @@ _BUNDLED_VERSIONS: dict[str, Path] = {
     "v5.1": _PROMPTS_DIR / "_default_prompts_v5_1.json",
     "v5.2": _PROMPTS_DIR / "_default_prompts_v5_2.json",
     "v5.3": _PROMPTS_DIR / "_default_prompts_v5_3.json",
+    "v5.4": _PROMPTS_DIR / "_default_prompts_v5_4.json",
 }
-_DEFAULT_VERSION = "v5.3"
+_DEFAULT_VERSION = "v5.4"
 _DEFAULT_PROMPTS_PATH = _BUNDLED_VERSIONS[_DEFAULT_VERSION]
 
 
@@ -95,13 +99,14 @@ def load_prompts() -> dict[str, str]:
     Resolution order:
 
     1. ``GECKO_PROMPTS_PATH`` (full path override) — wins when set.
-    2. ``GECKO_PRO_PROMPTS_VERSION`` (``v4``, ``v5``, ``v5.1``, ``v5.2``, or
-       ``v5.3``) — selects which bundled file to load. Default is ``v5.3``
-       (Judge keyword-trigger fix: STEP 2 named-example entries now fire on
-       idea-text keywords, not exact dash-cased names; STEP 4 saturation kills
-       restored as keyword triggers mirroring STEP 2's structure). ``v5.2``,
-       ``v5.1``, ``v5``, and ``v4`` are rollback targets.
-    3. Bundled default (``v5.3``).
+    2. ``GECKO_PRO_PROMPTS_VERSION`` (``v4``, ``v5``, ``v5.1``, ``v5.2``,
+       ``v5.3``, or ``v5.4``) — selects which bundled file to load. Default is
+       ``v5.4`` (Judge + Critic rewrite: STEP 2 collapsed to a named-buyer +
+       named-artifact rule, STEP 3 is now the DEFAULT SHIP, STEP 4 trimmed to
+       4 hard-kill triggers, Critic kill-criteria quota capped at 1-3 risks +
+       one Change-my-mind clause). ``v5.3``, ``v5.2``, ``v5.1``, ``v5``, and
+       ``v4`` are rollback targets.
+    3. Bundled default (``v5.4``).
     """
     override = os.environ.get("GECKO_PROMPTS_PATH")
     if override:

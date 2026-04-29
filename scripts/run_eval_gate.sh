@@ -5,8 +5,11 @@
 # against prompts v5 + V1 sources. Each sub-suite must achieve
 # verdict_accuracy >= 0.85. Exits 0 only if ALL three pass.
 #
-# This script costs real money (~$37.50 in devnet x402 + ~$5 rubric/agent
-# tokens). It is interactive by design: you must type 'y' to proceed.
+# This script costs real money (~$95 in OpenAI tokens + ~$15 Anthropic
+# rubric tokens at --reruns 3). It is interactive by design: you must type
+# 'y' to proceed. `--reruns 3` runs each idea three times and the harness
+# takes the majority verdict, dampening single-sample variance that
+# dominated the Apr-28 v5.x runs (see tests/eval/live_runs/).
 #
 # Usage:
 #   ./scripts/run_eval_gate.sh
@@ -18,6 +21,7 @@ set -euo pipefail
 
 PASS_THRESHOLD="0.85"
 SUITES=(general crypto saas)
+RERUNS="${GECKO_EVAL_RERUNS:-3}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LIVE_RUNS_DIR="${ROOT_DIR}/tests/eval/live_runs"
 
@@ -57,17 +61,20 @@ cat <<EOF
 ================================================================
 
   Suites:        general (20) + crypto (15) + saas (15) = 50 ideas
+  Reruns/idea:   ${RERUNS} (override via GECKO_EVAL_RERUNS env var)
   Mode:          --live (real AG2 debate + Sonnet 4.6 rubric)
   API base:      ${GECKO_API_BASE}
   Pass bar:      verdict_accuracy >= ${PASS_THRESHOLD} per sub-suite
   Threshold ADR: docs/decisions/0001-mainnet-after-v1-sources.md
 
-  Expected spend
-    devnet x402:  50 * \$0.75 = \$37.50
-    rubric/agent: ~\$5 (OpenAI gpt-4o-mini + Anthropic Sonnet 4.6)
-    TOTAL:        ~\$42.50
+  Expected spend (at --reruns ${RERUNS})
+    OpenAI:       ~50 * ${RERUNS} * \$0.60 = \$$(python3 -c "print(round(50 * ${RERUNS} * 0.60, 2))")
+                  (Judge on gpt-4o; Analyst/Critic/Architect/Scoper on gpt-4o-mini)
+    Anthropic:    ~50 * ${RERUNS} * \$0.10 = \$$(python3 -c "print(round(50 * ${RERUNS} * 0.10, 2))")
+                  (Sonnet 4.6 rubric, one call per idea-run)
+    TOTAL:        ~\$$(python3 -c "print(round(50 * ${RERUNS} * 0.70, 2))")
 
-  Expected runtime: ~30-45 minutes sequential (no parallelism — API rate-limits).
+  Expected runtime: ~$(( 30 * ${RERUNS} ))-$(( 45 * ${RERUNS} )) minutes sequential.
 
 EOF
 
@@ -86,8 +93,8 @@ today="$(date -u +%Y-%m-%d)"
 
 for suite in "${SUITES[@]}"; do
   echo
-  echo "=== [${suite}] running --live ==="
-  uv run python -m tests.eval.runner --suite "${suite}" --live
+  echo "=== [${suite}] running --live --reruns ${RERUNS} ==="
+  uv run python -m tests.eval.runner --suite "${suite}" --live --reruns "${RERUNS}"
 
   # Pick the newest matching live run JSON for this suite + date.
   # Pattern: ${today}-${suite}.json or ${today}-${suite}-N.json (newest wins).
