@@ -18,6 +18,26 @@ import os
 from dataclasses import dataclass
 from typing import Any, Literal
 
+from gecko_core.routing.costs import MODEL_PRICING
+
+
+def _price_per_1k_for(model: str) -> list[float] | None:
+    """Return AG2-style ``[input_per_1k, output_per_1k]`` for ``model`` or None.
+
+    Strips known router prefixes (``openai/``, ``anthropic/``) before lookup
+    so OpenRouter-style names resolve to the same price as the bare model
+    name. ``MODEL_PRICING`` stores USD per 1M tokens; AG2 expects USD per 1K.
+    """
+    bare = model
+    for prefix in ("openai/", "anthropic/", "claude/"):
+        if bare.startswith(prefix):
+            bare = bare[len(prefix) :]
+            break
+    entry = MODEL_PRICING.get(bare)
+    if entry is None:
+        return None
+    return [entry["input_per_m"] / 1000.0, entry["output_per_m"] / 1000.0]
+
 Router = Literal["openai", "openrouter", "clawrouter"]
 _VALID_ROUTERS: frozenset[str] = frozenset(("openai", "openrouter", "clawrouter"))
 
@@ -85,6 +105,14 @@ class RouterConfig:
             # AG2's openai client adapter forwards default_headers into the
             # underlying httpx client.
             entry["default_headers"] = dict(self.extra_headers)
+        # AG2's built-in price table doesn't know router-prefixed names like
+        # ``openai/gpt-4o-mini`` (OpenRouter format) and silently reports
+        # cost as 0 with a WARNING. Inject explicit price [input, output]
+        # per 1K tokens so cost attribution stays accurate regardless of
+        # router naming.
+        price = _price_per_1k_for(model)
+        if price is not None:
+            entry["price"] = price
         return {"config_list": [entry], "temperature": temperature}
 
 

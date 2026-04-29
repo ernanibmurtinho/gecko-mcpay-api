@@ -1,5 +1,12 @@
 {
   "mcpServers": {
+    "gecko": {
+      "command": "/home/nan/.local/bin/gecko-mcp",
+      "args": ["serve"],
+      "env": {
+        "GECKO_API_BASE": "https://api.geckovision.tech"
+      }
+    },
     "supabase": {
       "command": "npx",
       "args": ["-y", "@supabase/mcp-server-supabase@latest"],

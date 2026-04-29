@@ -85,3 +85,38 @@ def test_llm_config_for_model_omits_headers_for_openai() -> None:
     llm_config = cfg.llm_config_for_model("gpt-4o-mini")
     entry = llm_config["config_list"][0]
     assert "default_headers" not in entry
+
+
+def test_llm_config_injects_price_for_openrouter_prefixed_model() -> None:
+    """OpenRouter prefixes model names with ``openai/`` etc. AG2's built-in
+    price table doesn't recognize these and silently reports cost as 0 with
+    a WARNING. We strip the prefix and inject the per-1K price so cost
+    attribution stays accurate."""
+    from gecko_core.orchestration.pro.router import resolve_router
+
+    cfg = resolve_router({"LLM_ROUTER": "openrouter", "OPENROUTER_API_KEY": "or-x"})
+    llm_config = cfg.llm_config_for_model("openai/gpt-4o-mini")
+    entry = llm_config["config_list"][0]
+    assert "price" in entry, "price must be injected for OpenRouter-prefixed models"
+    # gpt-4o-mini: $0.15/1M input → $0.00015/1K, $0.60/1M output → $0.0006/1K
+    assert entry["price"] == [0.00015, 0.0006]
+
+
+def test_llm_config_injects_price_for_bare_openai_model() -> None:
+    from gecko_core.orchestration.pro.router import resolve_router
+
+    cfg = resolve_router({"OPENAI_API_KEY": "sk-x"})
+    llm_config = cfg.llm_config_for_model("gpt-4o")
+    entry = llm_config["config_list"][0]
+    assert entry["price"] == [0.0025, 0.01]
+
+
+def test_llm_config_omits_price_for_unknown_model() -> None:
+    """Unknown models silently skip price injection — AG2 falls back to its
+    built-in table or reports 0. Better than raising in router config."""
+    from gecko_core.orchestration.pro.router import resolve_router
+
+    cfg = resolve_router({"OPENAI_API_KEY": "sk-x"})
+    llm_config = cfg.llm_config_for_model("some-future-model-not-in-table")
+    entry = llm_config["config_list"][0]
+    assert "price" not in entry
