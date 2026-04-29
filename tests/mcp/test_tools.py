@@ -105,6 +105,7 @@ async def test_gecko_research_wrapper(_swap_client: _FakeClient) -> None:
             "tier": "basic",
             "urls": ["https://x.com"],
             "project_id": None,
+            "tier_preset": "balanced",
         }
     ]
 
@@ -112,7 +113,7 @@ async def test_gecko_research_wrapper(_swap_client: _FakeClient) -> None:
 async def test_gecko_research_defaults_tier_basic_no_urls(_swap_client: _FakeClient) -> None:
     await call_tool("gecko_research", {"idea": "x"})
     assert _swap_client.research_calls == [
-        {"idea": "x", "tier": "basic", "urls": None, "project_id": None}
+        {"idea": "x", "tier": "basic", "urls": None, "project_id": None, "tier_preset": "balanced"}
     ]
 
 

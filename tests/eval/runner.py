@@ -318,13 +318,14 @@ async def _dispatch_live_rag(idea_text: str) -> tuple[str, float]:
     """
     try:
         from gecko_core.classify import classify_idea
+        from gecko_core.sources import Source
         from gecko_core.sources.hn import HackerNewsSource
         from gecko_core.sources.reddit import RedditSource
         from gecko_core.sources.twit_sh import TwitshSource
         from gecko_core.sources.v1_block import dispatch_and_render
 
         categories = await classify_idea(idea_text)
-        sources = [TwitshSource(), HackerNewsSource(), RedditSource()]
+        sources: list[Source] = [TwitshSource(), HackerNewsSource(), RedditSource()]
         block = await dispatch_and_render(
             idea=idea_text,
             categories=categories,

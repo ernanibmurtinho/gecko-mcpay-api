@@ -42,7 +42,7 @@ from gecko_core.orchestration.settings import get_orchestration_settings
 from gecko_core.payments import run_payment_gate
 from gecko_core.payments.x402_client import _settings as _payment_settings
 from gecko_core.rag.query import rag_query
-from gecko_core.sessions.store import PaymentMode, SessionStore
+from gecko_core.sessions.store import CostKind, PaymentMode, SessionStore
 
 logger = logging.getLogger(__name__)
 
