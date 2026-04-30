@@ -1,0 +1,71 @@
+name: Catalog drift
+
+# S6-CATALOG-02: weekly + manual run. Pulls OpenRouter pricing, diffs the
+# committed catalog, and opens a PR if any model price drifted > 10% or
+# a model was delisted. Never auto-merges — drift can hide deprecations
+# that warrant human substitution decisions.
+
+on:
+  schedule:
+    - cron: "0 9 * * 1"  # Mondays 09:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  drift:
+    name: Detect catalog drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.5.30"
+
+      - name: Sync workspace
+        run: uv sync
+
+      - name: Compute today's date (UTC)
+        id: today
+        run: echo "date=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
+      - name: Check catalog drift (and rewrite on change)
+        id: drift
+        run: |
+          set +e
+          uv run python scripts/check_catalog_drift.py --write
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+        shell: bash
+
+      - name: Stop if no drift
+        if: steps.drift.outputs.exit_code == '0'
+        run: echo "No drift; nothing to do."
+
+      - name: Fail on unexpected error
+        if: steps.drift.outputs.exit_code == '2'
+        run: |
+          echo "check_catalog_drift.py errored unexpectedly."
+          exit 1
+
+      - name: Open PR with refreshed prices
+        if: steps.drift.outputs.exit_code == '1'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: catalog/refresh-prices-${{ steps.today.outputs.date }}
+          delete-branch: true
+          commit-message: "catalog: refresh prices ${{ steps.today.outputs.date }}"
+          title: "catalog: refresh prices ${{ steps.today.outputs.date }}"
+          body: |
+            Automated catalog drift detection found pricing changes >10% or delisted
+            models on OpenRouter.
+
+            - Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            - Source: `scripts/check_catalog_drift.py`
+
+            Review carefully — price drops can mask deprecations. Do NOT auto-merge.
+          add-paths: |
+            packages/gecko-core/src/gecko_core/routing/model_catalog.json
