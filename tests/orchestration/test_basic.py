@@ -52,6 +52,11 @@ def _valid_payload(url: str) -> dict[str, Any]:
             "demand_evidence": "d",
             "risk_flags": ["rf"],
             "citations": cit,
+            # S9-VERDICT-01 — basic.generate now requires the structured
+            # gap_classification on the raw JSON; supply a canonical value
+            # so the tests don't trigger the gap-retry path.
+            "gap_classification": "Partial:segment",
+            "gap_summary": "competitor X covers a/b but not c.",
         },
         "prd": {
             "v1_scope": ["a"],

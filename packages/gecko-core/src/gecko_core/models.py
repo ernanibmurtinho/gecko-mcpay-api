@@ -69,6 +69,39 @@ class BusinessPlan(BaseModel):
         return v
 
 
+GapClassification = Literal[
+    "Full",
+    "Partial:segment",
+    "Partial:UX",
+    "Partial:geo",
+    "Partial:pricing",
+    "Partial:integration",
+    "False",
+]
+"""Structured taxonomy for the judge's gap assessment (S9-VERDICT-01).
+
+Replaces prose hand-waving in the validation report with a single discrete
+label so downstream consumers (CLI, PRD, future precedent labeler) can branch
+on it without parsing free text.
+
+Values:
+  - ``Full``: an existing competitor fully covers the proposed wedge.
+  - ``Partial:<facet>``: a competitor partially covers it; the named facet is
+    where they fall short (segment, UX, geo, pricing, integration).
+  - ``False``: there is no real gap — the demand the analyst surfaced doesn't
+    actually go unmet (this is a kill signal, not a partial-cover signal).
+"""
+
+# Default applied when the judge fails to emit a valid gap_classification
+# even after the retry. We bias toward 'Partial:segment' (rather than 'Full'
+# or 'False') because segment-level partial cover is the modal real-world
+# state for the dev-tool / regulated-vertical wedges Gecko evaluates, and
+# defaulting there minimizes downstream miscategorization until Sprint 10's
+# auto-labeler can correct it. The orchestrator logs a WARNING when this
+# fallback fires so quality regressions are visible.
+GAP_CLASSIFICATION_FALLBACK: GapClassification = "Partial:segment"
+
+
 class ValidationReport(BaseModel):
     """Quantified validation of the idea."""
 
@@ -77,6 +110,16 @@ class ValidationReport(BaseModel):
     demand_evidence: str
     risk_flags: list[str]
     citations: list[Citation]
+    # S9-VERDICT-01 — structured gap taxonomy. Required field; the basic.py
+    # synthesizer enforces it and falls back to GAP_CLASSIFICATION_FALLBACK
+    # with a logged warning if the LLM omits or mis-types the value after one
+    # retry. Default in the model itself stays as the fallback so legacy
+    # callers (tests, external SDK consumers on older versions) don't break.
+    gap_classification: GapClassification = GAP_CLASSIFICATION_FALLBACK
+    # One-liner that backs the gap_classification with a concrete competitor
+    # comparison. Surfaced in `bb research` output and the PRD. Kept short so
+    # it renders on a single CLI line.
+    gap_summary: str = ""
 
     @field_validator("market_size_signal", "competitor_analysis", "demand_evidence", mode="before")
     @classmethod

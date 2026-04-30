@@ -20,6 +20,7 @@ from openai import AsyncOpenAI
 from pydantic import BaseModel, ValidationError
 
 from gecko_core.models import (
+    GAP_CLASSIFICATION_FALLBACK,
     PRD,
     BusinessPlan,
     Citation,
@@ -61,7 +62,22 @@ Schemas:
 business_plan: {problem, icp, solution, market, business_model, channels,
   risks: list[str], citations: list[Citation]}
 validation_report: {market_size_signal, competitor_analysis, demand_evidence,
-  risk_flags: list[str], citations: list[Citation]}
+  risk_flags: list[str], citations: list[Citation],
+  gap_classification: <one of the gap labels below>, gap_summary: str}
+
+gap_classification (REQUIRED — a single discrete label, no prose, no
+synonyms) is exactly one of:
+  - "Full"                  — an existing competitor fully covers the wedge.
+  - "Partial:segment"       — competitor covers most segments, not THIS one.
+  - "Partial:UX"            — competitor exists but UX gap is the wedge.
+  - "Partial:geo"           — competitor exists but not in this geography.
+  - "Partial:pricing"       — competitor exists but priced wrong for ICP.
+  - "Partial:integration"   — competitor exists but missing integration X.
+  - "False"                 — no real gap; demand doesn't actually go unmet.
+
+gap_summary is ONE sentence (≤ 140 chars) naming the closest competitor and
+the specific facet they miss. Example: "Stripe Radar covers fraud detection
+but not webhook replay debugging for payments engineers."
 prd: {v1_scope, v2_scope, v3_scope, acceptance_criteria, non_functional,
   success_metrics: each list[str], citations: list[Citation]}
 
@@ -228,6 +244,89 @@ def _drop_unknown_citations(
     return out, dropped
 
 
+_VALID_GAP_VALUES: frozenset[str] = frozenset(
+    [
+        "Full",
+        "Partial:segment",
+        "Partial:UX",
+        "Partial:geo",
+        "Partial:pricing",
+        "Partial:integration",
+        "False",
+    ]
+)
+
+_GAP_RETRY_SUFFIX = (
+    "\n\nYour previous response was missing or had an invalid "
+    "validation_report.gap_classification. The field is REQUIRED and MUST be "
+    "EXACTLY one of: 'Full', 'Partial:segment', 'Partial:UX', 'Partial:geo', "
+    "'Partial:pricing', 'Partial:integration', 'False'. No other strings, no "
+    "prose, no nesting. Also include validation_report.gap_summary as a single "
+    "sentence ≤ 140 chars naming the closest competitor + the facet they miss. "
+    "Return corrected JSON only."
+)
+
+
+def _raw_gap_classification(raw: str) -> str | None:
+    """Extract `validation_report.gap_classification` from the raw JSON string.
+
+    The Pydantic model carries a default for `gap_classification` so a parsed
+    output can't tell us whether the LLM omitted the field or genuinely meant
+    `Partial:segment`. We inspect the raw JSON instead — a missing field
+    triggers retry; a present-but-off-taxonomy value triggers retry; a
+    canonical value passes through.
+
+    Returns None when the field is missing or when the JSON itself can't be
+    parsed (the parent caller will surface that error path). Otherwise
+    returns the raw string for membership-checking against
+    `_VALID_GAP_VALUES`.
+    """
+    import json
+
+    try:
+        obj = json.loads(raw)
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(obj, dict):
+        return None
+    vr = obj.get("validation_report")
+    if not isinstance(vr, dict):
+        return None
+    val = vr.get("gap_classification")
+    if not isinstance(val, str):
+        return None
+    return val
+
+
+def _gap_classification_is_valid(raw: str) -> bool:
+    """True iff the raw JSON emits a canonical gap_classification value.
+
+    Source of truth is the raw LLM output, not the parsed model — see
+    `_raw_gap_classification` for why.
+    """
+    val = _raw_gap_classification(raw)
+    return val in _VALID_GAP_VALUES
+
+
+def _enforce_gap_classification(out: _LLMOutput) -> _LLMOutput:
+    """Hard-fallback helper. Logs a warning and rewrites the field to the
+    fallback so downstream consumers always see a valid taxonomy entry.
+
+    Only call this after the retry has also failed — silently coercing on the
+    first pass would mask judge regressions.
+    """
+    logger.warning(
+        "validation_report.gap_classification missing/invalid after retry; "
+        "falling back to %s. Original value=%r",
+        GAP_CLASSIFICATION_FALLBACK,
+        out.validation_report.gap_classification,
+    )
+    out.validation_report = out.validation_report.model_copy(
+        update={"gap_classification": GAP_CLASSIFICATION_FALLBACK}
+    )
+    return out
+
+
 def _validate_citations(out: _LLMOutput, allowed_urls: set[str]) -> _LLMOutput:
     """Drop citations referencing URLs that didn't make it into the index.
 
@@ -296,6 +395,7 @@ async def generate(
     await store.add_cost(session_id, "llm", cost1)
 
     out: _LLMOutput
+    parsed_raw: str = raw
     try:
         out = _LLMOutput.model_validate_json(raw)
     except ValidationError as ve:
@@ -316,8 +416,39 @@ async def generate(
         await store.add_cost(session_id, "llm", cost2)
         try:
             out = _LLMOutput.model_validate_json(raw2)
+            parsed_raw = raw2
         except ValidationError as ve2:
             raise OrchestrationError(f"LLM output failed validation after retry: {ve2}") from ve2
+
+    # S9-VERDICT-01 — enforce structured gap_classification on the validation
+    # report. If the LLM's raw JSON omitted the field or emitted an off-
+    # taxonomy value, retry once with a stricter suffix; if that still fails,
+    # log a WARNING and pin the field to GAP_CLASSIFICATION_FALLBACK so
+    # downstream consumers always see a valid label.
+    if not _gap_classification_is_valid(parsed_raw):
+        retry_user = user + _GAP_RETRY_SUFFIX
+        raw_gap, cost_gap = await _call_llm(
+            client=client,
+            model=orch.chat_model,
+            system=_SYSTEM_PROMPT,
+            user=retry_user,
+            temperature=orch.temperature,
+        )
+        await store.add_cost(session_id, "llm", cost_gap)
+        try:
+            out_retry = _LLMOutput.model_validate_json(raw_gap)
+        except ValidationError:
+            # Bad JSON on the retry — fall back without overwriting the
+            # earlier valid `out` (citations, plan, prd are still good).
+            out = _enforce_gap_classification(out)
+        else:
+            if _gap_classification_is_valid(raw_gap):
+                # Lift only the validation_report (and its gap fields) from
+                # the retry; the other fields could have drifted between
+                # calls and we already validated them on the first pass.
+                out.validation_report = out_retry.validation_report
+            else:
+                out = _enforce_gap_classification(out)
 
     out = _validate_citations(out, allowed_urls)
 

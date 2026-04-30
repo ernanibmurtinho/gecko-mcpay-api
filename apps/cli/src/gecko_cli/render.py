@@ -148,8 +148,24 @@ def _business_plan_body(bp: BusinessPlan, accent: str) -> Group:
     return Group(*parts)
 
 
+def _gap_line(v: ValidationReport, accent: str) -> Text:
+    """S9-VERDICT-01 — bold one-liner under the verdict surfacing the
+    structured gap classification + summary. Renders even when the LLM only
+    provided the label (no summary) so the taxonomy stays visible."""
+    t = Text()
+    t.append("Gap: ", style=f"bold {accent}")
+    t.append(v.gap_classification, style="bold")
+    summary = (v.gap_summary or "").strip()
+    if summary:
+        t.append(" — ", style=_META_STYLE)
+        t.append(summary)
+    return t
+
+
 def _validation_body(v: ValidationReport, accent: str) -> Group:
     parts: list[Text] = [
+        _gap_line(v, accent),
+        _spacer(),
         _kv("Market size signal", v.market_size_signal, accent),
         _spacer(),
         _kv("Competitor analysis", v.competitor_analysis, accent),
@@ -165,20 +181,30 @@ def _validation_body(v: ValidationReport, accent: str) -> Group:
     return Group(*parts)
 
 
-def _prd_body(p: PRD, accent: str) -> Group:
+def _prd_body(p: PRD, accent: str, *, gap: ValidationReport | None = None) -> Group:
     parts: list[Text] = [
         _bullets("V1 scope", p.v1_scope, accent),
-        _spacer(),
-        _bullets("V2 scope", p.v2_scope, accent),
-        _spacer(),
-        _bullets("V3 scope", p.v3_scope, accent),
-        _spacer(),
-        _bullets("Acceptance criteria", p.acceptance_criteria, accent),
-        _spacer(),
-        _bullets("Non-functional", p.non_functional, accent),
-        _spacer(),
-        _bullets("Success metrics", p.success_metrics, accent),
     ]
+    if gap is not None:
+        # S9-VERDICT-01 — echo the gap classification under V1 scope so the
+        # PRD output surfaces the same structured signal the validation panel
+        # carries. One line, dimmed accent so it reads as metadata.
+        parts.append(_spacer())
+        parts.append(_gap_line(gap, accent))
+    parts.append(_spacer())
+    parts.extend(
+        [
+            _bullets("V2 scope", p.v2_scope, accent),
+            _spacer(),
+            _bullets("V3 scope", p.v3_scope, accent),
+            _spacer(),
+            _bullets("Acceptance criteria", p.acceptance_criteria, accent),
+            _spacer(),
+            _bullets("Non-functional", p.non_functional, accent),
+            _spacer(),
+            _bullets("Success metrics", p.success_metrics, accent),
+        ]
+    )
     cites = _citations_renderable(p.citations, accent)
     if cites is not None:
         parts.append(_spacer())
@@ -235,7 +261,13 @@ def render_research_result(result: ResearchResult, console: Console | None = Non
 
     c.print(Rule(Text("PRD", style=f"bold {_PRD_STYLE}"), style=_PRD_STYLE))
 
-    c.print(_doc_panel("PRD", _prd_body(result.prd, _PRD_STYLE), _PRD_STYLE))
+    c.print(
+        _doc_panel(
+            "PRD",
+            _prd_body(result.prd, _PRD_STYLE, gap=result.validation_report),
+            _PRD_STYLE,
+        )
+    )
 
 
 # --- Sources table ---------------------------------------------------------
