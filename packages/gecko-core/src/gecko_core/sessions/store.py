@@ -145,6 +145,7 @@ class SessionStore:
     SESSIONS_TABLE = "sessions"
     SOURCES_TABLE = "sources"
     CHUNKS_TABLE = "chunks"
+    CHUNK_EMBEDDING_CACHE_TABLE = "chunk_embedding_cache"
 
     def __init__(self, client: Client) -> None:
         self._client = client
@@ -675,6 +676,96 @@ class SessionStore:
 
         rows = await asyncio.to_thread(_select)
         return float(sum((r.get("cost_total_usd") or 0) for r in rows))
+
+    # ------------------------------------------------------------------
+    # Cross-session embedding cache (migration 20260430052216, S8-INGEST-03).
+    #
+    # Keyed on (url_hash, chunk_index). The pipeline checks this BEFORE
+    # calling the embedder so re-ingesting the same URL (e.g. same Tavily
+    # result returned by a later idea in the dogfood matrix) reuses the
+    # vectors instead of paying OpenAI again. Pure cache — safe to wipe.
+    # ------------------------------------------------------------------
+
+    async def get_chunk_cache(
+        self,
+        url_hash: str,
+        indices: list[int],
+    ) -> dict[int, list[float]]:
+        """Return {chunk_index: embedding} for the given (url_hash, idx) pairs.
+
+        Empty dict on miss / unavailable cache table. Best-effort: a
+        Supabase failure here must not crash ingestion (the caller catches
+        and falls through to a live embed).
+        """
+        if not indices:
+            return {}
+
+        def _select() -> list[dict[str, Any]]:
+            res = (
+                self._client.table(self.CHUNK_EMBEDDING_CACHE_TABLE)
+                .select("chunk_index,embedding")
+                .eq("url_hash", url_hash)
+                .in_("chunk_index", indices)
+                .execute()
+            )
+            return cast(list[dict[str, Any]], res.data or [])
+
+        rows = await asyncio.to_thread(_select)
+        out: dict[int, list[float]] = {}
+        for r in rows:
+            idx = r.get("chunk_index")
+            emb = r.get("embedding")
+            if idx is None or emb is None:
+                continue
+            # Supabase returns pgvector as either a list or its string
+            # representation depending on PostgREST version — normalize.
+            if isinstance(emb, str):
+                try:
+                    import json as _json
+
+                    emb = _json.loads(emb)
+                except Exception:
+                    continue
+            if isinstance(emb, list):
+                out[int(idx)] = [float(v) for v in emb]
+        return out
+
+    async def put_chunk_cache(
+        self,
+        url_hash: str,
+        rows: list[tuple[int, str, list[float]]],
+    ) -> None:
+        """Upsert (url_hash, chunk_index) → (text, embedding) rows.
+
+        ON CONFLICT DO NOTHING semantics via supabase-py upsert with
+        ignore_duplicates=True — first writer wins, concurrent ingests of
+        the same URL don't fight. Best-effort: errors are logged by the
+        caller, never raised.
+        """
+        if not rows:
+            return
+        payload: list[dict[str, Any]] = [
+            {
+                "url_hash": url_hash,
+                "chunk_index": idx,
+                "text": text,
+                "embedding": embedding,
+            }
+            for idx, text, embedding in rows
+        ]
+
+        def _upsert() -> None:
+            (
+                self._client.table(self.CHUNK_EMBEDDING_CACHE_TABLE)
+                .upsert(
+                    payload,
+                    on_conflict="url_hash,chunk_index",
+                    ignore_duplicates=True,
+                )
+                .execute()
+            )
+
+        await asyncio.to_thread(_upsert)
 
     async def set_source_chunk_count(self, source_id: UUID, count: int) -> None:
         """Update sources.chunk_count after chunk insert."""

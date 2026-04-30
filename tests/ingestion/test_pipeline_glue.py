@@ -148,3 +148,73 @@ async def test_whitespace_only_chunks_are_filtered(fake_embed: Any) -> None:
     assert result.failed == 0
     assert result.indexed == 1
     assert result.total_chunks == 2  # only the two non-empty chunks
+
+
+@pytest.mark.asyncio
+async def test_second_ingest_same_url_skips_embedder() -> None:
+    """S8-INGEST-03 — re-ingesting the same URL in a new session must hit
+    the embedding cache, not OpenAI.
+
+    The dogfood matrix re-runs Tavily on similar ideas and gets back the
+    same handful of authoritative URLs (x402.org, solanacompass.com, ...).
+    Without this dedup, every retry re-embeds identical content.
+    """
+    candidate = _candidate("https://x402.org/ecosystem")
+    store = GlueStore()
+
+    async def fake_web(url: str, **_: Any) -> tuple[str, float]:
+        return ("x402 protocol overview body. " * 100), 0.0
+
+    embed_calls = 0
+
+    async def counting_embed(texts: list[str], **_: Any) -> tuple[list[list[float]], int]:
+        nonlocal embed_calls
+        embed_calls += 1
+        return [[0.02] * 1536 for _ in texts], 11 * len(texts)
+
+    with (
+        patch.object(pipeline.web_extractor, "extract", side_effect=fake_web),
+        patch.object(pipeline, "embed_texts", side_effect=counting_embed),
+    ):
+        first = await pipeline.ingest(uuid4(), [candidate], store)  # type: ignore[arg-type]
+        # Second session, same URL — cache must serve every chunk.
+        second = await pipeline.ingest(uuid4(), [candidate], store)  # type: ignore[arg-type]
+
+    assert first.indexed == 1 and first.total_chunks > 0
+    assert second.indexed == 1 and second.total_chunks == first.total_chunks
+    # Embedder called exactly once across both ingests.
+    assert embed_calls == 1, f"expected 1 embed call (cache hit), got {embed_calls}"
+    # Cache populated with one entry per chunk.
+    assert len(store.cache) == first.total_chunks
+
+
+@pytest.mark.asyncio
+async def test_partial_cache_hit_only_embeds_missing() -> None:
+    """If only some chunks are cached, embedder gets ONLY the missing pieces."""
+    candidate = _candidate("https://x402.org/partial")
+    store = GlueStore()
+    uhash = pipeline.url_hash(str(candidate.url))
+
+    # Pre-seed cache for chunk_index=0 only.
+    store.cache[(uhash, 0)] = ("seeded text", [0.99] * 1536)
+
+    async def fake_web(url: str, **_: Any) -> tuple[str, float]:
+        # Big enough that the chunker yields >=2 pieces (512-token cap).
+        return ("partial coverage body for x402 protocol. " * 800), 0.0
+
+    embedded_inputs: list[list[str]] = []
+
+    async def counting_embed(texts: list[str], **_: Any) -> tuple[list[list[float]], int]:
+        embedded_inputs.append(list(texts))
+        return [[0.03] * 1536 for _ in texts], len(texts)
+
+    with (
+        patch.object(pipeline.web_extractor, "extract", side_effect=fake_web),
+        patch.object(pipeline, "embed_texts", side_effect=counting_embed),
+    ):
+        result = await pipeline.ingest(uuid4(), [candidate], store)  # type: ignore[arg-type]
+
+    assert result.indexed == 1
+    assert len(embedded_inputs) == 1
+    # Embedder saw N-1 inputs (the seeded chunk_index=0 was served from cache).
+    assert len(embedded_inputs[0]) == result.total_chunks - 1
