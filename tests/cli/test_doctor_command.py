@@ -60,7 +60,14 @@ def test_check_llm_resolution_via_router_env() -> None:
 def test_check_llm_resolution_warns_on_clawrouter_default(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """No LLM_ROUTER + default x402 key → warn so prod deploys notice.
+    """S10-CLI-02 — post-S9-CONFIG-03 contract.
+
+    When ``LLM_ROUTER`` is unset AND ``GECKO_LLM_ENDPOINT`` matches the
+    baked-in default (``http://localhost:8402/v1``), ``resolve_llm_config``
+    falls through to the legacy plane with the ClawRouter literal
+    ``"x402"`` as the api_key. ``check_llm_resolution`` surfaces that as
+    WARN (api_key is a placeholder, not a real credential) so prod deploys
+    notice they forgot to set OPENAI_API_KEY / OPENROUTER_API_KEY.
 
     We patch OrchestrationSettings construction so the test isn't sensitive
     to whatever GECKO_LLM_API_KEY the developer happens to have in their
@@ -70,14 +77,21 @@ def test_check_llm_resolution_warns_on_clawrouter_default(
 
     fake = settings_mod.OrchestrationSettings.model_construct(
         chat_model="openai/gpt-4o",
-        llm_endpoint="http://localhost:8402/v1",
+        llm_endpoint="http://localhost:8402/v1",  # == _DEFAULT_LLM_ENDPOINT
         llm_api_key="x402",
         max_input_tokens=60_000,
         temperature=0.3,
     )
     monkeypatch.setattr(settings_mod, "get_orchestration_settings", lambda: fake)
+    # Pass an explicit empty env so the row is independent of the
+    # developer's shell (e.g. an exported LLM_ROUTER from .env would
+    # otherwise re-route resolution into the router plane).
     row = check_llm_resolution({})
-    assert row.status == "warn"
+    assert row.status == "warn", row.detail
+    # Surface the actual reason: x402 literal placeholder in the legacy plane.
+    assert "x402" in row.detail
+    assert row.detail.lower().count("legacy") >= 0  # source=legacy in detail
+    assert "source=legacy" in row.detail
 
 
 def test_check_x402_stub_default_ok() -> None:
