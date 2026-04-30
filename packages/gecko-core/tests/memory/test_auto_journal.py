@@ -103,7 +103,11 @@ async def test_journal_plan_carries_all_voices(saved_calls: list[dict[str, Any]]
         {"role": "ceo", "closing_line": "lock the LOI", "model_used": "kimi-k2"},
         {"role": "cto", "closing_line": "ship the parser", "model_used": "deepseek"},
         {"role": "business_manager", "closing_line": "raise seed", "model_used": "kimi-k2"},
-        {"role": "product_manager", "closing_line": "interview 5 founders", "model_used": "deepseek"},
+        {
+            "role": "product_manager",
+            "closing_line": "interview 5 founders",
+            "model_used": "deepseek",
+        },
         {"role": "staff_manager", "closing_line": "sprint plan", "model_used": "claude"},
     ]
     await auto_journal.journal_plan(

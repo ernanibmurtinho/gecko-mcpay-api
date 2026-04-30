@@ -17,9 +17,7 @@ from gecko_core.routing.costs import (
 
 
 def test_catalog_backed_opus_input_only() -> None:
-    cost = estimate_cost_usd(
-        "anthropic/claude-opus-4.7", tokens_in=1_000_000, tokens_out=0
-    )
+    cost = estimate_cost_usd("anthropic/claude-opus-4.7", tokens_in=1_000_000, tokens_out=0)
     assert cost == pytest.approx(5.00)
 
 

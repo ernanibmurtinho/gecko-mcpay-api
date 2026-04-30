@@ -83,8 +83,7 @@ def test_mock_precedent_similarity_capped(suite_file: str) -> None:
             if float(sim) > _MAX_PRECEDENT_SIMILARITY:
                 offenders.append((str(idea.get("id", "<no id>")), float(sim)))
     assert not offenders, (
-        f"{suite_file}: mock_precedents above similarity {_MAX_PRECEDENT_SIMILARITY}: "
-        f"{offenders}"
+        f"{suite_file}: mock_precedents above similarity {_MAX_PRECEDENT_SIMILARITY}: {offenders}"
     )
 
 

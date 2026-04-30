@@ -1,10 +1,10 @@
 {
   "metadata": {
-    "version": "1.0.0",
+    "version": "1.1.0",
     "last_updated": "2026-04-29",
     "source": "OpenRouter Rankings + BenchLM + Artificial Analysis",
     "description": "GeckoVision Model Routing Database - Best models per task, organized by cost/speed/quality tiers",
-    "note": "Prices in USD per 1M tokens. Scores from BenchLM provisional overall score (0-100)."
+    "note": "Prices in USD per 1M tokens. Scores from BenchLM provisional overall score (0-100). S8-CATALOG-01 dropped 5 delisted models (deepseek-v4-flash-max, qwen3.5-plus, poolside-laguna-m1, nemotron-3-super, nemotron-3-nano-omni); free-tier slots now point at the cheapest live budget models since OpenRouter has no actively-listed zero-cost catalog members."
   },
 
   "models": {
@@ -127,22 +127,6 @@
       "modalities": ["text"]
     },
 
-    "deepseek-v4-flash-max": {
-      "id": "deepseek/deepseek-v4-flash-max",
-      "name": "DeepSeek V4 Flash (Max Reasoning)",
-      "provider": "deepseek",
-      "pricing": { "input": 0.14, "output": 0.28 },
-      "context_window": 1000000,
-      "score": 76,
-      "score_per_dollar": 264.3,
-      "tier": "ultra_budget",
-      "strengths": ["best score/$ ratio in the market", "reasoning mode", "1M context"],
-      "weaknesses": ["slower than non-reasoning variant"],
-      "best_for": ["budget_reasoning", "bulk_analysis", "cost_optimized_workflows"],
-      "modalities": ["text"],
-      "note": "BEST VALUE model overall. Score/$ ratio of 264.3."
-    },
-
     "gemini-3-flash-preview": {
       "id": "google/gemini-3-flash-preview",
       "name": "Gemini 3 Flash Preview",
@@ -190,7 +174,7 @@
       "best_for": ["image_processing", "vision_triage", "bulk_image_analysis", "cheap_classification"],
       "modalities": ["text", "image"],
       "openrouter_rank": { "images": 1 },
-      "note": "Dominates image processing at 31.4% market share. Cheapest multimodal model."
+      "note": "Dominates image processing at 31.4% market share. Cheapest multimodal model. S8-CATALOG-01: also serves as the free-tier multimodal substitute now that nemotron-3-nano-omni was delisted."
     },
 
     "gemini-2.5-flash": {
@@ -288,7 +272,7 @@
       "weaknesses": ["limited reasoning", "basic outputs"],
       "best_for": ["classification", "routing", "simple_extraction", "triage"],
       "modalities": ["text"],
-      "note": "Perfect for the router/classifier agent itself."
+      "note": "Perfect for the router/classifier agent itself. S8-CATALOG-01: now serves as the free-tier general-purpose substitute since nemotron-3-super was delisted."
     },
 
     "step-3.5-flash": {
@@ -325,21 +309,6 @@
       "openrouter_rank": { "finance": 8, "tool_calls": 6, "overall": 8 }
     },
 
-    "qwen3.5-plus": {
-      "id": "qwen/qwen3.5-plus",
-      "name": "Qwen3.5 Plus",
-      "provider": "qwen",
-      "pricing": { "input": 0.40, "output": 2.40 },
-      "context_window": 1000000,
-      "score": 64,
-      "score_per_dollar": 17.8,
-      "tier": "budget",
-      "strengths": ["multimodal", "1M context", "good value"],
-      "weaknesses": ["less battle-tested for coding"],
-      "best_for": ["general_purpose", "multimodal", "budget_reasoning"],
-      "modalities": ["text", "image", "video"]
-    },
-
     "qwen3.6-flash": {
       "id": "qwen/qwen3.6-flash",
       "name": "Qwen3.6 Flash",
@@ -351,8 +320,9 @@
       "tier": "budget",
       "strengths": ["fast", "multimodal", "1M context", "cheap"],
       "weaknesses": ["not frontier quality"],
-      "best_for": ["budget_multimodal", "general_purpose", "summarization"],
-      "modalities": ["text", "image", "video"]
+      "best_for": ["budget_multimodal", "general_purpose", "summarization", "creative_writing"],
+      "modalities": ["text", "image", "video"],
+      "note": "S8-CATALOG-01: now covers the creative_writing budget slot vacated by qwen3.5-plus."
     },
 
     "grok-4.1-fast": {
@@ -370,54 +340,6 @@
       "modalities": ["text"],
       "weekly_tokens": "750B",
       "openrouter_rank": { "overall": 9 }
-    },
-
-    "poolside-laguna-m1": {
-      "id": "poolside/laguna-m.1",
-      "name": "Poolside Laguna M.1",
-      "provider": "poolside",
-      "pricing": { "input": 0.00, "output": 0.00 },
-      "context_window": 131000,
-      "score": 50,
-      "score_per_dollar": null,
-      "tier": "free",
-      "strengths": ["free", "coding specialist", "tool calling", "reasoning"],
-      "weaknesses": ["limited context", "coding-focused only"],
-      "best_for": ["free_coding", "budget_coding_agent"],
-      "modalities": ["text"],
-      "note": "Free coding agent model from Poolside."
-    },
-
-    "nemotron-3-super": {
-      "id": "nvidia/nemotron-3-super",
-      "name": "Nemotron 3 Super",
-      "provider": "nvidia",
-      "pricing": { "input": 0.00, "output": 0.00 },
-      "context_window": 32000,
-      "score": 44,
-      "score_per_dollar": null,
-      "tier": "free",
-      "strengths": ["free", "general purpose", "good for simple tasks"],
-      "weaknesses": ["small context window", "limited capabilities"],
-      "best_for": ["free_general", "simple_tasks", "testing"],
-      "modalities": ["text"],
-      "weekly_tokens": "661B",
-      "openrouter_rank": { "programming": 5, "tool_calls": 8, "overall": 10 }
-    },
-
-    "nemotron-3-nano-omni": {
-      "id": "nvidia/nemotron-3-nano-omni",
-      "name": "Nemotron 3 Nano Omni",
-      "provider": "nvidia",
-      "pricing": { "input": 0.00, "output": 0.00 },
-      "context_window": 256000,
-      "score": 35,
-      "score_per_dollar": null,
-      "tier": "free",
-      "strengths": ["free", "multimodal (text/image/video/audio)", "256K context", "perception agent"],
-      "weaknesses": ["lower quality outputs"],
-      "best_for": ["free_multimodal", "perception_agent", "triage"],
-      "modalities": ["text", "image", "video", "audio"]
     }
   },
 
@@ -429,9 +351,9 @@
         "best_quality": "claude-opus-4.7",
         "best_value": "kimi-k2.6",
         "budget": "deepseek-v4-pro",
-        "free": "poolside-laguna-m1"
+        "free": "deepseek-v4-flash"
       },
-      "reasoning": "Claude Opus 4.7 leads SWE-bench at 82%, but Kimi K2.6 at 80.2% saves 88% on costs. DeepSeek V4 Pro hits 83.7% at 1/17th the cost of Claude."
+      "reasoning": "Claude Opus 4.7 leads SWE-bench at 82%, but Kimi K2.6 at 80.2% saves 88% on costs. DeepSeek V4 Pro hits 83.7% at 1/17th the cost of Claude. Free-slot fallback: DeepSeek V4 Flash ($0.14/$0.28) replaces the delisted Poolside Laguna M.1."
     },
 
     "simple_coding": {
@@ -441,9 +363,9 @@
         "best_quality": "claude-sonnet-4.6",
         "best_value": "deepseek-v3.2",
         "budget": "step-3.5-flash",
-        "free": "nemotron-3-super"
+        "free": "gpt-4.1-nano"
       },
-      "reasoning": "Simple coding doesn't need frontier models. DeepSeek V3.2 at $0.25/$0.38 handles most edits. Step 3.5 Flash at $0.10/$0.30 is even cheaper."
+      "reasoning": "Simple coding doesn't need frontier models. DeepSeek V3.2 at $0.25/$0.38 handles most edits. Step 3.5 Flash at $0.10/$0.30 is even cheaper. Free-slot fallback: GPT-4.1 Nano replaces the delisted Nemotron 3 Super."
     },
 
     "planning_orchestration": {
@@ -453,7 +375,7 @@
         "best_quality": "claude-opus-4.7",
         "best_value": "kimi-k2.6",
         "budget": "gemini-3-flash-preview",
-        "free": "nemotron-3-super"
+        "free": "gpt-4.1-nano"
       },
       "reasoning": "Planning errors cascade downstream. Opus 4.7 is the gold standard. Kimi K2.6's agent swarm architecture makes it a strong alternative at lower cost."
     },
@@ -465,7 +387,7 @@
         "best_quality": "claude-haiku-4.5",
         "best_value": "gpt-4.1-nano",
         "budget": "deepseek-v4-flash",
-        "free": "nemotron-3-super"
+        "free": "gpt-4.1-nano"
       },
       "reasoning": "File navigation is pattern matching, not reasoning. Using Opus here wastes 5x the budget. GPT-4.1 Nano at $0.10/$0.40 is perfect."
     },
@@ -477,7 +399,7 @@
         "best_quality": "claude-sonnet-4.6",
         "best_value": "deepseek-v4-pro",
         "budget": "kimi-k2.6",
-        "free": "poolside-laguna-m1"
+        "free": "deepseek-v4-flash"
       },
       "reasoning": "Code review needs enough intelligence to catch bugs but doesn't need frontier. Sonnet 4.6 is the sweet spot. DeepSeek V4 Pro is excellent value."
     },
@@ -487,11 +409,11 @@
       "priority": "quality",
       "recommendations": {
         "best_quality": "gpt-5.5",
-        "best_value": "deepseek-v4-flash-max",
+        "best_value": "kimi-k2.6",
         "budget": "grok-4.1-fast",
-        "free": "nemotron-3-super"
+        "free": "gpt-4.1-nano"
       },
-      "reasoning": "GPT-5.5 has the highest intelligence index (60.2). DeepSeek V4 Flash Max has the best score/$ ratio at 264.3. Grok 4.1 Fast offers 2M context at $0.20/$0.50."
+      "reasoning": "GPT-5.5 has the highest intelligence index. Kimi K2.6 (score 84) replaces the delisted DeepSeek V4 Flash Max as the balanced/value pick. Grok 4.1 Fast offers 2M context at $0.20/$0.50."
     },
 
     "creative_writing": {
@@ -500,10 +422,10 @@
       "recommendations": {
         "best_quality": "claude-sonnet-4.6",
         "best_value": "kimi-k2.6",
-        "budget": "qwen3.5-plus",
-        "free": "nemotron-3-super"
+        "budget": "qwen3.6-flash",
+        "free": "gpt-4.1-nano"
       },
-      "reasoning": "Claude excels at nuanced, polished writing. Kimi K2.6 is surprisingly good for content. Qwen3.5 Plus offers good multimodal writing at $0.40/$2.40."
+      "reasoning": "Claude excels at nuanced, polished writing. Kimi K2.6 is surprisingly good for content. Qwen3.6 Flash replaces the delisted Qwen3.5 Plus for budget multimodal writing."
     },
 
     "summarization": {
@@ -513,7 +435,7 @@
         "best_quality": "gemini-3-flash-preview",
         "best_value": "deepseek-v4-flash",
         "budget": "gpt-4.1-nano",
-        "free": "nemotron-3-super"
+        "free": "gpt-4.1-nano"
       },
       "reasoning": "Summarization is well-solved by smaller models. DeepSeek V4 Flash at $0.14/$0.28 with 1M context is ideal for bulk summarization."
     },
@@ -525,9 +447,9 @@
         "best_quality": "claude-sonnet-4.6",
         "best_value": "gemini-2.5-flash-lite",
         "budget": "gpt-4.1-mini",
-        "free": "nemotron-3-nano-omni"
+        "free": "gemini-2.5-flash-lite"
       },
-      "reasoning": "Gemini 2.5 Flash Lite dominates image processing at 31.4% market share and $0.02/$0.10. GPT-4.1 Mini is #3 for images at $0.40/$1.60."
+      "reasoning": "Gemini 2.5 Flash Lite dominates image processing at 31.4% market share and $0.02/$0.10 — also doubles as the free-tier substitute for the delisted Nemotron 3 Nano Omni. GPT-4.1 Mini is #3 for images at $0.40/$1.60."
     },
 
     "audio_processing": {
@@ -537,9 +459,9 @@
         "best_quality": "gemini-3.1-pro-preview",
         "best_value": "gemini-3-flash-preview",
         "budget": "gemini-2.5-flash",
-        "free": "nemotron-3-nano-omni"
+        "free": "gemini-2.5-flash-lite"
       },
-      "reasoning": "Google Gemini dominates audio with 90%+ market share. Gemini 3 Flash Preview handles 40.9% of all audio on OpenRouter."
+      "reasoning": "Google Gemini dominates audio with 90%+ market share. Gemini 3 Flash Preview handles 40.9% of all audio on OpenRouter. Free-slot fallback: 2.5 Flash Lite (text+image only) since OpenRouter no longer carries a free audio-capable model."
     },
 
     "tool_calling": {
@@ -549,7 +471,7 @@
         "best_quality": "claude-sonnet-4.6",
         "best_value": "kimi-k2.6",
         "budget": "gemini-3-flash-preview",
-        "free": "nemotron-3-super"
+        "free": "gpt-4.1-nano"
       },
       "reasoning": "Tool calling needs reliable structured output. Kimi K2.6 and Gemini 3 Flash are the top 2-3 for tool calls on OpenRouter."
     },
@@ -561,7 +483,7 @@
         "best_quality": "claude-opus-4.7",
         "best_value": "deepseek-v3.2",
         "budget": "minimax-m2.7",
-        "free": "nemotron-3-super"
+        "free": "gpt-4.1-nano"
       },
       "reasoning": "Data analysis needs good reasoning + code generation. DeepSeek V3.2 at $0.25/$0.38 is exceptional value. MiniMax M2.7 at $0.30/$1.20 is great for finance."
     },
@@ -573,7 +495,7 @@
         "best_quality": "gpt-4.1-mini",
         "best_value": "gpt-4.1-nano",
         "budget": "deepseek-v4-flash",
-        "free": "nemotron-3-super"
+        "free": "gpt-4.1-nano"
       },
       "reasoning": "The router itself should be the cheapest model possible. GPT-4.1 Nano at $0.10/$0.40 is perfect for classifying tasks before routing to specialists."
     },
@@ -585,7 +507,7 @@
         "best_quality": "gemini-3.1-pro-preview",
         "best_value": "grok-4.1-fast",
         "budget": "deepseek-v4-flash",
-        "free": "nemotron-3-nano-omni"
+        "free": "gemini-2.5-flash-lite"
       },
       "reasoning": "Grok 4.1 Fast offers 2M context at $0.20/$0.50 - unbeatable for long docs. Gemini models offer 1M+ context. DeepSeek V4 Flash has 1M at $0.14/$0.28."
     },
@@ -597,7 +519,7 @@
         "best_quality": "gpt-5.5",
         "best_value": "deepseek-v4-pro",
         "budget": "step-3.5-flash",
-        "free": "nemotron-3-super"
+        "free": "gpt-4.1-nano"
       },
       "reasoning": "DeepSeek V4 has gold-medal results on IMO and IOI. Step 3.5 Flash ranks #3 in Science on OpenRouter at $0.10/$0.30."
     }
@@ -623,10 +545,10 @@
       "typical_cost_per_1k_requests": "$0.50-5"
     },
     "free_tier": {
-      "description": "Zero cost using free models only",
-      "default_model": "nemotron-3-super",
-      "router_model": "nemotron-3-super",
-      "typical_cost_per_1k_requests": "$0"
+      "description": "Cheapest live models (S8-CATALOG-01: OpenRouter no longer carries actively-listed zero-cost frontier models, so 'free' now means 'cheapest')",
+      "default_model": "gpt-4.1-nano",
+      "router_model": "gpt-4.1-nano",
+      "typical_cost_per_1k_requests": "<$0.50"
     }
   },
 
@@ -643,7 +565,7 @@
     },
     "balanced": {
       "description": "Good quality, low cost ($1-3 per M output tokens)",
-      "models": ["gemini-3-flash-preview", "gpt-5-mini", "minimax-m2.7", "qwen3.5-plus"],
+      "models": ["gemini-3-flash-preview", "gpt-5-mini", "minimax-m2.7", "qwen3.6-flash"],
       "use_when": "Standard tasks where quality is good enough"
     },
     "budget": {
@@ -652,9 +574,9 @@
       "use_when": "High volume, simple tasks, or tight budget"
     },
     "free": {
-      "description": "Free models, zero cost",
-      "models": ["nemotron-3-super", "nemotron-3-nano-omni", "poolside-laguna-m1"],
-      "use_when": "Testing, prototyping, or zero budget"
+      "description": "Cheapest live models — see metadata.note (OpenRouter dropped all 5 prior zero-cost catalog members on 2026-04-29)",
+      "models": ["gpt-4.1-nano", "gemini-2.5-flash-lite"],
+      "use_when": "Testing, prototyping, or tight cost ceiling"
     }
   }
 }

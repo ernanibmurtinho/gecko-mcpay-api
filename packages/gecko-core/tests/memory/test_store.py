@@ -208,9 +208,7 @@ async def test_ttl_expiration_filters_recall(
     assert rows[0].value == {"x": 2}
 
 
-async def test_scope_isolation(
-    fake_store: _FakeStore, fake_embed: list[list[float]]
-) -> None:
+async def test_scope_isolation(fake_store: _FakeStore, fake_embed: list[list[float]]) -> None:
     scope_a = MemoryScope(type="project", id="proj-A")
     scope_b = MemoryScope(type="project", id="proj-B")
     await save(scope_a, MemoryEntryType.user_note, {"a": True}, store=fake_store)

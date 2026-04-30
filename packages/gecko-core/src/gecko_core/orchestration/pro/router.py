@@ -50,6 +50,7 @@ def _price_per_1k_for(model: str) -> list[float] | None:
         return None
     return [entry["input_per_m"] / 1000.0, entry["output_per_m"] / 1000.0]
 
+
 Router = Literal["openai", "openrouter", "clawrouter"]
 _VALID_ROUTERS: frozenset[str] = frozenset(("openai", "openrouter", "clawrouter"))
 
@@ -270,9 +271,11 @@ def model_matrix_for_tier(router: Router, tier: Tier) -> dict[str, str]:
             entry = None
         # If lookup succeeded but provider filtering kicked it out, fall back.
         if entry is None or (openai_only and entry.id not in catalog):
-            matrix[role.value] = _OPENAI_FALLBACK_BY_TIER[tier] if openai_only else (
+            matrix[role.value] = (
+                _OPENAI_FALLBACK_BY_TIER[tier]
+                if openai_only
                 # Cross-provider catalog miss is unusual — bail to a sane default.
-                "openai/gpt-4.1-nano"
+                else ("openai/gpt-4.1-nano")
             )
         else:
             matrix[role.value] = entry.id

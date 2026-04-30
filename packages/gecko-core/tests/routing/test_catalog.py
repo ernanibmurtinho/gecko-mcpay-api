@@ -10,8 +10,8 @@ from gecko_core.routing.catalog import (
     AgentRole,
     CatalogError,
     ModelEntry,
-    Tier,
     TaskProfile,
+    Tier,
     all_models,
     load_catalog,
     lookup_model,
@@ -34,8 +34,7 @@ def test_catalog_contains_expected_marquee_ids() -> None:
         "deepseek/deepseek-v4-flash",
         "openai/gpt-5.5",
         "openai/gpt-4.1-nano",
-        "poolside/laguna-m.1",
-        "nvidia/nemotron-3-super",
+        "google/gemini-2.5-flash-lite",
     ):
         assert model_id in catalog, f"missing {model_id} from catalog"
 
@@ -57,9 +56,11 @@ def test_lookup_file_navigation_budget_returns_deepseek_v4_flash() -> None:
     assert m.id == "deepseek/deepseek-v4-flash"
 
 
-def test_lookup_complex_coding_free_returns_poolside() -> None:
+def test_lookup_complex_coding_free_returns_deepseek_v4_flash() -> None:
+    # S8-CATALOG-01: Poolside Laguna M.1 was delisted; the cheapest live
+    # coding-capable substitute is DeepSeek V4 Flash.
     m = lookup_model(TaskProfile.complex_coding, Tier.free)
-    assert m.id == "poolside/laguna-m.1"
+    assert m.id == "deepseek/deepseek-v4-flash"
 
 
 def test_models_for_role_architect_returns_all_four_tiers() -> None:
@@ -89,9 +90,7 @@ def test_role_to_task_matrix_covers_all_ten_roles() -> None:
         assert len(out) == 4
 
 
-def test_malformed_catalog_raises_clearly(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_malformed_catalog_raises_clearly(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A catalog missing the required `pricing` field on a model must raise."""
     bad_catalog = {
         "metadata": {"version": "test"},

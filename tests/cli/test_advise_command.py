@@ -25,9 +25,7 @@ def test_advise_runs_single_voice(monkeypatch: pytest.MonkeyPatch) -> None:
         cost_usd=0.0034,
     )
 
-    async def _fake(
-        session_id: UUID | str, voice: str | Any, **_: Any
-    ) -> AdvisorVoice:
+    async def _fake(session_id: UUID | str, voice: str | Any, **_: Any) -> AdvisorVoice:
         assert UUID(str(session_id)) == sid
         return canned
 

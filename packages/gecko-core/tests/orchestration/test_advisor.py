@@ -317,9 +317,7 @@ async def test_generate_panel_uses_five_distinct_models_at_balanced(
     assert len(used_ids) >= 2  # at minimum the matrix fans across providers
 
 
-async def test_generate_voice_single(
-    session_uuid: UUID, store_with_result: _StubStore
-) -> None:
+async def test_generate_voice_single(session_uuid: UUID, store_with_result: _StubStore) -> None:
     fake = _FakeOpenAI()
     v = await generate_voice(
         session_uuid,
@@ -396,9 +394,7 @@ def test_pulse_deltas_no_prior() -> None:
 def test_pulse_deltas_detect_change() -> None:
     prev = _make_panel(_CLOSING_LINES, "sid")
     new_lines = dict(_CLOSING_LINES)
-    new_lines[AgentRole.ceo] = (
-        "Strategic priority: pivot to AI-vet-Rx after the SAFE-diff plateau."
-    )
+    new_lines[AgentRole.ceo] = "Strategic priority: pivot to AI-vet-Rx after the SAFE-diff plateau."
     curr = _make_panel(new_lines, "sid")
     deltas = compute_pulse_deltas(panel=curr, previous_panel=prev)
     by_role = {d.role: d for d in deltas}

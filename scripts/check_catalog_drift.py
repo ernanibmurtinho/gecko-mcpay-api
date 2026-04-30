@@ -194,6 +194,26 @@ def apply_price_updates(
     return out
 
 
+def apply_delisted_removals(
+    catalog: dict[str, Any], drifts: list[Drift]
+) -> tuple[dict[str, Any], list[str]]:
+    """Drop catalog entries flagged as delisted.
+
+    S8-CATALOG-01: when an OpenRouter listing disappears, leaving the entry
+    in the local catalog produces a runtime ``CatalogError`` on lookup. The
+    ``--write`` flow now strips delisted keys so a single drift run keeps
+    the catalog internally consistent. Returns the new catalog plus the
+    list of removed keys (for log output).
+    """
+    out: dict[str, Any] = json.loads(json.dumps(catalog))
+    removed: list[str] = []
+    for d in drifts:
+        if d.kind == "delisted" and d.key in out.get("models", {}):
+            del out["models"][d.key]
+            removed.append(d.key)
+    return out, removed
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -232,12 +252,22 @@ def main(argv: list[str] | None = None) -> int:
 
     console.print(render_drift_table(drifts))
 
-    if args.write and new_prices:
-        updated = apply_price_updates(catalog, new_prices)
-        args.catalog.write_text(json.dumps(updated, indent=2) + "\n")
-        console.print(
-            f"[yellow]Wrote {len(new_prices)} pricing update(s) to {args.catalog}.[/yellow]"
-        )
+    if args.write:
+        updated = catalog
+        if new_prices:
+            updated = apply_price_updates(updated, new_prices)
+        updated, removed = apply_delisted_removals(updated, drifts)
+        if new_prices or removed:
+            args.catalog.write_text(json.dumps(updated, indent=2) + "\n")
+            if new_prices:
+                console.print(
+                    f"[yellow]Wrote {len(new_prices)} pricing update(s) to {args.catalog}.[/yellow]"
+                )
+            if removed:
+                console.print(
+                    f"[yellow]Removed {len(removed)} delisted model(s): "
+                    f"{', '.join(removed)}[/yellow]"
+                )
 
     return 1
 

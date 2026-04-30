@@ -43,9 +43,7 @@ class _StubStore:
         return [
             (e, s)
             for e, s in self._candidates
-            if e.scope.type == scope.type
-            and e.scope.id == scope.id
-            and s >= similarity_threshold
+            if e.scope.type == scope.type and e.scope.id == scope.id and s >= similarity_threshold
         ]
 
 

@@ -131,9 +131,7 @@ def test_estimate_cost_catalog_backed_for_claude_opus() -> None:
 
     1M input tokens @ $5/1M on the catalog id should yield exactly $5.00.
     """
-    cost = estimate_cost_usd(
-        "anthropic/claude-opus-4.7", tokens_in=1_000_000, tokens_out=0
-    )
+    cost = estimate_cost_usd("anthropic/claude-opus-4.7", tokens_in=1_000_000, tokens_out=0)
     assert cost == pytest.approx(5.00)
 
 
