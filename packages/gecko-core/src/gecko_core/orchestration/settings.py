@@ -16,6 +16,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
 
+# Default value of `GECKO_LLM_ENDPOINT` baked into `OrchestrationSettings`.
+# Used to detect whether the operator has *explicitly* overridden the legacy
+# endpoint (vs. pydantic just hydrating the default into the model). When the
+# value matches this default, treat it as "not set" for precedence purposes.
+_DEFAULT_LLM_ENDPOINT = "http://localhost:8402/v1"
+
 
 class OrchestrationSettings(BaseSettings):
     """LLM-side knobs for the basic + (later) pro orchestration paths."""
@@ -75,11 +81,15 @@ class LLMClientConfig:
       2. Otherwise fall back to ``OrchestrationSettings`` (legacy
          ``GECKO_LLM_ENDPOINT``/``GECKO_LLM_API_KEY``).
 
-    ``GECKO_LLM_ENDPOINT`` remains a backward-compat override for one
-    release: when ``LLM_ROUTER`` is set AND the operator has also set
-    ``GECKO_LLM_ENDPOINT`` explicitly (i.e. a non-default value), we log at
-    INFO that the legacy override is still in effect. The override wins so
-    nothing breaks; the log is a deprecation breadcrumb.
+    S9-CONFIG-03 — corrected precedence (fixes F15):
+      1. ``LLM_ROUTER`` set → router wins (always). OpenRouter prefixed slugs
+         like ``kimi-k2.6`` would 400 against ``api.openai.com``; the previous
+         rule "legacy wins when both are set" treated even the default
+         ``GECKO_LLM_ENDPOINT`` as an override and broke OpenRouter dogfood.
+      2. ``LLM_ROUTER`` unset AND ``GECKO_LLM_ENDPOINT`` explicitly set to a
+         non-default value → legacy plane, with an INFO deprecation log.
+      3. Otherwise → default (OpenAI-compatible legacy plane with whatever
+         OrchestrationSettings resolved to).
     """
 
     base_url: str
@@ -108,7 +118,14 @@ def resolve_llm_config(
 
     # Did the operator opt into the unified router plane?
     router_env = (env.get("LLM_ROUTER") or "").strip().lower()
-    legacy_endpoint_set = "GECKO_LLM_ENDPOINT" in env and env["GECKO_LLM_ENDPOINT"].strip() != ""
+
+    # Legacy endpoint is only "explicitly set" when:
+    #   (a) the env var is present + non-empty, AND
+    #   (b) the resolved endpoint differs from the baked-in default.
+    # This guards against pydantic-settings hydrating the default value into
+    # the model and tripping the override path (the F15 bug).
+    raw_endpoint = (env.get("GECKO_LLM_ENDPOINT") or "").strip()
+    legacy_endpoint_set = bool(raw_endpoint) and raw_endpoint != _DEFAULT_LLM_ENDPOINT
 
     if router_env:
         # Lazy import — `pro.router` pulls in routing.catalog which is a
@@ -118,24 +135,16 @@ def resolve_llm_config(
 
         rc = resolve_router(env)
 
+        # S9-CONFIG-03: router ALWAYS wins when LLM_ROUTER is set. We still
+        # log INFO if a legacy override is also set so operators notice
+        # GECKO_LLM_ENDPOINT is now a no-op alongside LLM_ROUTER.
         if legacy_endpoint_set:
-            # Backward-compat override path. Legacy env wins for a release;
-            # surface this so operators know to drop it.
             logger.info(
-                "GECKO_LLM_ENDPOINT is set alongside LLM_ROUTER=%s; "
-                "legacy override wins for this release. "
-                "Drop GECKO_LLM_ENDPOINT/GECKO_LLM_API_KEY and rely on "
-                "LLM_ROUTER going forward.",
+                "GECKO_LLM_ENDPOINT=%s is set alongside LLM_ROUTER=%s; "
+                "router takes precedence (S9-CONFIG-03). Drop "
+                "GECKO_LLM_ENDPOINT/GECKO_LLM_API_KEY to silence this notice.",
+                raw_endpoint,
                 router_env,
-            )
-            return LLMClientConfig(
-                base_url=s.llm_endpoint,
-                api_key=s.llm_api_key,
-                extra_headers={},
-                chat_model=s.chat_model,
-                temperature=s.temperature,
-                max_input_tokens=s.max_input_tokens,
-                source="legacy",
             )
 
         return LLMClientConfig(
@@ -146,6 +155,14 @@ def resolve_llm_config(
             temperature=s.temperature,
             max_input_tokens=s.max_input_tokens,
             source=f"router:{rc.router}",
+        )
+
+    if legacy_endpoint_set:
+        logger.info(
+            "GECKO_LLM_ENDPOINT=%s in use (legacy plane). LLM_ROUTER is the "
+            "preferred config surface; this path will be removed in a future "
+            "release.",
+            raw_endpoint,
         )
 
     # No LLM_ROUTER → legacy plane. Unchanged from pre-S8 behavior.
