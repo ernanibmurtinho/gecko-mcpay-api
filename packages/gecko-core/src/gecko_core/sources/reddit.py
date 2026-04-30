@@ -12,7 +12,9 @@ per call to bound latency and avoid drift toward "search every sub".
 from __future__ import annotations
 
 import asyncio
+import re as _re
 from typing import Any
+from urllib.parse import urlparse as _urlparse
 
 import httpx
 
@@ -183,4 +185,160 @@ class RedditSource:
         )
 
 
-__all__ = ["SUPPORTED_CATEGORIES", "RedditSource"]
+# ---------------------------------------------------------------------------
+# S6-V2-01 — Reddit thread URL adapter
+# ---------------------------------------------------------------------------
+# Distinct concern from RedditSource above. RedditSource fans out a
+# category-based search across curated subreddits; the adapter below
+# accepts a *single* user-supplied thread URL and returns post + top-N
+# comments by score. Used by the URL-pattern dispatcher in
+# `discover_sources` so users can paste a Reddit URL into discovery.
+
+REDDIT_THREAD_USER_AGENT = "Gecko/0.1 (gecko-mcpay-api) reddit-thread-adapter"
+THREAD_MAX_COMMENTS = 100
+THREAD_MIN_REQUEST_INTERVAL_S = 1.0
+THREAD_DEFAULT_TIMEOUT_S = 15.0
+
+# /r/<sub>/comments/<id>[/<slug>][/]
+_THREAD_RE = _re.compile(
+    r"^/r/[^/]+/comments/[^/]+(?:/[^/]*)?/?$",
+    _re.IGNORECASE,
+)
+
+_thread_pacer_lock = asyncio.Lock()
+_thread_last_request_at: float = 0.0
+
+
+def matches_thread_url(url: str) -> bool:
+    """True iff ``url`` is a Reddit comment thread URL we can ingest."""
+    try:
+        parsed = _urlparse(url)
+    except ValueError:
+        return False
+    host = (parsed.hostname or "").lower()
+    if not (host == "reddit.com" or host.endswith(".reddit.com")):
+        return False
+    return bool(_THREAD_RE.match(parsed.path or ""))
+
+
+def _to_json_url(url: str) -> str:
+    parsed = _urlparse(url)
+    path = (parsed.path or "").rstrip("/")
+    new_path = path if path.endswith(".json") else f"{path}.json"
+    return parsed._replace(path=new_path, query="", fragment="").geturl()
+
+
+async def _thread_rate_limited_get(client: httpx.AsyncClient, url: str) -> httpx.Response:
+    global _thread_last_request_at
+    async with _thread_pacer_lock:
+        loop = asyncio.get_event_loop()
+        wait = THREAD_MIN_REQUEST_INTERVAL_S - (loop.time() - _thread_last_request_at)
+        if wait > 0:
+            await asyncio.sleep(wait)
+        resp = await client.get(url, headers={"User-Agent": REDDIT_THREAD_USER_AGENT})
+        _thread_last_request_at = loop.time()
+    return resp
+
+
+def _flatten_comments(listing: dict[str, Any]) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+
+    def _walk(node: Any) -> None:
+        if not isinstance(node, dict):
+            return
+        kind = node.get("kind")
+        data = node.get("data") or {}
+        if kind == "t1" and isinstance(data, dict):
+            body = data.get("body")
+            if isinstance(body, str) and body.strip() and body != "[deleted]":
+                out.append(
+                    {
+                        "author": data.get("author") or "",
+                        "score": int(data.get("score") or 0),
+                        "body": body,
+                    }
+                )
+        replies = data.get("replies") if isinstance(data, dict) else None
+        if isinstance(replies, dict):
+            children = (replies.get("data") or {}).get("children") or []
+            for c in children:
+                _walk(c)
+
+    children = (listing.get("data") or {}).get("children") or []
+    for c in children:
+        _walk(c)
+    return out
+
+
+def _render_thread_text(post: dict[str, Any], comments: list[dict[str, Any]]) -> str:
+    parts: list[str] = []
+    title = post.get("title") or ""
+    selftext = post.get("selftext") or ""
+    author = post.get("author") or ""
+    if title:
+        parts.append(f"# {title}")
+    if author:
+        parts.append(f"Posted by u/{author}")
+    if selftext.strip():
+        parts.append(selftext.strip())
+    if comments:
+        parts.append("## Top comments")
+        for c in comments:
+            parts.append(f"[score {c['score']}] u/{c['author']}: {c['body'].strip()}")
+    return "\n\n".join(parts)
+
+
+async def extract_from_url(
+    url: str,
+    *,
+    client: httpx.AsyncClient | None = None,
+    timeout: float = THREAD_DEFAULT_TIMEOUT_S,
+) -> tuple[str, float]:
+    """Fetch a Reddit thread URL → (text, cost_usd). Cost is always 0."""
+    if not matches_thread_url(url):
+        raise ValueError(f"not a reddit thread URL: {url}")
+    # Lazy import to avoid a pipeline ↔ sources cycle: gecko_core.ingestion
+    # imports from gecko_core.sources at package init, so importing the
+    # web extractor at module top-level here would race that load.
+    from gecko_core.ingestion.web import validate_url as _validate_url
+
+    safe = _validate_url(url)
+    json_url = _to_json_url(safe)
+
+    owns_client = client is None
+    if owns_client:
+        client = httpx.AsyncClient(timeout=timeout, follow_redirects=True)
+    assert client is not None
+    try:
+        resp = await _thread_rate_limited_get(client, json_url)
+        resp.raise_for_status()
+        payload = resp.json()
+    finally:
+        if owns_client:
+            await client.aclose()
+
+    if not isinstance(payload, list) or len(payload) < 2:
+        return "", 0.0
+
+    post_listing = payload[0] if isinstance(payload[0], dict) else {}
+    post_children = (post_listing.get("data") or {}).get("children") or []
+    post = (
+        post_children[0].get("data", {})
+        if post_children and isinstance(post_children[0], dict)
+        else {}
+    )
+    comments_listing = payload[1] if isinstance(payload[1], dict) else {}
+    comments = _flatten_comments(comments_listing)
+    comments.sort(key=lambda c: c.get("score") or 0, reverse=True)
+    comments = comments[:THREAD_MAX_COMMENTS]
+    return _render_thread_text(post, comments), 0.0
+
+
+__all__ = [
+    "SUPPORTED_CATEGORIES",
+    "THREAD_MAX_COMMENTS",
+    "THREAD_MIN_REQUEST_INTERVAL_S",
+    "RedditSource",
+    "extract_from_url",
+    "matches_thread_url",
+]

@@ -50,6 +50,21 @@ async def _extract(candidate: SourceCandidate) -> tuple[str | None, float, float
     if candidate.type == "youtube":
         text, dg_seconds = await youtube_extractor.extract(url)
         return text, dg_seconds, 0.0
+    # V2 URL-pattern adapters (Reddit thread / GitHub / PDF) take
+    # priority over the generic web scraper when their pattern matches.
+    # Imported lazily and via the submodule (not the parent package) so
+    # the gecko_core.sources package is not pulled in at
+    # gecko_core.ingestion package init time — that load order shadows
+    # the ``gecko_core.sources`` package attribute behind ``list_sources``
+    # (re-exported from gecko_core.workflows) and breaks legacy tests
+    # that monkeypatch ``gecko_core.sources.reddit.<name>``.
+    from gecko_core.sources.dispatcher import discover_adapter
+
+    adapter = discover_adapter(url)
+    if adapter is not None:
+        _name, fn = adapter
+        text_or_empty, _cost = await fn(url)
+        return text_or_empty or None, 0.0, 0.0
     text, tavily_cost = await web_extractor.extract(url)
     return text, 0.0, tavily_cost
 

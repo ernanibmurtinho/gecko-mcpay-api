@@ -21,6 +21,7 @@ dependencies = [
     "yt-dlp>=2025.1",
     "numpy>=1.26",
     "motor>=3.5",
+    "pypdfium2>=4.30",
 ]
 
 [build-system]
