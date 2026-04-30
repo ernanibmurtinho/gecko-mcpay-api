@@ -86,6 +86,11 @@ class IdeaResult:
     # otherwise. Kept distinct from `cost_usd` (which is LLM-token spend) so
     # the gate report can show "tokens vs sources" attribution.
     v1_sources_cost_usd: float = 0.0
+    # S11-F18-01: explicit idea identifier alongside the legacy `id` field.
+    # The post-hoc `jq` queries in docs/runbooks/eval-gate.md key on
+    # `idea_id` rather than `id`; surfacing it here means failures can be
+    # filtered without rewriting the JSON layout consumers depend on.
+    idea_id: str = ""
 
 
 def _suite_path(suite: str) -> Path:
@@ -364,6 +369,18 @@ async def _evaluate_one(
     if live and live_rag:
         rag_context, v1_spend_usd = await _dispatch_live_rag(idea["text"])
         precedents = None
+        # S11-F18-01: surface the F18 anomaly (zero V1 spend in a live-rag
+        # run). A $0.00 result is plausible — a Mongo cache hit, no
+        # applicable category, or the wallet not configured — but it
+        # silently invalidates the "live V1 signal" semantics of the gate.
+        # Print to stderr so the per-idea result line in the gate log
+        # shows the warning inline rather than buried in module logs.
+        if v1_spend_usd == 0.0:
+            print(
+                f"  WARN: --live-rag produced $0.00 V1 spend for idea={idea['id']!r}; "
+                "check TWITSH_BYPASS_CACHE / wallet config / category gating",
+                file=sys.stderr,
+            )
 
     expected = idea.get("expected_verdict")
 
@@ -405,6 +422,7 @@ async def _evaluate_one(
     )
     return IdeaResult(
         id=idea["id"],
+        idea_id=idea["id"],
         expected_verdict=idea["expected_verdict"],
         actual_verdict=_majority_verdict(verdicts),
         scores=avg.to_dict(),

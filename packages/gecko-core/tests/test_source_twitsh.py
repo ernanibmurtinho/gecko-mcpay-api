@@ -243,6 +243,84 @@ async def test_cache_hit_short_circuits_http(monkeypatch: pytest.MonkeyPatch) ->
     assert second.payload["tweets"] == first.payload["tweets"]
 
 
+@pytest.mark.usefixtures("configured_env")
+async def test_bypass_cache_forces_http_even_when_cached(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """S11-F18-01: with bypass_cache=True the source must hit HTTP and pay
+    even when an unexpired entry exists in the Mongo cache. Models the
+    --live-rag eval gate's need to measure true cold-signal spend."""
+    cache_store: dict[str, dict[str, Any]] = {}
+
+    async def fake_get(collection: str, key: str) -> dict[str, Any] | None:
+        return cache_store.get(f"{collection}:{key}")
+
+    async def fake_set(collection: str, key: str, value: dict[str, Any], ttl_seconds: int) -> None:
+        cache_store[f"{collection}:{key}"] = value
+
+    monkeypatch.setattr(twitsh_mod, "is_mongo_configured", lambda: True)
+    monkeypatch.setattr(twitsh_mod, "get_cached", fake_get)
+    monkeypatch.setattr(twitsh_mod, "set_cached", fake_set)
+
+    async with respx.mock(base_url="https://x402.twit.sh", assert_all_called=False) as router:
+        route = router.get("/search/tweets").mock(
+            return_value=httpx.Response(200, json=_SAMPLE_RESPONSE)
+        )
+
+        # Warm the cache with a non-bypass instance.
+        warm_client = httpx.AsyncClient(base_url="https://x402.twit.sh")
+        warm = TwitshSource(http_client=warm_client)
+        await warm.fetch(idea="liquid restaking ux", categories={"crypto"})
+        await warm.aclose()
+        assert route.call_count == 1
+
+        # Now a bypass-cache instance: same key must hit HTTP again.
+        bypass_client = httpx.AsyncClient(base_url="https://x402.twit.sh")
+        bypass_src = TwitshSource(http_client=bypass_client, bypass_cache=True)
+        result = await bypass_src.fetch(idea="liquid restaking ux", categories={"crypto"})
+        await bypass_src.aclose()
+
+    assert route.call_count == 2, "bypass_cache=True should re-issue HTTP"
+    assert result.cost_usd == pytest.approx(ASSUMED_PER_CALL_USD)
+    assert result.payload["from_cache"] is False
+
+
+@pytest.mark.usefixtures("configured_env")
+async def test_bypass_cache_via_env_var(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`TWITSH_BYPASS_CACHE=true` should be picked up when the constructor
+    arg is left at its default — that's how scripts/run_eval_gate_live.sh
+    propagates the flag without modifying the runner code path."""
+    cache_store: dict[str, dict[str, Any]] = {
+        # Pre-seed: any successful read here would short-circuit HTTP.
+    }
+
+    async def fake_get(collection: str, key: str) -> dict[str, Any] | None:
+        return cache_store.get(f"{collection}:{key}")
+
+    async def fake_set(collection: str, key: str, value: dict[str, Any], ttl_seconds: int) -> None:
+        cache_store[f"{collection}:{key}"] = value
+
+    monkeypatch.setattr(twitsh_mod, "is_mongo_configured", lambda: True)
+    monkeypatch.setattr(twitsh_mod, "get_cached", fake_get)
+    monkeypatch.setattr(twitsh_mod, "set_cached", fake_set)
+    monkeypatch.setenv("TWITSH_BYPASS_CACHE", "true")
+
+    async with respx.mock(base_url="https://x402.twit.sh", assert_all_called=False) as router:
+        route = router.get("/search/tweets").mock(
+            return_value=httpx.Response(200, json=_SAMPLE_RESPONSE)
+        )
+        # Pre-seed cache directly so we can prove it was ignored.
+        cache_store["twitsh_cache:any"] = {"tweets": [{"text": "stale"}], "query": "x"}
+        client = httpx.AsyncClient(base_url="https://x402.twit.sh")
+        src = TwitshSource(http_client=client)  # no explicit bypass arg
+        result = await src.fetch(idea="zk proofs", categories={"crypto"})
+        await src.aclose()
+
+    assert route.call_count == 1
+    assert result.cost_usd == pytest.approx(ASSUMED_PER_CALL_USD)
+    assert result.payload["from_cache"] is False
+
+
 # ---------------------------------------------------------------------------
 # Helper-level units (worth pinning since downstream depends on the shape)
 # ---------------------------------------------------------------------------

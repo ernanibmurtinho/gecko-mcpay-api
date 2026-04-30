@@ -192,6 +192,25 @@ export TWITSH_WALLET_ADDRESS=0x7cc33a7BbA8409374f754f1f811BC63D1ea5bCFC
 The gate script aborts (exit 2) if any of these are unset — without them,
 the V1 dispatcher silently no-ops and the result is meaningless.
 
+**Cache bypass (S11-F18-01).** `TwitshSource` writes a 6h Mongo result
+cache keyed on `sha256("twit_sh:" + idea + "|" + categories_csv)`. The
+key intentionally does **not** include a "live signal required" flag, so
+two back-to-back live-V1 gate runs on the same suite would have the
+second one served entirely from cache (`v1_sources_cost_usd = $0.00`).
+That is exactly what happened on 2026-04-30 (see
+`docs/eval/live-v1-results-2026-04-30.md`). To force a true cold run,
+the gate script now exports `TWITSH_BYPASS_CACHE=true` by default.
+Override with `TWITSH_BYPASS_CACHE=false` if you explicitly want to
+exercise the cache path (e.g. cost-rehearsal without burning Base
+mainnet ETH).
+
+**Zero-spend WARN.** The runner prints
+`WARN: --live-rag produced $0.00 V1 spend for idea=...` per idea when
+the V1 dispatch returns zero. Treat it as a signal-quality alarm:
+either the cache slipped through, the wallet is mis-configured, or the
+idea didn't classify into any twit.sh-eligible category
+(`crypto`/`defi`/`hackathon-team`).
+
 ### 7.2 What the gate does
 
 1. Loads `tests/eval/suites/general_holdout_live.json` (10 ideas, 5

@@ -262,6 +262,7 @@ class TwitshSource:
         http_client: httpx.AsyncClient | None = None,
         catalog: dict[str, dict[str, str]] | None = None,
         spend_cap_usd: float = SPEND_CAP_USD,
+        bypass_cache: bool | None = None,
     ) -> None:
         # `http_client` is injected in tests (respx-mounted MockTransport);
         # in production we lazily build one with the EVM signer.
@@ -269,6 +270,17 @@ class TwitshSource:
         self._owns_http = http_client is None
         self._catalog = catalog or _load_catalog()
         self._spend_cap = float(spend_cap_usd)
+        # S11-F18-01: opt-in bypass of the 6h Mongo result cache so
+        # `--live-rag` eval gate runs measure *true cold-signal* spend
+        # rather than getting served free cached payloads from a prior
+        # warm run. Resolution order:
+        #   1. explicit constructor arg (tests)
+        #   2. `TWITSH_BYPASS_CACHE` env (script-driven gate runs)
+        #   3. default False (production CLI / API stays cache-on)
+        if bypass_cache is None:
+            env = os.environ.get("TWITSH_BYPASS_CACHE", "").strip().lower()
+            bypass_cache = env in ("1", "true", "yes", "on")
+        self._bypass_cache = bool(bypass_cache)
 
     async def applies_to(self, *, categories: set[str]) -> bool:
         if not _is_twitsh_configured():
@@ -280,7 +292,7 @@ class TwitshSource:
         categories_csv = ",".join(sorted(categories))
         ckey = cache_key("twit_sh:", idea, "|", categories_csv)
 
-        if is_mongo_configured():
+        if is_mongo_configured() and not self._bypass_cache:
             try:
                 cached = await get_cached("twitsh_cache", ckey)
             except Exception as exc:  # pragma: no cover — defensive

@@ -49,6 +49,13 @@ fi
 : "${TWITSH_WALLET_PRIVATE_KEY:?TWITSH_WALLET_PRIVATE_KEY must be set (Base mainnet signer)}"
 : "${TWITSH_WALLET_ADDRESS:?TWITSH_WALLET_ADDRESS must be set}"
 
+# S11-F18-01: bypass the 6h Mongo result cache by default for the gate.
+# Without this, repeated runs of the same holdout suite get served free
+# cached payloads and `v1_sources_cost_usd` reports $0.00 — which is what
+# the F18 anomaly on 2026-04-30 turned out to be. Caller can still opt
+# back into cache reuse by exporting TWITSH_BYPASS_CACHE=false beforehand.
+export TWITSH_BYPASS_CACHE="${TWITSH_BYPASS_CACHE:-true}"
+
 # --- 2. Spend confirmation ---------------------------------------------------
 
 cat <<EOF
