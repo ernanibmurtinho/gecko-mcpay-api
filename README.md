@@ -51,6 +51,8 @@ cp .env.example .env                         # fill in keys
 uv run bb research --idea "hotel guide for Brazil"
 ```
 
+New here? See [`docs/demo/quickstart.md`](docs/demo/quickstart.md) — 10 minutes from `curl install.sh` to first paid call.
+
 Run the API service:
 
 ```bash
