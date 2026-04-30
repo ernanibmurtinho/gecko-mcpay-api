@@ -76,19 +76,36 @@ gecko-mcp doctor
 
 ## Subagent team
 
-Seven specialists. Six own work in this repo; `frontend-engineer` is a cross-repo stub that surfaces coordination notes for their full counterpart in `gecko-mcpay-app`.
+Eight specialists. Seven own work in this repo; `frontend-engineer` is a cross-repo stub that surfaces coordination notes for their full counterpart in `gecko-mcpay-app`.
+
+**Engineering (staff-engineer arbitrates across these lanes):**
 
 | Agent | When |
 |---|---|
-| `staff-engineer` | Architectural decisions, cross-repo refactors, "should we…" questions |
+| `staff-engineer` | Architectural decisions, cross-package or cross-repo refactors, "should we…" questions, arbitration when work crosses lanes |
+| `ai-ml-engineer` | Prompt engineering, agent persona design, eval harness + thresholds, RAG quality, AG2 5-agent debate, advisor panel reliability, verdict synthesis, "why is the model doing X" |
 | `software-engineer` | Feature implementation in `packages/` and `apps/` (Python) |
-| `data-engineer` | Supabase schema, pgvector, ingestion pipeline, embeddings |
-| `web3-engineer` | x402, Solana, wallet flows, frames.ag integration, on-chain settlement |
+| `data-engineer` | Supabase schema, pgvector, ingestion pipeline, embeddings storage |
+| `web3-engineer` | x402, Solana, Base/CDP, wallet flows, frames.ag integration, on-chain settlement |
+
+**Product:**
+
+| Agent | When |
+|---|---|
 | `business-manager` | PRD updates, pricing, GTM, success metrics |
 | `product-designer` | Terminal output styling, UX flows, web app screen specs |
 | `frontend-engineer` | Cross-repo stub. Invoke when API or model changes here affect `gecko-mcpay-app`. Real implementation agent lives in that repo. |
 
-Default to `staff-engineer` for any change that touches more than one package or repo.
+Default to `staff-engineer` for any change that touches more than one package, more than one repo, or crosses engineering lanes.
+
+**Lane boundaries to keep clean:**
+
+- `software-engineer` owns "the code runs correctly"
+- `data-engineer` owns "the data is correctly stored"
+- `ai-ml-engineer` owns "the model gives the right answer"
+- `web3-engineer` owns "the payment settles correctly"
+
+When a problem touches more than one of these, route to `staff-engineer` first.
 
 ## MCP servers (development)
 
