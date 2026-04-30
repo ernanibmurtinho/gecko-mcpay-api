@@ -40,6 +40,41 @@ import httpx
 BASE_URL = os.environ.get("BASE_URL", "http://localhost:8000")
 TIMEOUT = httpx.Timeout(120.0, connect=10.0)
 
+# S8-CI-01: the FastAPI app exposes /healthz (NOT /health). Earlier drafts
+# of this script and the GH Actions workflow polled /health and silently
+# timed out because every probe returned 404. Keep the constant here so
+# any future probe (local + CI) shares one source of truth.
+HEALTH_PATH = "/healthz"
+
+
+def _wait_for_ready(client: httpx.Client, *, attempts: int = 30, delay_s: float = 1.0) -> None:
+    """Poll ``/healthz`` until the server replies 2xx or we exhaust attempts.
+
+    The CI workflow does its own ``curl --retry`` against /healthz before
+    invoking this script, so locally-runnable mode is the primary use case.
+    Connection errors are expected during boot and treated as "not ready
+    yet" rather than fatal.
+    """
+    import time
+
+    last_err: str = "no attempt made"
+    for _ in range(attempts):
+        try:
+            r = client.get(HEALTH_PATH, timeout=httpx.Timeout(5.0, connect=2.0))
+            if r.status_code // 100 == 2:
+                print(f"OK   GET {HEALTH_PATH}: HTTP {r.status_code}")
+                return
+            last_err = f"HTTP {r.status_code}"
+        except httpx.HTTPError as exc:
+            last_err = f"{type(exc).__name__}: {exc}"
+        time.sleep(delay_s)
+    print(
+        f"FAIL wait-for-ready: {HEALTH_PATH} never returned 2xx "
+        f"({attempts} attempts; last={last_err})",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
 
 def _check_2xx(label: str, resp: httpx.Response) -> dict[str, Any]:
     if resp.status_code // 100 != 2:
@@ -57,6 +92,10 @@ def _check_2xx(label: str, resp: httpx.Response) -> dict[str, Any]:
 
 def main() -> int:
     with httpx.Client(base_url=BASE_URL, timeout=TIMEOUT) as client:
+        # 0. Wait for /healthz before any work — the GH Actions workflow
+        # already does this, but local invocations need it too.
+        _wait_for_ready(client)
+
         # 1. Research (paid in live; auto-settles in stub).
         research_body = {"idea": "ci smoke test", "tier": "basic"}
         research_resp = client.post("/research", json=research_body)
