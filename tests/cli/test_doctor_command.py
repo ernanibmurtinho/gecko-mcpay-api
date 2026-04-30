@@ -103,19 +103,54 @@ def test_check_x402_live_complete() -> None:
 
 
 def test_check_frames_wallet_warn_when_optional() -> None:
-    row = check_frames_wallet({})
+    # No env, no agent config file → warn (only required for X402_MODE=frames).
+    row = check_frames_wallet({}, agent_token_reader=lambda: None)
     assert row.status == "warn"
 
 
 def test_check_frames_wallet_err_when_mode_frames() -> None:
-    row = check_frames_wallet({"X402_MODE": "frames"})
+    row = check_frames_wallet({"X402_MODE": "frames"}, agent_token_reader=lambda: None)
     assert row.status == "err"
 
 
 def test_check_frames_wallet_ok_with_token() -> None:
-    row = check_frames_wallet({"FRAMES_API_KEY": "fr-token-abc1234"})
+    row = check_frames_wallet(
+        {"FRAMES_API_KEY": "fr-token-abc1234"},
+        agent_token_reader=lambda: None,
+    )
     assert row.status == "ok"
     assert "abc1234" not in row.detail  # masked
+    assert "source=env" in row.detail
+
+
+def test_check_frames_wallet_falls_back_to_agent_config() -> None:
+    """S9-DOCTOR-01 / F14 — env unset, but ~/.agentwallet/config.json has the
+    apiToken; doctor must report OK and surface the source.
+    """
+    row = check_frames_wallet({}, agent_token_reader=lambda: "agentwallet-tok-9999")
+    assert row.status == "ok"
+    assert "agentwallet-tok-9999" not in row.detail  # masked
+    assert "source=agent-config" in row.detail
+
+
+def test_check_frames_wallet_env_takes_precedence_over_file() -> None:
+    """When both env and file are present, env wins (and source=env)."""
+    row = check_frames_wallet(
+        {"FRAMES_API_KEY": "env-tok-1111"},
+        agent_token_reader=lambda: "file-tok-2222",
+    )
+    assert row.status == "ok"
+    assert "source=env" in row.detail
+
+
+def test_check_frames_wallet_err_when_mode_frames_and_neither_present() -> None:
+    """F14 — X402_MODE=frames + nothing in env or file → err."""
+    row = check_frames_wallet(
+        {"X402_MODE": "frames"},
+        agent_token_reader=lambda: None,
+    )
+    assert row.status == "err"
+    assert "agentwallet" in row.detail.lower() or "config.json" in row.detail
 
 
 # ---------------------------------------------------------------------------
@@ -179,7 +214,9 @@ async def test_check_memory_roundtrip_detects_write_read_split() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_doctor_cmd_exits_0_on_all_green(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_doctor_cmd_exits_0_on_all_green(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pytest.TempPathFactory
+) -> None:
     """Happy path: all env present + memory roundtrip succeeds → exit 0."""
     fake = _FakeMemoryStore()
 
@@ -194,16 +231,73 @@ def test_doctor_cmd_exits_0_on_all_green(monkeypatch: pytest.MonkeyPatch) -> Non
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test-12345")
     monkeypatch.delenv("X402_MODE", raising=False)
     monkeypatch.delenv("FRAMES_API_KEY", raising=False)
+    # chdir to a clean dir — doctor now calls load_dotenv() and we don't
+    # want the repo-root .env to alter the test fixture.
+    monkeypatch.chdir(str(tmp_path))  # type: ignore[arg-type]
 
     result = CliRunner().invoke(doctor_cmd, [])
     assert result.exit_code == 0, result.output
     assert "All checks passed" in result.output
 
 
-def test_doctor_cmd_exits_1_on_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_doctor_cmd_loads_dotenv_from_cwd(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pytest.TempPathFactory
+) -> None:
+    """S9-DOCTOR-01 / F13 — `bb doctor` must pick up a project-local `.env`
+    even when invoked outside the click group (e.g. directly imported by
+    tests, or run with no --env-file). Before the fix, SUPABASE_URL=...
+    in `.env` showed up as missing.
+    """
+    import os as _os
+    from pathlib import Path as _Path
+
+    cwd = _Path(str(tmp_path))  # type: ignore[arg-type]
+    env_file = cwd / ".env"
+    env_file.write_text(
+        "SUPABASE_URL=https://from-dotenv.supabase.co\n"
+        "SUPABASE_SERVICE_ROLE_KEY=rolekey-fromfile-9999\n"
+        "LLM_ROUTER=openai\n"
+        "OPENAI_API_KEY=sk-fromdotenv-9999\n"
+    )
+
+    fake = _FakeMemoryStore()
+    monkeypatch.setattr(
+        "gecko_core.memory.store.MemoryStore.from_env",
+        classmethod(lambda cls: fake),
+    )
+    # Strip the relevant vars from os.environ so the only way they can reach
+    # the doctor is through load_dotenv() reading the cwd .env file.
+    for var in (
+        "SUPABASE_URL",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "LLM_ROUTER",
+        "OPENAI_API_KEY",
+        "GECKO_LLM_ENDPOINT",
+        "GECKO_LLM_API_KEY",
+        "X402_MODE",
+        "FRAMES_API_KEY",
+        "FRAMES_AG_API_TOKEN",
+    ):
+        monkeypatch.delenv(var, raising=False)
+
+    monkeypatch.chdir(cwd)
+    result = CliRunner().invoke(doctor_cmd, [])
+    # Proof: load_dotenv() ran before _run_all sampled os.environ. We assert
+    # on os.environ directly (Rich may truncate long URLs in the table cell).
+    assert result.exit_code == 0, result.output
+    assert _os.environ.get("SUPABASE_URL") == "https://from-dotenv.supabase.co"
+    assert _os.environ.get("OPENAI_API_KEY") == "sk-fromdotenv-9999"
+
+
+def test_doctor_cmd_exits_1_on_failure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pytest.TempPathFactory
+) -> None:
     """Missing SUPABASE_URL → exit 1 and the failed row count is printed."""
     monkeypatch.delenv("SUPABASE_URL", raising=False)
     monkeypatch.delenv("SUPABASE_SERVICE_ROLE_KEY", raising=False)
+    # Doctor now runs load_dotenv() on its own cwd. chdir to a clean dir
+    # so the repo-root `.env` doesn't repopulate SUPABASE_URL.
+    monkeypatch.chdir(str(tmp_path))  # type: ignore[arg-type]
 
     result = CliRunner().invoke(doctor_cmd, [])
     assert result.exit_code == 1

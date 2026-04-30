@@ -23,6 +23,7 @@ from typing import Any, Literal, Protocol
 from uuid import uuid4
 
 import click
+from dotenv import load_dotenv
 from rich.console import Console
 from rich.table import Table
 
@@ -192,14 +193,30 @@ def check_x402(env: dict[str, str]) -> CheckRow:
     )
 
 
-def check_frames_wallet(env: dict[str, str]) -> CheckRow:
+def check_frames_wallet(
+    env: dict[str, str],
+    *,
+    agent_token_reader: Any | None = None,
+) -> CheckRow:
     """Report frames.ag wallet config — apiToken presence only.
 
-    The CLI only needs the apiToken to authenticate against frames.ag's
-    /sign endpoint. The token itself is never echoed; only its tail is
-    shown for env diffability.
+    Resolution order (S9-DOCTOR-01, fixes F14):
+      1. ``FRAMES_API_KEY`` / ``FRAMES_AG_API_TOKEN`` env var.
+      2. ``apiToken`` from ``~/.agentwallet/config.json`` (where frames.ag's
+         connect skill caches credentials).
+
+    The token itself is never echoed; only its 4-char tail is shown for env
+    diffability. ``agent_token_reader`` is the test seam so the file-system
+    path can be stubbed.
     """
+    from gecko_core.wallet import read_agent_token
+
+    reader = agent_token_reader or read_agent_token
     token = env.get("FRAMES_API_KEY") or env.get("FRAMES_AG_API_TOKEN")
+    source = "env"
+    if not token:
+        token = reader()
+        source = "agent-config"
     base_url = env.get("FRAMES_AG_BASE_URL")
     mode = (env.get("X402_MODE") or "stub").lower()
     if not token:
@@ -208,17 +225,19 @@ def check_frames_wallet(env: dict[str, str]) -> CheckRow:
             return CheckRow(
                 "frames.ag wallet",
                 "err",
-                "X402_MODE=frames but FRAMES_API_KEY (or FRAMES_AG_API_TOKEN) is missing",
+                "X402_MODE=frames but no apiToken found in env "
+                "(FRAMES_API_KEY / FRAMES_AG_API_TOKEN) or ~/.agentwallet/config.json",
             )
         return CheckRow(
             "frames.ag wallet",
             "warn",
-            "FRAMES_API_KEY unset — required only when X402_MODE=frames",
+            "no apiToken found (env or ~/.agentwallet/config.json) — "
+            "required only when X402_MODE=frames",
         )
     return CheckRow(
         "frames.ag wallet",
         "ok",
-        f"apiToken={_mask(token)}, base_url={base_url or '<default>'}",
+        f"apiToken={_mask(token)} (source={source}), base_url={base_url or '<default>'}",
     )
 
 
@@ -269,6 +288,20 @@ def doctor_cmd() -> None:
     Exit code: 0 if no checks failed, 1 otherwise. Warnings do not affect
     exit code.
     """
+    # S9-DOCTOR-01 (F13): explicitly load `.env` from the current working
+    # directory before reading os.environ. The CLI group only loads a `.env`
+    # when --env-file is passed or ~/.gecko/.env exists, so a fresh shell
+    # in a project directory was previously seeing FAIL on every env check.
+    #
+    # We scope to ``cwd / .env`` (rather than dotenv's default upward walk)
+    # so behavior is predictable: doctor reads the same file the operator
+    # is staring at in their project root. ``override=False`` so values
+    # already in the shell win over .env.
+    from pathlib import Path
+
+    cwd_env = Path.cwd() / ".env"
+    if cwd_env.is_file():
+        load_dotenv(dotenv_path=cwd_env, override=False)
     rows = asyncio.run(_run_all(dict(os.environ), store=None))
     console.print(render_table(rows))
 

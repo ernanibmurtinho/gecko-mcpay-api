@@ -19,13 +19,19 @@ from __future__ import annotations
 import json
 import os
 import sys
-from pathlib import Path
 from typing import Any
 
 import click
 import httpx
+from gecko_core.wallet import (
+    DEFAULT_CONFIG_PATH as _SHARED_CONFIG_PATH,
+)
+from gecko_core.wallet import (
+    read_agent_config as _read_agent_config_shared,
+)
 
-CONFIG_PATH = Path.home() / ".agentwallet" / "config.json"
+# Re-export for back-compat with code/tests that import CONFIG_PATH from here.
+CONFIG_PATH = _SHARED_CONFIG_PATH
 FRAMES_BASE = os.environ.get("FRAMES_AG_BASE_URL", "https://frames.ag/api")
 DEFAULT_TIMEOUT = 30.0
 
@@ -54,12 +60,18 @@ class WalletNotConfiguredError(RuntimeError):
 
 
 def _read_config() -> dict[str, Any]:
-    if not CONFIG_PATH.exists():
+    """Wrap the shared `gecko_core.wallet` parser with the MCP-side error
+    semantics (raise WalletNotConfiguredError when missing, with the existing
+    user-facing hint). Single source of truth lives in gecko-core so doctor
+    and MCP can't drift on what counts as a valid config (S9-DOCTOR-01).
+    """
+    cfg = _read_agent_config_shared(CONFIG_PATH)
+    if cfg is None:
         raise WalletNotConfiguredError(
             f"No frames.ag credentials at {CONFIG_PATH}. "
             "Run `gecko-mcp wallet new` to connect (delegates to frames.ag's skill)."
         )
-    return json.loads(CONFIG_PATH.read_text())  # type: ignore[no-any-return]
+    return cfg
 
 
 def _client(config: dict[str, Any]) -> httpx.Client:
