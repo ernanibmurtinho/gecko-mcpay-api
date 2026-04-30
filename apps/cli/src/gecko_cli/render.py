@@ -33,6 +33,7 @@ from gecko_core.models import (
     SourceCandidate,
     SourceInfo,
     ValidationReport,
+    Verdict,
 )
 from rich.box import ROUNDED
 from rich.console import Console, Group
@@ -56,6 +57,15 @@ _VR_STYLE = "yellow"
 _PRD_STYLE = "bright_blue"
 _HEADER_STYLE = "dim"
 _META_STYLE = "dim"
+
+# S11-VERDICT-01 — palette for the single-token verdict headline. KILL is
+# the tightest call so it gets the highest-contrast warning hue; BUILD is
+# the green light; REFINE is amber (between the two).
+_VERDICT_STYLES: dict[Verdict, str] = {
+    Verdict.KILL: "bold red",
+    Verdict.REFINE: "bold yellow",
+    Verdict.BUILD: "bold green",
+}
 
 
 def _console(console: Console | None) -> Console:
@@ -148,6 +158,22 @@ def _business_plan_body(bp: BusinessPlan, accent: str) -> Group:
     return Group(*parts)
 
 
+def _verdict_line(verdict: Verdict, gap_summary: str = "") -> Text:
+    """S11-VERDICT-01 — the single-token founder-facing headline.
+
+    Renders ``VERDICT ─────── KILL`` (or REFINE / BUILD) in the verdict's
+    accent color. The typed gap_classification stays as a sub-line via
+    ``_gap_line`` — verdict is the headline, gap is the evidence.
+    """
+    style = _VERDICT_STYLES[verdict]
+    t = Text()
+    t.append("VERDICT ", style=style)
+    t.append("─" * 7, style="dim")
+    t.append(" ", style=style)
+    t.append(verdict.value, style=style)
+    return t
+
+
 def _gap_line(v: ValidationReport, accent: str) -> Text:
     """S9-VERDICT-01 — bold one-liner under the verdict surfacing the
     structured gap classification + summary. Renders even when the LLM only
@@ -162,18 +188,27 @@ def _gap_line(v: ValidationReport, accent: str) -> Text:
     return t
 
 
-def _validation_body(v: ValidationReport, accent: str) -> Group:
-    parts: list[Text] = [
-        _gap_line(v, accent),
-        _spacer(),
-        _kv("Market size signal", v.market_size_signal, accent),
-        _spacer(),
-        _kv("Competitor analysis", v.competitor_analysis, accent),
-        _spacer(),
-        _kv("Demand evidence", v.demand_evidence, accent),
-        _spacer(),
-        _bullets("Risk flags", v.risk_flags, accent),
-    ]
+def _validation_body(v: ValidationReport, accent: str, *, verdict: Verdict | None = None) -> Group:
+    parts: list[Text] = []
+    if verdict is not None:
+        # S11-VERDICT-01 — verdict headline first, then the typed gap as
+        # the immediate sub-line (KILL + Gap: Full reads as a single
+        # block: token + evidence on consecutive lines).
+        parts.append(_verdict_line(verdict))
+        parts.append(_spacer())
+    parts.extend(
+        [
+            _gap_line(v, accent),
+            _spacer(),
+            _kv("Market size signal", v.market_size_signal, accent),
+            _spacer(),
+            _kv("Competitor analysis", v.competitor_analysis, accent),
+            _spacer(),
+            _kv("Demand evidence", v.demand_evidence, accent),
+            _spacer(),
+            _bullets("Risk flags", v.risk_flags, accent),
+        ]
+    )
     cites = _citations_renderable(v.citations, accent)
     if cites is not None:
         parts.append(_spacer())
@@ -181,10 +216,22 @@ def _validation_body(v: ValidationReport, accent: str) -> Group:
     return Group(*parts)
 
 
-def _prd_body(p: PRD, accent: str, *, gap: ValidationReport | None = None) -> Group:
-    parts: list[Text] = [
-        _bullets("V1 scope", p.v1_scope, accent),
-    ]
+def _prd_body(
+    p: PRD,
+    accent: str,
+    *,
+    gap: ValidationReport | None = None,
+    verdict: Verdict | None = None,
+) -> Group:
+    parts: list[Text] = []
+    if verdict is not None:
+        # S11-VERDICT-01 — PRD header line 1 is the single-token verdict.
+        # The thinking: the PRD is what the user pastes into Claude Code;
+        # the verdict needs to be the first thing they (or their model)
+        # see when they open it.
+        parts.append(_verdict_line(verdict))
+        parts.append(_spacer())
+    parts.append(_bullets("V1 scope", p.v1_scope, accent))
     if gap is not None:
         # S9-VERDICT-01 — echo the gap classification under V1 scope so the
         # PRD output surfaces the same structured signal the validation panel
@@ -254,7 +301,7 @@ def render_research_result(result: ResearchResult, console: Console | None = Non
     c.print(
         _doc_panel(
             "Validation Report",
-            _validation_body(result.validation_report, _VR_STYLE),
+            _validation_body(result.validation_report, _VR_STYLE, verdict=result.verdict),
             _VR_STYLE,
         )
     )
@@ -264,7 +311,12 @@ def render_research_result(result: ResearchResult, console: Console | None = Non
     c.print(
         _doc_panel(
             "PRD",
-            _prd_body(result.prd, _PRD_STYLE, gap=result.validation_report),
+            _prd_body(
+                result.prd,
+                _PRD_STYLE,
+                gap=result.validation_report,
+                verdict=result.verdict,
+            ),
             _PRD_STYLE,
         )
     )

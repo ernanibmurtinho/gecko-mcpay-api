@@ -7,6 +7,7 @@ Keep them stable — breaking changes here ripple to every consumer (CLI, MCP, A
 from __future__ import annotations
 
 from datetime import datetime
+from enum import Enum
 from typing import Literal
 
 from pydantic import BaseModel, Field, HttpUrl, field_validator
@@ -92,6 +93,61 @@ Values:
     actually go unmet (this is a kill signal, not a partial-cover signal).
 """
 
+
+class Verdict(str, Enum):
+    """S11-VERDICT-01 — single-token go/no-go signal surfaced to founders.
+
+    Derived from the structured ``gap_classification`` plus advisor
+    consensus (when available). The typed gap stays as evidence — Verdict
+    is the headline.
+
+    Mapping rule (see ``derive_verdict``):
+      - ``Full`` or ``False``                      → ``KILL``
+      - ``Partial:pricing`` / ``Partial:integration``
+          AND advisor_consensus ≥ 0.8             → ``BUILD``
+          else                                    → ``REFINE``
+      - ``Partial:segment | UX | geo``             → ``REFINE``
+    """
+
+    KILL = "KILL"
+    REFINE = "REFINE"
+    BUILD = "BUILD"
+
+
+# Threshold above which advisor consensus on the panel's "ship" sentiment
+# flips a Partial:pricing / Partial:integration gap from REFINE to BUILD.
+# 0.8 = 4-of-5 voices agree on the ship-shaped lever — leaves room for one
+# legitimate dissent without softening the headline.
+ADVISOR_CONSENSUS_BUILD_THRESHOLD: float = 0.8
+
+
+def derive_verdict(
+    gap: GapClassification,
+    advisor_consensus: float | None = None,
+) -> Verdict:
+    """Map (gap_classification, advisor_consensus) → single-token Verdict.
+
+    ``advisor_consensus`` is the fraction of advisor-panel voices whose
+    closing line aligns with a ship/build sentiment. ``None`` means we
+    have no advisor signal (basic tier, or pro debate that didn't emit
+    explicit consensus): we treat that as 0.0 — i.e. lean REFINE for the
+    pricing / integration partials rather than promoting them to BUILD on
+    silence.
+    """
+    if gap in ("Full", "False"):
+        return Verdict.KILL
+    consensus = advisor_consensus if advisor_consensus is not None else 0.0
+    if gap in ("Partial:pricing", "Partial:integration"):
+        if consensus >= ADVISOR_CONSENSUS_BUILD_THRESHOLD:
+            return Verdict.BUILD
+        return Verdict.REFINE
+    # Partial:segment | Partial:UX | Partial:geo — always REFINE; the
+    # advisor panel can promote to BUILD once it weighs in via a separate
+    # downstream call (gecko_advise / gecko_plan). The research output
+    # itself stays conservative.
+    return Verdict.REFINE
+
+
 # Default applied when the judge fails to emit a valid gap_classification
 # even after the retry. We bias toward 'Partial:segment' (rather than 'Full'
 # or 'False') because segment-level partial cover is the modal real-world
@@ -158,6 +214,13 @@ class ResearchResult(BaseModel):
     # Pro tier only — the judge's final paragraph, surfaced as a quick
     # readout. None for basic tier and for pro runs that halted early.
     pro_session_summary: str | None = None
+    # S11-VERDICT-01 — single-token verdict (KILL | REFINE | BUILD) derived
+    # from the typed gap_classification + advisor consensus. The headline
+    # the landing copy promises; the typed gap stays as evidence under it.
+    # Defaults to REFINE so legacy callers that build a ResearchResult by
+    # hand (tests, external SDK consumers on older versions) get a safe
+    # value rather than a crash. Workflow code stamps the derived value.
+    verdict: Verdict = Verdict.REFINE
 
 
 class AskResult(BaseModel):

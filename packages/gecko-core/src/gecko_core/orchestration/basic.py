@@ -27,6 +27,7 @@ from gecko_core.models import (
     ResearchResult,
     Tier,
     ValidationReport,
+    derive_verdict,
 )
 from gecko_core.orchestration.settings import get_orchestration_settings
 from gecko_core.rag.query import RagChunk, rag_query
@@ -452,6 +453,14 @@ async def generate(
 
     out = _validate_citations(out, allowed_urls)
 
+    # S11-VERDICT-01 — stamp the single-token verdict derived from the
+    # typed gap_classification. Basic tier has no advisor panel running,
+    # so we pass advisor_consensus=None — `derive_verdict` treats that as
+    # 0.0 and leans REFINE for the pricing/integration partials. The
+    # downstream advisor panel (gecko_advise / gecko_plan) can promote to
+    # BUILD on its own surface; the research output stays conservative.
+    verdict = derive_verdict(out.validation_report.gap_classification)
+
     return ResearchResult(
         session_id=str(session_id),
         tier="basic",
@@ -459,6 +468,7 @@ async def generate(
         validation_report=out.validation_report,
         prd=out.prd,
         sources=sources,
+        verdict=verdict,
     )
 
 

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from collections.abc import Awaitable, Callable
 from typing import Any, cast
 from uuid import UUID
@@ -35,6 +36,7 @@ from gecko_core.models import (
     SourceInfo,
     SourceType,
     Tier,
+    Verdict,
 )
 from gecko_core.orchestration.basic import generate as basic_generate
 from gecko_core.orchestration.pro import generate as pro_generate
@@ -224,11 +226,20 @@ async def research(
 def _detect_research_verdict(result: ResearchResult) -> str:
     """Best-effort verdict label for the journal entry.
 
-    Pro tier produces a judge transcript with a 'Verdict: SHIP/KILL/PIVOT'
-    line. Basic tier doesn't render a verdict; we journal it as 'unknown'
-    so the row still shows up in `gecko_resume` (decision history is the
-    point of the layer).
+    Prefers the structured ``ResearchResult.verdict`` (S11-VERDICT-01) —
+    KILL / REFINE / BUILD — and lower-cases for the legacy journal shape.
+    Falls back to legacy parsing of the judge's prose verdict line for
+    pro tiers that ran before S11 stamped the field.
     """
+    structured = getattr(result, "verdict", None)
+    if isinstance(structured, Verdict):
+        # Map the S11 single-token surface back to the legacy
+        # ship/kill/pivot taxonomy the journal + flywheel + scaffold
+        # consumers still key off. BUILD → ship, KILL → kill, REFINE →
+        # pivot (REFINE is the "needs work / not greenlit" bucket, which
+        # maps cleanly to the existing pivot label).
+        _LEGACY = {Verdict.BUILD: "ship", Verdict.KILL: "kill", Verdict.REFINE: "pivot"}
+        return _LEGACY[structured]
     summary = getattr(result, "pro_session_summary", None)
     transcript = getattr(result, "transcript", None)
     if isinstance(summary, str) and summary:
@@ -428,13 +439,43 @@ async def _run_pro_debate(
             break
 
     _ = Decimal  # silence unused-import; Decimal is used inside _on_event
+    # S11-VERDICT-01 — prefer the judge's explicit single-token verdict
+    # ("Final verdict: KILL|REFINE|BUILD") when the pro debate emits one;
+    # otherwise keep the verdict the basic pass already derived from the
+    # typed gap. This lets the judge override on tight consensus while
+    # keeping the safe basic-tier mapping when the judge stays silent.
+    judge_verdict = _parse_judge_verdict(summary)
+    final_verdict = judge_verdict if judge_verdict is not None else base_result.verdict
+
     return base_result.model_copy(
         update={
             "tier": "pro",
             "transcript": transcript.model_dump(mode="json"),
             "pro_session_summary": summary,
+            "verdict": final_verdict,
         }
     )
+
+
+_JUDGE_VERDICT_RE = re.compile(r"(?im)^\s*(?:final\s+)?verdict\s*[:\-]\s*(KILL|REFINE|BUILD)\b")
+
+
+def _parse_judge_verdict(summary: str | None) -> Verdict | None:
+    """Pull a ``Final verdict: KILL|REFINE|BUILD`` line out of the judge's
+    closing paragraph. Returns None when no such line is present (e.g.
+    legacy ``Verdict: SHIP V1 to ...`` shape) — callers fall back to the
+    basic-tier derived verdict in that case.
+    """
+    if not summary:
+        return None
+    match = _JUDGE_VERDICT_RE.search(summary)
+    if match is None:
+        return None
+    token = match.group(1).upper()
+    try:
+        return Verdict(token)
+    except ValueError:  # pragma: no cover — regex guards the alphabet
+        return None
 
 
 async def _dispatch_v1_sources(
