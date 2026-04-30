@@ -118,12 +118,12 @@ The answer came from a real story. A co-founder spent **hours** transcribing You
 
 This is the wall every builder hits:
 
-**Two types of builders. Same wall.**
+**Two types of builders. Same wall. V1 only ships for the first one.**
 
-| Builder Type | Has | Lacks |
-|---|---|---|
-| Technical developer | Can write the code | Domain knowledge, research, business plan, market validation |
-| Non-technical founder | Domain insight, market instinct, lived pain | Data, structured output, the ability to build |
+| Builder Type | Has | Lacks | V1? |
+|---|---|---|---|
+| Claude Code / Cursor power user with founder ambition (technical or technical-adjacent) | Can write the code, lives in the terminal, AI-pair-programming workflow | Domain knowledge, research, business plan, market validation | **V1 primary** |
+| Non-technical founder | Domain insight, market instinct, lived pain | Data, structured output, the ability to build | Sprint 12+ via web app |
 
 The current workflow:
 1. Find relevant videos and articles
@@ -238,7 +238,7 @@ This is not about which product is "better." It's about which product is the rig
 
 | Dimension | Gecko | Builder Bootstrap |
 |---|---|---|
-| **Who buys it** | Brands AND creators (two-sided) | Developers and founders (one buyer) |
+| **Who buys it** | Brands AND creators (two-sided) | Claude Code / Cursor power users with founder ambition — technical or technical-adjacent (one buyer) |
 | **Cold-start problem** | Yes — both sides must show up | No — single buyer, immediate utility |
 | **Time to first revenue** | Weeks/months (brand acquisition) | Minutes (session purchase) |
 | **Proof of value** | Requires a live campaign to demonstrate | Demonstrates value in the first session |
@@ -343,14 +343,14 @@ This section is specifically for you.
 
 The product has two distinct user types with different mental models:
 
-**The Technical Developer** (V1 primary)
-- CLI-first. Comfortable with terminal output.
-- Wants: session ID they can reference, chunk count confirmation, confidence score
-- Does not want: decorative UI, marketing copy, explanations of what "embedding" means
-- Key moments: payment confirmation, indexing progress, document output in terminal
+**The Claude Code / Cursor power user with founder ambition** (V1 primary — technical or technical-adjacent)
+- CLI-first. Already lives in Claude Code; installs via `Read app.geckovision.tech/skill.md`.
+- Wants: session ID they can reference, source list confirmation, confidence/verdict, on-chain receipt
+- Does not want: decorative UI, marketing copy, model branding, explanations of what "embedding" means
+- Key moments: payment confirmation, indexing progress, verdict (KILL/REFINE/BUILD), document output in terminal
 
-**The Non-Technical Founder** (V2 primary, Web App)
-- GUI-first. Never opened a terminal.
+**The Non-Technical Founder** (Sprint 12+ / V2 audience — unlocks with `app.geckovision.tech` web app)
+- GUI-first. Never opened a terminal. Out of scope for V1 because the CLI is the wrong surface.
 - Wants: to see progress, feel that something is happening, receive something polished
 - Does not want: technical jargon, uncertainty about what the tool is doing with their idea
 - Key moments: session creation ("your idea is being researched"), document reveal, agent team introduction
@@ -399,7 +399,7 @@ Every product decision passes through five questions, in order:
 Not the feature. The pain. "Indexing YouTube videos" is a feature. "A developer spends 20+ hours researching before writing a line of code and still doesn't know if the market is real" is a pain. The pain must be visceral before any architecture discussion starts.
 
 **2. Who has this problem badly enough to pay right now?**
-Not eventually. Right now. If the answer requires "once the market matures" or "when we have enough users," the timing is wrong. Builder Bootstrap's answer: technical developers and solo founders building new products. They have the pain today.
+Not eventually. Right now. If the answer requires "once the market matures" or "when we have enough users," the timing is wrong. Builder Bootstrap's V1 answer: Claude Code / Cursor power users with founder ambition — technical or technical-adjacent. They have the pain today, they live where our distribution lands, and they will pay per session without a sales call. Fully non-technical founders share the pain but are a Sprint 12+ unlock once the web app ships.
 
 **3. What is the smallest thing that proves value?**
 Not the full product. The demo. For Builder Bootstrap, it is one command: `bb research --idea "hotel guide in Brazil"`. A terminal output that contains a real business plan, a real validation report, and a real PRD. That is the proof. Everything else is polish.
@@ -423,3 +423,4 @@ This methodology is not a formula. It is a discipline. The goal is to spend zero
 ---
 
 *Document prepared by Ernani Britto · April 25, 2026 · gecko-mcpay-app project*
+*Updated 2026-04-30 (S11-PRD-01) — V1 ICP converged to "Claude Code / Cursor power users with founder ambition — technical or technical-adjacent"; non-technical founder moved to Sprint 12+ web-app expansion.*

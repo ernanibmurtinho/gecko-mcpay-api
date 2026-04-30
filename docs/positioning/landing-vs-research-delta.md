@@ -7,6 +7,8 @@
 - Research output: `docs/positioning/2026-04-30-gecko-self-research.md` (skeleton; awaiting first matrix run)
 - Persona reference: `docs/PRD.md`, `docs/product-story.md`
 
+> **Update 2026-04-30 (S11-PRD-01 resolution):** Action item §4.3 ("Update the PRD ICP") and vocabulary-drift row §3 (last row) are **resolved**. PRD v1.1 and product-story now converge on the landing's framing: **"Claude Code / Cursor power users with founder ambition — technical or technical-adjacent."** The non-technical founder is documented as a Sprint 12+ / V2 web-app expansion target. Snapshots below are preserved as historical context.
+
 > **Status:** v0 of the delta. The `2026-04-30-gecko-self-research.md`
 > file is a skeleton until `scripts/positioning_check.sh` runs end-to-end
 > in an env with API keys (the agent shell that authored this doc has no

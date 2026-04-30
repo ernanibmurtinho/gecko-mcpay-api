@@ -1,7 +1,7 @@
 # Builder Bootstrap Platform — PRD
 
-**Version:** 1.0
-**Date:** April 25, 2026
+**Version:** 1.1
+**Date:** April 30, 2026
 **Author:** Ernani Britto
 **Status:** Active — V1 shipped
 
@@ -21,27 +21,33 @@ Every builder hits the same wall before writing a single line of code: hours of 
 
 ## User Personas
 
-### Persona 1 — Technical Developer (V1 Primary)
+### Persona 1 — Claude Code / Cursor power user with founder ambition (V1 Primary)
+
+> **V1 ICP:** Claude Code / Cursor power users with founder ambition — technical or technical-adjacent.
 
 | Attribute | Detail |
 |-----------|--------|
-| **Who** | Solo developer or small team building a new product on Solana or adjacent stacks |
-| **Has** | Coding skills, technical intuition, domain curiosity |
-| **Lacks** | Market validation, business plan, structured research |
-| **Goal** | Know if the idea is worth building before writing a line of code |
-| **Pain** | Research takes longer than building; output is unstructured and uncited |
-| **Interface** | CLI-first; comfortable with terminal output and session IDs |
+| **Who** | Claude Code / Cursor power users with founder ambition — technical or technical-adjacent. Senior engineers, technical founders, AI-native builders, and indie hackers who already live in the terminal and treat Claude Code skills as a native install surface. |
+| **Has** | Fluency with CLI tooling, AI-pair-programming workflow, idea backlog, willingness to pay per session |
+| **Lacks** | Market validation, structured research, fundable PRD before writing code |
+| **Goal** | Know if the idea is worth building — and walk away with the three docs that prove it — before opening the editor |
+| **Pain** | Research takes longer than building; output is unstructured and uncited; "vibe-coded" specs collapse on contact with the market |
+| **Interface** | CLI-first via `bb` / `gecko` skill; comfortable with terminal output, session IDs, and on-chain receipts |
+| **Distribution fit** | Lands inside Claude Code via `Read app.geckovision.tech/skill.md` — by definition, this audience is CC-literate |
 
-### Persona 2 — Non-Technical Founder (V2 Primary)
+### Future expansion — Non-Technical Founder (Sprint 12+ / V2 audience)
+
+The thesis-research "Non-developer founders" dimension surfaces a real, underserved audience (~18% startup success rate without a technical co-founder). They are **not** a V1 target because the CLI is the wrong surface for them. They become reachable when the `app.geckovision.tech` web app ships in V2.
 
 | Attribute | Detail |
 |-----------|--------|
-| **Who** | Domain expert, operator, or solo founder with a business idea |
+| **Who** | Domain expert, operator, or solo founder with a business idea but no technical co-founder |
 | **Has** | Market instinct, lived pain, domain knowledge |
 | **Lacks** | Technical ability to build, structured data, validated market signal |
-| **Goal** | Get a business plan and validation report without hiring a consultant |
-| **Pain** | Tools require technical assembly; output is still generic without domain context |
-| **Interface** | GUI-first; expects progress feedback and polished document reveal |
+| **Goal** | Get a business plan, validation report, and PRD without hiring a consultant or finding a CTO |
+| **Pain** | Tools require technical assembly; output is generic without domain context; CLI is a hard wall |
+| **Interface** | GUI-first via `app.geckovision.tech`; expects progress feedback and a polished document reveal moment |
+| **Unlock condition** | V2 web app ships with Privy embedded wallet + session sharing (Sprint 12+) |
 
 ---
 
@@ -166,4 +172,4 @@ Every builder hits the same wall before writing a single line of code: hours of 
 
 ---
 
-*Builder Bootstrap Platform · Ernani Britto · April 25, 2026*
+*Builder Bootstrap Platform · Ernani Britto · April 30, 2026 (v1.1 — S11-PRD-01 ICP convergence)*
