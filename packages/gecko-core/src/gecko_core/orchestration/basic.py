@@ -182,19 +182,69 @@ async def _call_llm(
     return content, cost_usd
 
 
-def _validate_citations(out: _LLMOutput, allowed_urls: set[str]) -> None:
-    """Every citation must point at a URL we actually indexed for this session."""
+def _normalize_url(url: str) -> str:
+    """Trim trailing slash + lowercase host so HttpUrl renders that pick up
+    a slash from pydantic don't fail an otherwise-valid citation match.
 
-    def _check(citations: list[Citation], where: str) -> None:
+    We don't touch the path/query — just the two normalizations that have
+    bitten dogfood. Anything more aggressive risks false positives.
+    """
+    s = url.strip()
+    if s.endswith("/"):
+        s = s[:-1]
+    return s
+
+
+def _drop_unknown_citations(
+    out: _LLMOutput, allowed_urls: set[str]
+) -> tuple[_LLMOutput, list[tuple[str, str]]]:
+    """Filter citations whose source_url wasn't ingested for this session.
+
+    S8-INGEST-02 — when ingestion partially fails (Tavily found 6 URLs but
+    one bot-walls Tavily Extract too), the LLM still sees the URL in the
+    discovery list and can cite it. Pre-Sprint 8 behavior was to crash the
+    whole session with `OrchestrationError`. We now drop the unknown
+    citation, log a warning, and keep going — the rest of the report is
+    salvageable.
+
+    Returns (filtered_output, dropped) where `dropped` is a list of
+    (where, url) tuples for the caller to log/audit.
+    """
+    allowed_norm = {_normalize_url(u) for u in allowed_urls}
+    dropped: list[tuple[str, str]] = []
+
+    def _filter(citations: list[Citation], where: str) -> list[Citation]:
+        kept: list[Citation] = []
         for c in citations:
-            if str(c.source_url) not in allowed_urls:
-                raise OrchestrationError(
-                    f"citation in {where} references unknown URL: {c.source_url}"
-                )
+            if _normalize_url(str(c.source_url)) in allowed_norm:
+                kept.append(c)
+            else:
+                dropped.append((where, str(c.source_url)))
+        return kept
 
-    _check(out.business_plan.citations, "business_plan")
-    _check(out.validation_report.citations, "validation_report")
-    _check(out.prd.citations, "prd")
+    out.business_plan.citations = _filter(out.business_plan.citations, "business_plan")
+    out.validation_report.citations = _filter(out.validation_report.citations, "validation_report")
+    out.prd.citations = _filter(out.prd.citations, "prd")
+    return out, dropped
+
+
+def _validate_citations(out: _LLMOutput, allowed_urls: set[str]) -> _LLMOutput:
+    """Drop citations referencing URLs that didn't make it into the index.
+
+    Replaces the pre-Sprint 8 hard-crash behavior. Logs each dropped
+    citation at WARNING so the dogfood operator can see when an agent
+    hallucinated past the failed-ingest list, but the session still
+    completes with the surviving citations.
+    """
+    out, dropped = _drop_unknown_citations(out, allowed_urls)
+    for where, url in dropped:
+        logger.warning(
+            "citation.dropped where=%s unknown_url=%s "
+            "(source not in indexed set; degrading gracefully)",
+            where,
+            url,
+        )
+    return out
 
 
 async def generate(
@@ -269,7 +319,7 @@ async def generate(
         except ValidationError as ve2:
             raise OrchestrationError(f"LLM output failed validation after retry: {ve2}") from ve2
 
-    _validate_citations(out, allowed_urls)
+    out = _validate_citations(out, allowed_urls)
 
     return ResearchResult(
         session_id=str(session_id),

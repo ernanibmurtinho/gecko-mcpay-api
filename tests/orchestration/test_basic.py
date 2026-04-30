@@ -151,9 +151,19 @@ async def test_generate_retries_on_validation_failure(
 
 
 @pytest.mark.asyncio
-async def test_generate_rejects_unknown_citation_url(
+async def test_generate_drops_unknown_citation_url(
     monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
+    """S8-INGEST-02 — unknown citation URLs are dropped + logged, not raised.
+
+    Pre-Sprint 8 this raised `OrchestrationError` and crashed the session.
+    The audit (F12) showed agents will cite Tavily-discovered URLs even
+    when ingestion failed on them, so the failure mode was deterministic
+    on every dogfood run. Graceful degradation is the contract now.
+    """
+    import logging
+
     sid: UUID = uuid4()
     indexed_url = "https://example.com/a"
     bogus_url = "https://hallucinated.example.com/x"
@@ -164,10 +174,56 @@ async def test_generate_rejects_unknown_citation_url(
     monkeypatch.setattr(basic_mod, "rag_query", _fake_rag)
 
     store = _store_with_sources([indexed_url])
-    client = _mk_openai_client([json.dumps(_valid_payload(bogus_url))])
+    # Mix one good citation with one hallucinated URL across all three
+    # citation lists. The good one survives, the bogus one is dropped.
+    payload = _valid_payload(indexed_url)
+    for section in ("business_plan", "validation_report", "prd"):
+        payload[section]["citations"].append(
+            {"source_url": bogus_url, "chunk_index": 0, "similarity": 0.42}
+        )
+    client = _mk_openai_client([json.dumps(payload)])
 
-    with pytest.raises(basic_mod.OrchestrationError, match="unknown URL"):
-        await basic_mod.generate(sid, "idea", store, openai_client=client)
+    caplog.set_level(logging.WARNING, logger="gecko_core.orchestration.basic")
+    result = await basic_mod.generate(sid, "idea", store, openai_client=client)
+
+    # Session completed instead of crashing.
+    assert result.session_id == str(sid)
+    # Bogus URL filtered out of every citation list.
+    for section in (result.business_plan, result.validation_report, result.prd):
+        urls = {str(c.source_url) for c in section.citations}
+        assert bogus_url not in urls
+        assert any(indexed_url in u for u in urls)
+    # Each dropped citation logged once with the unknown URL.
+    drop_messages = [r.getMessage() for r in caplog.records if "citation.dropped" in r.getMessage()]
+    # _valid_payload re-uses the same `cit` list across sections, so the
+    # appended bogus URL appears 3x in each section. Assert at least one
+    # drop per section + every drop names the bogus URL.
+    assert len(drop_messages) >= 3
+    assert all(bogus_url in m for m in drop_messages)
+    sections_seen = {m.split("where=")[1].split(" ")[0] for m in drop_messages}
+    assert sections_seen == {"business_plan", "validation_report", "prd"}
+
+
+@pytest.mark.asyncio
+async def test_generate_drops_all_citations_when_no_sources_indexed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """If ingestion failed on every URL, the report still ships — without citations."""
+    sid: UUID = uuid4()
+    cited_url = "https://allium.so/blog/x402-explained"
+
+    async def _fake_rag(*a: Any, **kw: Any) -> list[RagChunk]:
+        return []
+
+    monkeypatch.setattr(basic_mod, "rag_query", _fake_rag)
+
+    store = _store_with_sources([])  # no sources successfully indexed
+    client = _mk_openai_client([json.dumps(_valid_payload(cited_url))])
+
+    result = await basic_mod.generate(sid, "idea", store, openai_client=client)
+    assert result.business_plan.citations == []
+    assert result.validation_report.citations == []
+    assert result.prd.citations == []
 
 
 def test_ensure_tier_now_accepts_pro() -> None:
