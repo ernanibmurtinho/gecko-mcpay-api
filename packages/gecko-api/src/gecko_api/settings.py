@@ -85,6 +85,12 @@ class Settings(BaseModel):
     # /plan), so charge accordingly. Free in stub mode (route is registered
     # in live mode only — see _build_routes).
     review_call_price: str = "$0.10"
+    # S8-API-01: HTTP surfaces for /scaffold and /pulse, mirroring the MCP
+    # tools. /scaffold matches the MCP tool's $0.05 charge; /pulse is free
+    # in stub mode (deferred pricing — operator can flip via PULSE_CALL_PRICE).
+    scaffold_call_price: str = "$0.05"
+    pulse_call_price: str = "$0.00"
+
     # S5-API-03: tiered /route pricing. Sprint 4 shipped a single flat
     # $0.02 charge; Sprint 5 splits it into three paths so heavy callers
     # subsidize light ones less. The middleware can't refund post-call,
@@ -208,6 +214,8 @@ class Settings(BaseModel):
         # S5-API-01: $0.25 per advisor panel run. Mirrors ROUTE_CALL_PRICE env shape.
         plan_price = os.environ.get("PLAN_CALL_PRICE", "$0.25")
         review_price = os.environ.get("REVIEW_CALL_PRICE", "$0.10")
+        scaffold_price = os.environ.get("SCAFFOLD_CALL_PRICE", "$0.05")
+        pulse_price = os.environ.get("PULSE_CALL_PRICE", "$0.00")
         # S5-API-03: tiered /route pricing. ROUTE_CALL_PRICE stays as the
         # legacy single-tier knob (back-compat); the three new vars below
         # let operators tune each tier independently.
@@ -237,6 +245,8 @@ class Settings(BaseModel):
             route_call_price=route_price,
             plan_call_price=plan_price,
             review_call_price=review_price,
+            scaffold_call_price=scaffold_price,
+            pulse_call_price=pulse_price,
             route_price_default=route_price_default,
             route_price_premium=route_price_premium,
             route_price_upgrade=route_price_upgrade,

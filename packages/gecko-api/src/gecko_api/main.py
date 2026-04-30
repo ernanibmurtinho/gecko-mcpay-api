@@ -1129,6 +1129,118 @@ async def plan_call(req: PlanRequest, request: Request) -> dict[str, Any]:
     return panel.model_dump(mode="json")
 
 
+@app.post("/scaffold")
+async def scaffold_call(req: ScaffoldRequest, request: Request) -> dict[str, Any]:
+    """S8-API-01 — paid scaffold surface, mirrors the MCP ``gecko_scaffold``.
+
+    Charges $0.05 in live mode (matches the MCP pricing); free in stub.
+    Errors collapse to clean HTTPExceptions instead of the MCP tool's
+    ``{error, message}`` envelope so HTTP callers can branch on status code.
+    """
+    from pathlib import Path
+    from uuid import UUID as _UUID
+
+    from gecko_core.orchestration.scaffold import (
+        KillVerdictError,
+        ScaffoldError,
+        SessionNotFoundError,
+        SessionNotReadyError,
+        generate_scaffold,
+    )
+
+    try:
+        sid = _UUID(req.session_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="invalid session_id") from exc
+
+    # Touch the payment payload to record we ran post-settle.
+    _ = getattr(request.state, "payment_payload", None)
+
+    try:
+        result = await generate_scaffold(sid, Path.cwd())
+    except KillVerdictError as exc:
+        # The session's verdict was 'kill'; the MCP tool surfaces this as a
+        # soft error. HTTP semantics: 409 Conflict — the resource is in a
+        # state that forbids scaffolding.
+        raise HTTPException(status_code=409, detail=f"kill_verdict: {exc}") from exc
+    except SessionNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except SessionNotReadyError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ScaffoldError as exc:
+        # x402 already settled — surface a clean 500 rather than retrying.
+        logger.exception("scaffold: generation failed for %s", sid)
+        raise HTTPException(status_code=500, detail=f"{type(exc).__name__}: {exc}") from exc
+
+    return {
+        "session_id": str(result.session_id),
+        "paths": [str(p) for p in result.paths],
+        "tokens_used": result.tokens_used,
+        "summary": result.summary,
+    }
+
+
+@app.post("/pulse")
+async def pulse_call(req: PulseRequest, request: Request) -> dict[str, Any]:
+    """S8-API-01 — re-run the Advisor Panel and surface deltas.
+
+    Free by default in all modes (stub + live) until the team commits to a
+    pulse pricing model. When PULSE_CALL_PRICE is set to a non-zero value,
+    the route auto-registers on the x402 middleware (see ``_build_routes``)
+    and the same handler runs after settle.
+    """
+    from uuid import UUID as _UUID
+
+    from gecko_core.orchestration.advisor import (
+        AdvisorSessionNotFoundError,
+        run_pulse,
+    )
+    from gecko_core.routing.catalog import Tier as _Tier
+
+    if not req.session_id and not req.project_id:
+        raise HTTPException(
+            status_code=400,
+            detail="either session_id or project_id is required",
+        )
+
+    sid: UUID | None = None
+    pid: UUID | None = None
+    if req.session_id:
+        try:
+            sid = _UUID(req.session_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="invalid session_id") from exc
+    if req.project_id:
+        try:
+            pid = _UUID(req.project_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="invalid project_id") from exc
+
+    # Touch the payment payload (set by middleware when /pulse is gated).
+    _ = getattr(request.state, "payment_payload", None)
+
+    try:
+        tier = _Tier(req.tier_preset)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"invalid tier_preset: {exc}") from exc
+
+    try:
+        result = await run_pulse(
+            session_id=sid,
+            project_id=pid,
+            tier_preset=tier,
+        )
+    except AdvisorSessionNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("pulse: run failed")
+        raise HTTPException(status_code=500, detail=f"{type(exc).__name__}: {exc}") from exc
+
+    return result.model_dump(mode="json")
+
+
 @app.post("/review")
 async def review_call(req: ReviewRequest, request: Request) -> dict[str, Any]:
     """S7-DOGFOOD-02 — sprint review meta-tool.
