@@ -165,6 +165,115 @@ def check_llm_resolution(env: dict[str, str]) -> CheckRow:
     )
 
 
+class _LLMClientLike(Protocol):
+    """Async chat-completions surface. Matches the slice of AsyncOpenAI we use
+    so tests can swap in a fake without monkeypatching the real client.
+    """
+
+    chat: Any  # chat.completions.create(...) — typed as Any to keep mypy strict happy
+
+
+async def _default_llm_ping_client(cfg: Any) -> Any:
+    """Lazy-build an AsyncOpenAI client wired to the resolved LLM config.
+
+    Lazy because importing openai here would slow `bb --help`; we only pay
+    the import when doctor actually runs.
+    """
+    from openai import AsyncOpenAI
+
+    return AsyncOpenAI(
+        api_key=cfg.api_key,
+        base_url=cfg.base_url,
+        default_headers=cfg.extra_headers or None,
+        timeout=30.0,
+    )
+
+
+# S9-CONFIG-04: cap the ping at a cheap model (gpt-4.1-nano-class). When the
+# resolved chat_model is more expensive we still send 5 tokens — at < 1
+# input/output tokens per cent that's well under the $0.0001/run cap. We
+# don't override the model the operator actually uses because the *point* of
+# the ping is to validate THEIR configured model 200s.
+_LLM_PING_MAX_TOKENS = 5
+_LLM_PING_TIMEOUT_S = 30.0
+
+
+async def check_llm_ping(
+    env: dict[str, str],
+    *,
+    client_factory: Any | None = None,
+) -> CheckRow:
+    """S9-CONFIG-04 — issue a 5-token chat completion against the resolved
+    router/endpoint to catch F15 (config resolves but model 400s) and F16
+    (silent empty completion) at config time, not at first paid call.
+
+    Cost cap: <= $0.0001 per run (5 tokens out, ~3 in, against any reasonable
+    model). Timeout: 30s explicit so a hung gateway doesn't pin doctor.
+
+    ``client_factory`` is the test seam — production wires AsyncOpenAI; tests
+    pass a fake that returns a canned completion.
+    """
+    from gecko_core.orchestration.settings import resolve_llm_config
+
+    try:
+        cfg = resolve_llm_config(env)
+    except Exception as exc:
+        return CheckRow("LLM ping", "err", f"resolve_llm_config failed: {exc}")
+
+    factory = client_factory or _default_llm_ping_client
+    try:
+        client = await factory(cfg)
+    except Exception as exc:
+        return CheckRow("LLM ping", "err", f"client init failed: {exc}")
+
+    try:
+        resp = await asyncio.wait_for(
+            client.chat.completions.create(
+                model=cfg.chat_model,
+                messages=[{"role": "user", "content": "ping"}],
+                max_tokens=_LLM_PING_MAX_TOKENS,
+            ),
+            timeout=_LLM_PING_TIMEOUT_S,
+        )
+    except TimeoutError:
+        return CheckRow(
+            "LLM ping", "err", f"timed out after {_LLM_PING_TIMEOUT_S:.0f}s — gateway unreachable"
+        )
+    except Exception as exc:
+        # Pass through the provider's error message (frames.ag-style: agents
+        # deserve the real reason). Include status code if openai exposes it.
+        status = getattr(exc, "status_code", None) or getattr(
+            getattr(exc, "response", None), "status_code", None
+        )
+        prefix = f"HTTP {status}: " if status else ""
+        return CheckRow(
+            "LLM ping",
+            "err",
+            f"{prefix}{exc.__class__.__name__}: {exc} (model={cfg.chat_model}, source={cfg.source})",
+        )
+
+    # Validate the response shape. F16 reproduces here: providers can return
+    # a 200 with an empty `content` field on misconfigured routes.
+    try:
+        choices = resp.choices
+        content = (choices[0].message.content if choices else None) or ""
+    except (AttributeError, IndexError, TypeError) as exc:
+        return CheckRow("LLM ping", "err", f"unexpected response shape: {exc}")
+
+    if not content.strip():
+        return CheckRow(
+            "LLM ping",
+            "err",
+            f"model={cfg.chat_model} returned 200 with empty content (F16) — source={cfg.source}",
+        )
+
+    return CheckRow(
+        "LLM ping",
+        "ok",
+        f"model={cfg.chat_model} via source={cfg.source} returned {len(content)} chars",
+    )
+
+
 def check_x402(env: dict[str, str]) -> CheckRow:
     """Surface X402_MODE + treasury + facilitator URL."""
     mode = (env.get("X402_MODE") or "stub").lower()
@@ -246,9 +355,14 @@ def check_frames_wallet(
 # ---------------------------------------------------------------------------
 
 
-async def _run_all(env: dict[str, str], store: _MemoryStoreLike | None) -> list[CheckRow]:
-    """Resolve every doctor row. Memory roundtrip is the only async/network
-    call; the rest are pure env reads.
+async def _run_all(
+    env: dict[str, str],
+    store: _MemoryStoreLike | None,
+    *,
+    llm_ping_client_factory: Any | None = None,
+) -> list[CheckRow]:
+    """Resolve every doctor row. Memory roundtrip + LLM ping are the
+    network-touching calls; the rest are pure env reads.
     """
     rows = [
         check_supabase_env(env),
@@ -266,6 +380,20 @@ async def _run_all(env: dict[str, str], store: _MemoryStoreLike | None) -> list[
                 "Memory roundtrip",
                 "warn",
                 "skipped — Supabase env missing",
+            )
+        )
+
+    # S9-CONFIG-04: only attempt the LLM ping when the LLM resolution row is
+    # OK. If it warned (ClawRouter literal "x402" key), pinging localhost is
+    # noisy and not the point — surface a skip instead.
+    if rows[1].status == "ok":
+        rows.append(await check_llm_ping(env, client_factory=llm_ping_client_factory))
+    else:
+        rows.append(
+            CheckRow(
+                "LLM ping",
+                "warn",
+                "skipped — LLM router check did not pass (no real API key resolved)",
             )
         )
     return rows
@@ -315,6 +443,7 @@ def doctor_cmd() -> None:
 __all__ = [
     "CheckRow",
     "check_frames_wallet",
+    "check_llm_ping",
     "check_llm_resolution",
     "check_memory_roundtrip",
     "check_supabase_env",

@@ -14,6 +14,7 @@ import pytest
 from click.testing import CliRunner
 from gecko_cli.commands.doctor import (
     check_frames_wallet,
+    check_llm_ping,
     check_llm_resolution,
     check_memory_roundtrip,
     check_supabase_env,
@@ -193,6 +194,112 @@ class _FakeMemoryStore:
         return self._rows.pop(entry_id, None) is not None
 
 
+# ---------------------------------------------------------------------------
+# LLM ping (S9-CONFIG-04) — mock the chat completion client
+# ---------------------------------------------------------------------------
+
+
+class _FakeMessage:
+    def __init__(self, content: str) -> None:
+        self.content = content
+
+
+class _FakeChoice:
+    def __init__(self, content: str) -> None:
+        self.message = _FakeMessage(content)
+
+
+class _FakeCompletion:
+    def __init__(self, content: str) -> None:
+        self.choices = [_FakeChoice(content)]
+
+
+class _FakeChatCompletions:
+    def __init__(self, content: str = "pong", *, raise_exc: Exception | None = None) -> None:
+        self._content = content
+        self._raise = raise_exc
+        self.last_call_kwargs: dict[str, Any] | None = None
+
+    async def create(self, **kwargs: Any) -> _FakeCompletion:
+        self.last_call_kwargs = kwargs
+        if self._raise is not None:
+            raise self._raise
+        return _FakeCompletion(self._content)
+
+
+class _FakeChat:
+    def __init__(self, completions: _FakeChatCompletions) -> None:
+        self.completions = completions
+
+
+class _FakeOpenAIClient:
+    def __init__(self, content: str = "pong", *, raise_exc: Exception | None = None) -> None:
+        self.chat = _FakeChat(_FakeChatCompletions(content, raise_exc=raise_exc))
+
+
+@pytest.mark.asyncio
+async def test_check_llm_ping_ok() -> None:
+    """Happy path: 200 + non-empty content → ok row."""
+    fake = _FakeOpenAIClient(content="pong")
+
+    async def factory(_cfg: Any) -> _FakeOpenAIClient:
+        return fake
+
+    row = await check_llm_ping(
+        {"LLM_ROUTER": "openai", "OPENAI_API_KEY": "sk-test"},
+        client_factory=factory,
+    )
+    assert row.status == "ok"
+    assert "router:openai" in row.detail
+    # Cost cap: enforced via max_tokens=5 on the request itself.
+    assert fake.chat.completions.last_call_kwargs is not None
+    assert fake.chat.completions.last_call_kwargs["max_tokens"] == 5
+    assert fake.chat.completions.last_call_kwargs["messages"] == [
+        {"role": "user", "content": "ping"}
+    ]
+
+
+@pytest.mark.asyncio
+async def test_check_llm_ping_empty_content_fails_loudly() -> None:
+    """F16 — provider returns 200 with empty content. Doctor must catch this
+    at config time so the first paid call doesn't silently look successful.
+    """
+    fake = _FakeOpenAIClient(content="")
+
+    async def factory(_cfg: Any) -> _FakeOpenAIClient:
+        return fake
+
+    row = await check_llm_ping(
+        {"LLM_ROUTER": "openai", "OPENAI_API_KEY": "sk-test"},
+        client_factory=factory,
+    )
+    assert row.status == "err"
+    assert "F16" in row.detail or "empty" in row.detail
+
+
+@pytest.mark.asyncio
+async def test_check_llm_ping_provider_error_propagates() -> None:
+    """F15 — provider 400s on an OpenRouter slug routed at openai. Doctor
+    must surface the provider error verbatim.
+    """
+
+    class _BadRequest(Exception):
+        status_code = 400
+
+    fake = _FakeOpenAIClient(raise_exc=_BadRequest("invalid model ID"))
+
+    async def factory(_cfg: Any) -> _FakeOpenAIClient:
+        return fake
+
+    row = await check_llm_ping(
+        {"LLM_ROUTER": "openai", "OPENAI_API_KEY": "sk-test"},
+        client_factory=factory,
+    )
+    assert row.status == "err"
+    assert "invalid model ID" in row.detail
+    assert "400" in row.detail
+
+
 @pytest.mark.asyncio
 async def test_check_memory_roundtrip_ok() -> None:
     store = _FakeMemoryStore()
@@ -223,6 +330,18 @@ def test_doctor_cmd_exits_0_on_all_green(
     monkeypatch.setattr(
         "gecko_core.memory.store.MemoryStore.from_env",
         classmethod(lambda cls: fake),
+    )
+
+    # S9-CONFIG-04: doctor now issues a real chat completion. Stub the LLM
+    # client factory so the test doesn't try to reach OpenAI.
+    fake_llm = _FakeOpenAIClient(content="pong")
+
+    async def _fake_factory(_cfg: Any) -> _FakeOpenAIClient:
+        return fake_llm
+
+    monkeypatch.setattr(
+        "gecko_cli.commands.doctor._default_llm_ping_client",
+        _fake_factory,
     )
     # Minimal env to satisfy the row checks.
     monkeypatch.setenv("SUPABASE_URL", "https://abc.supabase.co")
@@ -264,6 +383,17 @@ def test_doctor_cmd_loads_dotenv_from_cwd(
     monkeypatch.setattr(
         "gecko_core.memory.store.MemoryStore.from_env",
         classmethod(lambda cls: fake),
+    )
+
+    # Stub LLM ping so the test doesn't hit OpenAI.
+    fake_llm = _FakeOpenAIClient(content="pong")
+
+    async def _fake_factory(_cfg: Any) -> _FakeOpenAIClient:
+        return fake_llm
+
+    monkeypatch.setattr(
+        "gecko_cli.commands.doctor._default_llm_ping_client",
+        _fake_factory,
     )
     # Strip the relevant vars from os.environ so the only way they can reach
     # the doctor is through load_dotenv() reading the cwd .env file.
