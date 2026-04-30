@@ -81,6 +81,24 @@ The unblocker. Bazaar listing requires settlement through the CDP Facilitator at
 
 **Owner:** staff-engineer
 
+### Track G — Eval transcripts + rubric v2 migration (S12-EVAL-01..02) **HIGH**
+
+Per `docs/diagnostics/2026-04-30-verdict-regression-analysis.md` + `docs/diagnostics/2026-04-30-rubric-native-verdict-proposal.md`. Sprint 11 closed with the live-V1 gate at 0.60 (live-LLM noise + Track A nudge effect). Diagnosis is blind without raw judge transcripts; rubric still grades legacy `ship/kill/pivot` while pipeline emits `KILL/REFINE/BUILD`.
+
+- **S12-EVAL-01 — Archive raw judge transcripts on every live run.**
+  ~30 min, free. In `tests/eval/runner.py::_evaluate_one`, capture the judge's full prose response + the parsed verdict + per-voice closing lines. Write to `tests/eval/live_runs/<date>-<suite>-transcripts/<idea_id>.json`. Hard prerequisite for any future regression diagnosis. **Owner:** software-engineer.
+
+- **S12-EVAL-02 — Rubric v2: native KILL/REFINE/BUILD grading.**
+  ~3 days. Per ai-ml-engineer's proposal:
+  - Add `expected_verdict_v2: KILL | REFINE | BUILD` to fixture schema (additive, backwards-compat with `expected_verdict`)
+  - Relabel each fixture in `tests/eval/fixtures/` with v2 (REFINE is its own outcome, not collapsed into pivot)
+  - Update rubric scoring in `tests/eval/rubric.py` (or wherever) to grade v2 if present, fallback v1
+  - Re-baseline: run general/crypto/saas under v2 grading, expect ≥ 0.95 each
+  - Re-baseline holdout_live with `--reruns 3` (~$10-15) for the structural threshold answer
+  **Owner:** ai-ml-engineer (relabel + scoring) + software-engineer (schema + runner wire)
+
+**Acceptance:** every live run dumps transcripts; rubric v2 grades all suites; holdout_live reruns-3 baseline ≥ 0.80 published.
+
 ### Track F — `SourceProvider` Protocol seam (S12-PROVIDER-01) **MED**
 
 Per `docs/strategy/bazaar-composer-staff-eng-review-2026-04-30.md` §1a + §"Concrete asks". Pre-pay the architectural debt that turns Sprint 13's vertical-suite work (if the gate opens — see decision doc) from a 3-5 day refactor into a 3-day add. Saves us from breaking the eval gate during Sprint 13 if we go.
