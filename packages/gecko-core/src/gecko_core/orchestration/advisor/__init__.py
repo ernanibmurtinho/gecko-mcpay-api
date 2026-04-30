@@ -81,11 +81,20 @@ def _voice_role(voice: str | AgentRole) -> AgentRole:
 
 
 def _build_default_client() -> AsyncOpenAI:
-    """Build an AsyncOpenAI client from orchestration settings (lazy)."""
-    from gecko_core.orchestration.settings import get_orchestration_settings
+    """Build an AsyncOpenAI client via the unified resolver (S8-CONFIG-01).
 
-    orch = get_orchestration_settings()
-    return AsyncOpenAI(api_key=orch.llm_api_key, base_url=orch.llm_endpoint)
+    Honors ``LLM_ROUTER`` (the same plane Pro debate uses) so setting
+    ``LLM_ROUTER=openrouter`` routes the advisor through OpenRouter without
+    a ``GECKO_LLM_ENDPOINT`` override. Legacy env still wins if both are
+    set, with an INFO-level deprecation log.
+    """
+    from gecko_core.orchestration.settings import resolve_llm_config
+
+    cfg = resolve_llm_config()
+    kwargs: dict[str, Any] = {"api_key": cfg.api_key, "base_url": cfg.base_url}
+    if cfg.extra_headers:
+        kwargs["default_headers"] = dict(cfg.extra_headers)
+    return AsyncOpenAI(**kwargs)
 
 
 async def generate_voice(

@@ -12,6 +12,7 @@ raises `OrchestrationError` rather than silently shipping a hallucination.
 from __future__ import annotations
 
 import logging
+from typing import Any
 from uuid import UUID
 
 import tiktoken
@@ -213,10 +214,18 @@ async def generate(
     if openai_client is not None:
         client = openai_client
     else:
-        client = AsyncOpenAI(
-            api_key=orch.llm_api_key,
-            base_url=orch.llm_endpoint,
-        )
+        # S8-CONFIG-01 — single resolution path. Honors LLM_ROUTER so the
+        # basic tier respects the same router plane as the Pro debate.
+        from gecko_core.orchestration.settings import resolve_llm_config
+
+        cfg = resolve_llm_config(settings=orch)
+        client_kwargs: dict[str, Any] = {
+            "api_key": cfg.api_key,
+            "base_url": cfg.base_url,
+        }
+        if cfg.extra_headers:
+            client_kwargs["default_headers"] = dict(cfg.extra_headers)
+        client = AsyncOpenAI(**client_kwargs)
 
     context = _format_context(chunks)
     # Truncate the *context* portion only — system + idea are tiny and known.
