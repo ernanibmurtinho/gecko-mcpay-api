@@ -320,6 +320,10 @@ class ResearchRequest(BaseModel):
     # audit. v2 will replace this with the per-project Privy wallet address.
     project_id: str | None = None
     frames_username: str | None = None
+    # S6-TIER-02 — user-facing cost/quality preset (validated against the
+    # Tier enum at request time). Default 'balanced'. Plumbed through
+    # gecko_core.research → pro debate via the existing tier_preset arg.
+    tier_preset: str = Field(default="balanced", pattern="^(quality|balanced|budget|free)$")
 
 
 class AskRequest(BaseModel):
@@ -333,17 +337,20 @@ class RouteRequest(BaseModel):
     task_hint: str = "default"
     max_cost_usd: float = Field(default=0.05, ge=0.0)
     prefer_premium: bool = False
-    # Reserved for future use (S4-MATRIX-01 catalog tier selection); v1 ignores
-    # the value and routes through the legacy matrix. Accepted now so the
-    # client / MCP wire shape stabilizes ahead of the catalog wire-up.
-    tier_preset: str = "balanced"
+    # S6-TIER-02 — user-facing cost/quality preset, validated against the
+    # Tier enum (quality|balanced|budget|free). Default 'balanced'. v1
+    # ignores the value at the routing layer and falls through to the
+    # legacy matrix; the validation here keeps the wire shape stable so
+    # the MCP/CLI/web clients converge on a single vocabulary.
+    tier_preset: str = Field(default="balanced", pattern="^(quality|balanced|budget|free)$")
 
 
 class PlanRequest(BaseModel):
     """S5-API-01 — request shape for POST /plan (paid Advisor Panel)."""
 
     session_id: str = Field(..., min_length=1)
-    tier_preset: str = "balanced"
+    # S6-TIER-02 — validated tier_preset (was free-form string).
+    tier_preset: str = Field(default="balanced", pattern="^(quality|balanced|budget|free)$")
     project_id: str | None = None
     # Optional attribution for paid_from audit, mirrors /research's pattern.
     frames_username: str | None = None
@@ -466,6 +473,7 @@ async def _run_research_background(session_id: UUID, req: ResearchRequest) -> No
             auto_approve=True,
             skip_payment_gate=True,
             session_id=session_id,
+            tier_preset=req.tier_preset,
         )
         await store.set_result(session_id, result.model_dump(mode="json"))
         await store.update_status(session_id, "complete")
@@ -566,6 +574,7 @@ async def _run_pro_background(session_id: UUID, req: ResearchRequest) -> None:
         idea=req.idea,
         urls=req.urls,
         project_id=req.project_id,
+        tier_preset=req.tier_preset,
     )
 
 
@@ -575,6 +584,7 @@ async def _run_pro_debate(
     idea: str,
     urls: list[str] | None = None,
     project_id: str | None = None,
+    tier_preset: str = "balanced",
 ) -> None:
     """Run a Pro debate against an existing session_id.
 
@@ -593,6 +603,7 @@ async def _run_pro_debate(
             auto_approve=True,
             skip_payment_gate=True,
             session_id=session_id,
+            tier_preset=tier_preset,
         )
         await store.set_result(session_id, result.model_dump(mode="json"))
         await store.update_status(session_id, "complete")
@@ -1339,6 +1350,100 @@ async def delete_project(
     if not deleted:
         raise HTTPException(status_code=404, detail="project not found")
     return None
+
+
+class MemoryQueryRequest(BaseModel):
+    """S6-MINE-01 — structured filter over the memory layer."""
+
+    scope_type: str = Field(..., pattern="^(project|session|user)$")
+    scope_id: str = Field(..., min_length=1)
+    entry_type: str | None = None
+    since: str | None = None
+    k: int = Field(default=20, ge=1, le=100)
+    query: str | None = None
+
+
+@app.post("/memory/query")
+async def memory_query(req: MemoryQueryRequest) -> list[dict[str, Any]]:
+    """Free — query memory by `(scope, entry_type, since, k)`.
+
+    When `query` is supplied, returns top-k cosine matches; otherwise
+    returns the chronological list (newest first). Mirrors the
+    `gecko_memory_query` MCP tool — single source of truth lives in
+    gecko_core.memory.
+    """
+    from datetime import datetime
+
+    from gecko_core.memory import MemoryEntryType, MemoryScope, recall, search
+
+    et: MemoryEntryType | None = None
+    if req.entry_type:
+        try:
+            et = MemoryEntryType(req.entry_type)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=400, detail=f"unknown entry_type {req.entry_type!r}"
+            ) from exc
+    since_dt: datetime | None = None
+    if req.since:
+        try:
+            since_dt = datetime.fromisoformat(req.since.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="since must be ISO-8601") from exc
+    scope = MemoryScope(type=req.scope_type, id=req.scope_id)  # type: ignore[arg-type]
+
+    if req.query and req.query.strip():
+        matches = await search(scope, req.query, top_k=req.k)
+        out: list[dict[str, Any]] = []
+        for entry, sim in matches:
+            if et is not None and entry.entry_type != et:
+                continue
+            if since_dt is not None and entry.created_at < since_dt:
+                continue
+            out.append(
+                {
+                    "id": str(entry.id),
+                    "entry_type": entry.entry_type.value,
+                    "key": entry.key,
+                    "value": entry.value,
+                    "similarity": sim,
+                    "created_at": entry.created_at.isoformat(),
+                }
+            )
+        return out
+
+    rows = await recall(scope, entry_type=et, limit=req.k, since=since_dt)
+    return [
+        {
+            "id": str(r.id),
+            "entry_type": r.entry_type.value,
+            "key": r.key,
+            "value": r.value,
+            "tx_signature": r.tx_signature,
+            "created_at": r.created_at.isoformat(),
+        }
+        for r in rows
+    ]
+
+
+@app.get("/pricing")
+async def pricing() -> dict[str, Any]:
+    """S6-TIER-01 — informational ladder of `{tier_preset: TierQuote}` per
+    endpoint. Driven by the curated catalog + the same x402 prices the
+    middleware enforces. No payment, no auth — surface for `bb pricing`
+    and the V2 web app.
+    """
+    from gecko_core.routing.pricing import build_pricing_table
+
+    prices_by_endpoint = {
+        "research": _route_price_usd("POST /research"),
+        "plan": _route_price_usd("POST /plan"),
+        "route": _route_price_usd("POST /route"),
+    }
+    return {
+        "endpoints": build_pricing_table(prices_by_endpoint),
+        "tiers": ["quality", "balanced", "budget", "free"],
+    }
 
 
 @app.get("/healthz")

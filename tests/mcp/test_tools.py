@@ -91,6 +91,8 @@ async def test_list_tools_exposes_three_tools() -> None:
         "gecko_memory_save",
         "gecko_memory_recall",
         "gecko_memory_search",
+        # Sprint 6 — Memory mining
+        "gecko_memory_query",
         "gecko_resume",
     }
     by_name = {t.name: t for t in tools}

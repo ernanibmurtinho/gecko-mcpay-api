@@ -19,6 +19,7 @@ from gecko_cli.commands.classify import classify_cmd
 from gecko_cli.commands.memory import memory_cmd
 from gecko_cli.commands.plan import plan_cmd
 from gecko_cli.commands.precedents import precedents_cmd
+from gecko_cli.commands.pricing import pricing_cmd
 from gecko_cli.commands.project import project_cmd
 from gecko_cli.commands.pulse import pulse_cmd
 from gecko_cli.commands.research import research_cmd
@@ -57,6 +58,7 @@ cli.add_command(plan_cmd)
 cli.add_command(pulse_cmd)
 cli.add_command(memory_cmd)
 cli.add_command(resume_cmd)
+cli.add_command(pricing_cmd)
 
 
 # Back-compat alias — older docs reference `main`.

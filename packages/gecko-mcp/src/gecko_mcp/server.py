@@ -141,6 +141,13 @@ _MEMORY_SEARCH_DESCRIPTION = (
     "cross-scope leakage."
 )
 
+_MEMORY_QUERY_DESCRIPTION = (
+    "Query memory by structured filters (S6-MINE-01). Combines scope, "
+    "entry_type, since (ISO-8601 timestamp), and k into one indexed lookup. "
+    "When a `query` string is provided, falls back to cosine similarity over "
+    "the same scope. Free; no embedding work unless `query` is set."
+)
+
 _RESUME_DESCRIPTION = (
     "Recap a project's recent loop activity (S5-MEM-05). Walks memory "
     "entries scoped to the project for the last `days` (default 30), groups "
@@ -494,6 +501,34 @@ async def list_tools() -> list[Tool]:
             },
         ),
         Tool(
+            name="gecko_memory_query",
+            description=_MEMORY_QUERY_DESCRIPTION,
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "scope_type": {
+                        "type": "string",
+                        "enum": ["project", "session", "user"],
+                    },
+                    "scope_id": {"type": "string"},
+                    "entry_type": {"type": "string"},
+                    "since": {
+                        "type": "string",
+                        "description": "ISO-8601 timestamp; only entries created at/after this value.",
+                    },
+                    "k": {"type": "integer", "default": 20, "minimum": 1, "maximum": 100},
+                    "query": {
+                        "type": "string",
+                        "description": (
+                            "Optional cosine-similarity query. When set, returns "
+                            "the top-k semantic matches instead of a chronological list."
+                        ),
+                    },
+                },
+                "required": ["scope_type", "scope_id"],
+            },
+        ),
+        Tool(
             name="gecko_resume",
             description=_RESUME_DESCRIPTION,
             inputSchema={
@@ -650,6 +685,17 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
             scope_id=str(arguments["scope_id"]),
             query=str(arguments["query"]),
             top_k=int(arguments.get("top_k", 5) or 5),
+        )
+        return [TextContent(type="text", text=json.dumps(rows, indent=2))]
+
+    if name == "gecko_memory_query":
+        rows = await _run_memory_query(
+            scope_type=str(arguments["scope_type"]),
+            scope_id=str(arguments["scope_id"]),
+            entry_type=arguments.get("entry_type"),
+            since=arguments.get("since"),
+            k=int(arguments.get("k", 20) or 20),
+            query=arguments.get("query"),
         )
         return [TextContent(type="text", text=json.dumps(rows, indent=2))]
 
@@ -986,6 +1032,77 @@ async def _run_memory_search(
             "created_at": entry.created_at.isoformat(),
         }
         for entry, sim in matches
+    ]
+
+
+async def _run_memory_query(
+    *,
+    scope_type: str,
+    scope_id: str,
+    entry_type: Any,
+    since: Any,
+    k: int,
+    query: Any,
+) -> list[dict[str, Any]]:
+    """S6-MINE-01 — structured filter over the memory layer.
+
+    Goes through `MemoryStore.list_by_scope` for the cheap chronological
+    path, or `search` when a query string is provided. Returns a flat list
+    of JSON-safe dicts.
+    """
+    from datetime import datetime
+
+    from gecko_core.memory import MemoryEntryType, MemoryScope, recall, search
+
+    if scope_type not in ("project", "session", "user"):
+        return []
+    et: MemoryEntryType | None = None
+    if entry_type:
+        try:
+            et = MemoryEntryType(str(entry_type))
+        except ValueError:
+            return []
+    since_dt: datetime | None = None
+    if since:
+        try:
+            since_dt = datetime.fromisoformat(str(since).replace("Z", "+00:00"))
+        except ValueError:
+            return []
+    scope = MemoryScope(type=scope_type, id=scope_id)  # type: ignore[arg-type]
+
+    if isinstance(query, str) and query.strip():
+        matches = await search(scope, query, top_k=k)
+        # Filter the post-search results client-side by entry_type / since
+        # since the RPC doesn't accept those args. Cheap — we have ≤k rows.
+        out: list[dict[str, Any]] = []
+        for entry, sim in matches:
+            if et is not None and entry.entry_type != et:
+                continue
+            if since_dt is not None and entry.created_at < since_dt:
+                continue
+            out.append(
+                {
+                    "id": str(entry.id),
+                    "entry_type": entry.entry_type.value,
+                    "key": entry.key,
+                    "value": entry.value,
+                    "similarity": sim,
+                    "created_at": entry.created_at.isoformat(),
+                }
+            )
+        return out
+
+    rows = await recall(scope, entry_type=et, limit=k, since=since_dt)
+    return [
+        {
+            "id": str(r.id),
+            "entry_type": r.entry_type.value,
+            "key": r.key,
+            "value": r.value,
+            "tx_signature": r.tx_signature,
+            "created_at": r.created_at.isoformat(),
+        }
+        for r in rows
     ]
 
 

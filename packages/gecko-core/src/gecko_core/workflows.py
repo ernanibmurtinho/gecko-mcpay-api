@@ -387,6 +387,21 @@ async def _run_pro_debate(
             except Exception as exc:  # pragma: no cover
                 logger.warning("append_session_cost failed: %s", exc)
 
+    # S6-MINE-02 — prepend project priors block to the rag context (when
+    # GECKO_MEMORY_PRIORS=1 and the session has a project_id). Best-effort.
+    try:
+        from gecko_core.memory.priors import build_priors_block
+
+        sess_record = await store.get(session_id)
+        project_id_str = (
+            str(sess_record.project_id) if sess_record and sess_record.project_id else None
+        )
+        priors_block = await build_priors_block(project_id_str)
+        if priors_block:
+            rag_context = f"{priors_block}\n\n{rag_context}"
+    except Exception as exc:  # pragma: no cover — defensive
+        logger.warning("pro debate: priors injection failed: %s", exc)
+
     try:
         from gecko_core.orchestration.pro import BudgetGuard
 

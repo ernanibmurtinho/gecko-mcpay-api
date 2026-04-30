@@ -140,6 +140,19 @@ async def generate_voice(
     prompts = load_prompts()
     user_prompt = render_context_block(context)
 
+    # S6-MINE-02 — prepend a "PRIOR DECISIONS" block to the user prompt
+    # when the project has prior verdicts/shipments on file AND the env
+    # gate is on. Best-effort; never raises.
+    try:
+        from gecko_core.memory.priors import build_priors_block
+
+        priors = await build_priors_block(context.project_id)
+    except Exception as exc:  # pragma: no cover — defensive
+        logger.warning("generate_voice: priors load failed: %s", exc)
+        priors = ""
+    if priors:
+        user_prompt = f"{priors}\n\n{user_prompt}"
+
     voice_result = await run_voice(
         role=role,
         system_prompt=prompts[role.value],
@@ -210,6 +223,18 @@ async def generate_panel(
 
     prompts = load_prompts()
     user_prompt = render_context_block(context)
+
+    # S6-MINE-02 — same priors prefix used by `generate_voice`. Computed
+    # once and shared across all five panel voices.
+    try:
+        from gecko_core.memory.priors import build_priors_block
+
+        priors = await build_priors_block(context.project_id)
+    except Exception as exc:  # pragma: no cover — defensive
+        logger.warning("generate_panel: priors load failed: %s", exc)
+        priors = ""
+    if priors:
+        user_prompt = f"{priors}\n\n{user_prompt}"
 
     async def _one(role: AgentRole) -> AdvisorVoice:
         return await run_voice(
