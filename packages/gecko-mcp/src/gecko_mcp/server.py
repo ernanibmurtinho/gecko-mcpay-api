@@ -1258,5 +1258,17 @@ async def serve() -> None:
     reachable (and the user didn't override GECKO_LLM_ENDPOINT). The proxy
     is torn down when stdio closes.
     """
+    # S8-LOG-01 — install the redaction filter at MCP startup so DEBUG
+    # logs from the API client / supabase / openai clients don't leak
+    # auth tokens to stderr (which Claude Code surfaces in its UI).
+    import logging
+    import os
+
+    from gecko_core._logging import install as install_redaction
+
+    level_name = (os.environ.get("LOG_LEVEL") or "WARNING").upper()
+    level = getattr(logging, level_name, logging.WARNING)
+    install_redaction(level=level)
+
     async with warm_clawrouter(), stdio_server() as (read, write):
         await server.run(read, write, server.create_initialization_options())

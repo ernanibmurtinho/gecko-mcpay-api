@@ -223,6 +223,41 @@ def _build_routes(settings: Settings) -> dict[str, RouteConfig]:
             ],
             description="Synthesize a SprintReview from git log + memory + sprint docs",
         )
+        # S8-API-01: /scaffold matches the MCP gecko_scaffold tool ($0.05).
+        # Stub mode skips registration so the dogfood loop and CI smoke
+        # don't hit a 402 wall.
+        routes["POST /scaffold"] = RouteConfig(
+            accepts=[
+                PaymentOption(
+                    scheme="exact",
+                    pay_to=pay_to,
+                    price=settings.scaffold_call_price,
+                    network=chain_id,
+                ),
+            ],
+            description="Generate the 3-file scaffold bundle for a Pro session",
+        )
+        # /pulse is opt-in: register on x402 only when the operator sets a
+        # non-zero PULSE_CALL_PRICE. Pricing for pulse is still TBD; we keep
+        # the wire shape stable so the V2 web app can call it for free while
+        # we decide. "$0", "$0.00", or empty string all parse as free.
+        pulse_raw = (settings.pulse_call_price or "").lstrip("$").strip()
+        try:
+            pulse_amt = float(pulse_raw) if pulse_raw else 0.0
+        except ValueError:
+            pulse_amt = 0.0
+        if pulse_amt > 0:
+            routes["POST /pulse"] = RouteConfig(
+                accepts=[
+                    PaymentOption(
+                        scheme="exact",
+                        pay_to=pay_to,
+                        price=settings.pulse_call_price,
+                        network=chain_id,
+                    ),
+                ],
+                description="Re-run the Advisor Panel and surface deltas vs prior pulse",
+            )
     return routes
 
 
@@ -251,6 +286,14 @@ _BACKGROUND_TASKS: set[asyncio.Task[None]] = set()
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     load_dotenv()
+    # S8-LOG-01 — install the redaction filter at app startup so httpcore /
+    # hpack DEBUG dumps in CloudWatch don't leak Supabase JWT, Bearer
+    # tokens, or apikeys.
+    from gecko_core._logging import install as install_redaction
+
+    level_name = (os.environ.get("LOG_LEVEL") or "INFO").upper()
+    level = getattr(logging, level_name, logging.INFO)
+    install_redaction(level=level)
     logger.info("gecko-api starting (X402_MODE=%s)", _settings.x402_mode)
     if not _settings.is_privy_configured():
         logger.warning(
@@ -378,6 +421,31 @@ class PlanRequest(BaseModel):
     project_id: str | None = None
     # Optional attribution for paid_from audit, mirrors /research's pattern.
     frames_username: str | None = None
+
+
+class ScaffoldRequest(BaseModel):
+    """S8-API-01 — HTTP shape for POST /scaffold.
+
+    Mirrors the MCP ``gecko_scaffold`` tool's input schema. ``output_dir``
+    is server-side and intentionally NOT exposed over HTTP — clients can't
+    write to the API host's filesystem; the response surfaces the bundle
+    contents (paths under the server's working dir) for the caller to fetch
+    or render. Future work: stream the bundle bytes back in the response.
+    """
+
+    session_id: str = Field(..., min_length=1)
+
+
+class PulseRequest(BaseModel):
+    """S8-API-01 — HTTP shape for POST /pulse.
+
+    Either ``session_id`` or ``project_id`` is required; project_id wins
+    when both are given. Matches the MCP gecko_pulse tool.
+    """
+
+    session_id: str | None = None
+    project_id: str | None = None
+    tier_preset: str = Field(default="balanced", pattern="^(quality|balanced|budget|free)$")
 
 
 # ---------------------------------------------------------------------------

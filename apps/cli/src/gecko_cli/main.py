@@ -8,10 +8,13 @@ All business logic lives in `gecko_core`. This module:
 
 from __future__ import annotations
 
+import logging
+import os
 from pathlib import Path
 
 import click
 from dotenv import load_dotenv
+from gecko_core._logging import install as install_redaction
 
 from gecko_cli.commands.advise import advise_cmd
 from gecko_cli.commands.ask import ask_cmd
@@ -68,6 +71,14 @@ def cli(
         default = Path.home() / ".gecko" / ".env"
         if default.exists():
             load_dotenv(default)
+
+    # S8-LOG-01 — install the redaction filter BEFORE any HTTP client logs
+    # fire. httpcore/hpack dump auth headers + Bearer tokens at DEBUG; the
+    # filter scrubs them at the root logger.
+    level_name = (os.environ.get("LOG_LEVEL") or "WARNING").upper()
+    level = getattr(logging, level_name, logging.WARNING)
+    logging.basicConfig(level=level)
+    install_redaction(level=level)
 
     # Stash bypass flags so subcommands and the shared `_prompt.confirm()`
     # helper can honor them. --non-interactive implies --yes.
