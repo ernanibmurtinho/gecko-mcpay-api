@@ -24,6 +24,15 @@ from gecko_core.payments.networks import (
     resolve_network,
 )
 from gecko_core.payments.pricing import price_for
+from gecko_core.payments.verifier import (
+    VerifyResult,
+    VerifyTarget,
+    is_stub_signature,
+    resolve_rpc_url,
+    summarize,
+    verify_target,
+    verify_targets,
+)
 from gecko_core.payments.x402_client import (
     FramesX402Client,
     LiveX402Client,
@@ -46,12 +55,19 @@ __all__ = [
     "PaymentRequiredError",
     "PaymentResult",
     "StubX402Client",
+    "VerifyResult",
+    "VerifyTarget",
     "X402Client",
     "X402Mode",
     "build_cdp_facilitator_client",
     "get_client",
+    "is_stub_signature",
     "is_unconfigured",
     "price_for",
     "resolve_network",
+    "resolve_rpc_url",
     "run_payment_gate",
+    "summarize",
+    "verify_target",
+    "verify_targets",
 ]
