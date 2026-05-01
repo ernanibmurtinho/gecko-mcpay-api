@@ -254,22 +254,48 @@ def check_gecko_api(environ: dict[str, str] | None = None) -> CheckResult:
 
 
 def check_x402_mode(environ: dict[str, str] | None = None) -> CheckResult:
-    """Validate X402_MODE. Defaults to 'stub' if unset (with a notice)."""
+    """Validate X402 config — read facilitator + supported networks via the seam.
+
+    Sprint 14 S14-PAY-MIGRATE-03: instead of validating ``X402_MODE``
+    against a hardcoded literal here, we instantiate the resolved
+    :class:`gecko_core.payments.X402Client` and read
+    ``client.facilitator_id`` + ``client.supported_networks`` from the
+    Protocol. The MCP tool surface no longer hardcodes the accepted
+    mode set — adding a new mode (e.g. ``cdp``) is automatically
+    reflected here.
+    """
     env = environ if environ is not None else dict(os.environ)
     raw = env.get("X402_MODE")
-    if not raw:
+    mode = raw or "stub"
+
+    try:
+        from gecko_core.payments import resolve_client
+
+        client = resolve_client(network_id=env.get("X402_NETWORK"), mode=mode)
+    except NotImplementedError as exc:
+        # S15 reserved slot — surfaced as a warning (ok=True) with the
+        # message verbatim so an operator pre-staging the env sees the
+        # pointer instead of a fail.
         return CheckResult(
             name="env:X402_MODE",
             ok=True,
-            detail="unset, defaulting to 'stub'",
+            detail=f"mode={mode} reserved: {exc}",
         )
-    if raw not in ("stub", "live", "frames"):
+    except Exception as exc:
+        # Unknown mode / network. The factory's error message names the
+        # offending value and the accepted set — pass through verbatim.
         return CheckResult(
             name="env:X402_MODE",
             ok=False,
-            detail=f"X402_MODE must be 'stub'|'live'|'frames', got {raw!r}",
+            detail=f"{exc.__class__.__name__}: {exc}",
         )
-    return CheckResult(name="env:X402_MODE", ok=True, detail=raw)
+
+    detail = f"mode={mode} facilitator={client.facilitator_id}"
+    if client.supported_networks:
+        detail += f" networks=[{', '.join(client.supported_networks)}]"
+    if not raw:
+        detail += " (X402_MODE unset, defaulting to 'stub')"
+    return CheckResult(name="env:X402_MODE", ok=True, detail=detail)
 
 
 def check_supabase(client: _SupabaseLike) -> list[CheckResult]:
