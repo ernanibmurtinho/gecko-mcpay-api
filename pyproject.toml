@@ -37,6 +37,14 @@ testpaths = ["tests", "packages", "apps"]
 python_files = "test_*.py"
 addopts = "-q --strict-markers"
 asyncio_mode = "auto"
+markers = [
+    # S12.5-TEST-04: gated integration tests that hit the real CDP
+    # facilitator's /verify endpoint (read-only, free). Skipped unless the
+    # operator opts in via env, so CI doesn't burn credentials. We never
+    # run /settle from a marker-gated test — that's reserved for the live
+    # smoke runbook.
+    "live_cdp: integration test against the real CDP facilitator (free /verify only)",
+]
 
 [dependency-groups]
 dev = [
