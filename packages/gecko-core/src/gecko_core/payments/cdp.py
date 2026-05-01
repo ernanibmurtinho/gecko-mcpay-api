@@ -176,7 +176,7 @@ def _sign_jwt(
 
         try:
             raw = base64.b64decode(secret_str, validate=True)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise ValueError(
                 "CDP_API_KEY_SECRET is not a recognized format: not PEM, "
                 "not single-line base64. Re-download from portal.cdp.coinbase.com."
@@ -255,18 +255,26 @@ def build_cdp_facilitator_client(
     *,
     base_url: str = "https://api.cdp.coinbase.com/platform/v2/x402",
     identifier: str = "cdp-mainnet",
+    timeout_seconds: float = 30.0,
 ) -> HTTPFacilitatorClient:
     """Build the production CDP facilitator client.
 
     Returned client is shape-compatible with the existing devnet
     `HTTPFacilitatorClient` — same verify/settle/get_supported protocol —
     so the rest of the FastAPI wiring is network-agnostic.
+
+    ``timeout_seconds`` (S14-CDP-HARDEN-01) sets a finite, explicit httpx
+    timeout for every outbound CDP call. Without it a hung settle silently
+    exhausts the gecko-api worker pool — fail fast instead. The x402 SDK
+    feeds ``FacilitatorConfig.timeout`` into ``httpx.AsyncClient(timeout=…)``,
+    which applies to connect/read/write/pool phases uniformly.
     """
     auth_provider = CDPAuthProvider(credentials, base_url=base_url)
     config = FacilitatorConfig(
         url=base_url,
         auth_provider=auth_provider,
         identifier=identifier,
+        timeout=float(timeout_seconds),
     )
     return HTTPFacilitatorClient(config)
 

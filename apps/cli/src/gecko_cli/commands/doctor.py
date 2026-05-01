@@ -341,6 +341,26 @@ def check_x402(env: dict[str, str]) -> CheckRow:
     )
 
 
+def check_cdp_http_timeout(env: dict[str, str]) -> CheckRow:
+    """S14-CDP-HARDEN-01 — surface the finite httpx timeout for CDP calls.
+
+    A hung CDP /settle silently exhausts the gecko-api worker pool;
+    ``CDPX402Client`` now passes an explicit timeout to the underlying
+    httpx client. Doctor reads the resolved value (env override or default)
+    so a deploy can't accidentally ship without a finite ceiling.
+    """
+    from gecko_core.payments.cdp_x402_client import resolve_cdp_http_timeout_seconds
+
+    seconds = resolve_cdp_http_timeout_seconds(env)
+    raw = (env.get("CDP_HTTP_TIMEOUT_SECONDS") or "").strip()
+    source = "env" if raw else "default"
+    return CheckRow(
+        "cdp.timeout_s",
+        "ok",
+        f"http_timeout_seconds={seconds:g} (source={source})",
+    )
+
+
 def check_frames_wallet(
     env: dict[str, str],
     *,
@@ -407,6 +427,7 @@ async def _run_all(
         check_supabase_env(env),
         check_llm_resolution(env),
         check_x402(env),
+        check_cdp_http_timeout(env),
         check_frames_wallet(env),
     ]
     # Only attempt the memory roundtrip when Supabase env is present —
@@ -471,6 +492,7 @@ def doctor_cmd() -> None:
 
 __all__ = [
     "CheckRow",
+    "check_cdp_http_timeout",
     "check_frames_wallet",
     "check_llm_ping",
     "check_llm_resolution",

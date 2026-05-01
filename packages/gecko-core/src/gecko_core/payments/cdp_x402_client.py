@@ -30,6 +30,7 @@ injected facilitator client; tests pass a fake.
 from __future__ import annotations
 
 import logging
+import os
 from decimal import Decimal
 from typing import Any, Final, Protocol
 
@@ -60,6 +61,47 @@ CDP_FACILITATOR_BASE_URL: Final = "https://api.cdp.coinbase.com/platform/v2/x402
 
 # USDC on Base/EVM uses 6 decimals, same as Solana SPL USDC.
 _USDC_DECIMALS: Final = 6
+
+# S14-CDP-HARDEN-01 — finite default httpx timeout on outbound CDP calls.
+# A hung CDP /settle previously exhausted the gecko-api worker pool; with
+# this we fail fast on connect/read/write/pool stalls. Override per deploy
+# via the CDP_HTTP_TIMEOUT_SECONDS env var.
+_CDP_HTTP_TIMEOUT_DEFAULT_S: Final[float] = 30.0
+_CDP_HTTP_TIMEOUT_ENV: Final[str] = "CDP_HTTP_TIMEOUT_SECONDS"
+
+
+def resolve_cdp_http_timeout_seconds(
+    env: dict[str, str] | None = None,
+    *,
+    default: float = _CDP_HTTP_TIMEOUT_DEFAULT_S,
+) -> float:
+    """Return the finite httpx timeout for outbound CDP calls.
+
+    Reads ``CDP_HTTP_TIMEOUT_SECONDS`` from ``env`` (defaults to
+    :data:`os.environ`). Non-numeric, zero, or negative values fall back
+    to the 30s default — we never expose ``None`` / ``inf`` to httpx.
+    """
+    raw = (env if env is not None else os.environ).get(_CDP_HTTP_TIMEOUT_ENV, "")
+    raw = raw.strip()
+    if not raw:
+        return default
+    try:
+        value = float(raw)
+    except ValueError:
+        logger.warning(
+            "CDP_HTTP_TIMEOUT_SECONDS=%r is not a number; using default %.1fs",
+            raw,
+            default,
+        )
+        return default
+    if value <= 0:
+        logger.warning(
+            "CDP_HTTP_TIMEOUT_SECONDS=%r is non-positive; using default %.1fs",
+            raw,
+            default,
+        )
+        return default
+    return value
 
 
 # ---------------------------------------------------------------------------
@@ -254,6 +296,7 @@ class CDPX402Client:
         base_url: str = CDP_FACILITATOR_BASE_URL,
         resource_url: str = "https://geckovision.tech/research",
         max_timeout_seconds: int = 60,
+        http_timeout_seconds: float | None = None,
     ) -> None:
         self._credentials = credentials
         self._facilitator = facilitator
@@ -277,8 +320,24 @@ class CDPX402Client:
         self._base_url = base_url
         self._resource_url = resource_url
         self._max_timeout_seconds = max_timeout_seconds
+        # S14-CDP-HARDEN-01 — explicit, finite httpx timeout. Resolved from
+        # CDP_HTTP_TIMEOUT_SECONDS env when the caller doesn't specify one.
+        self._http_timeout_seconds = (
+            float(http_timeout_seconds)
+            if http_timeout_seconds is not None
+            else resolve_cdp_http_timeout_seconds()
+        )
 
     # --- public --------------------------------------------------------
+
+    @property
+    def http_timeout_seconds(self) -> float:
+        """Outbound httpx timeout currently configured for CDP calls.
+
+        Surfaced for ``bb doctor`` (S14-CDP-HARDEN-01) so the active
+        finite timeout shows up alongside the facilitator id + network.
+        """
+        return self._http_timeout_seconds
 
     async def charge(self, intent: PaymentIntent) -> PaymentResult:
         """Settle ``intent`` on Base mainnet via CDP. Returns a unified result.
@@ -350,6 +409,7 @@ class CDPX402Client:
             self._credentials,
             base_url=self._base_url,
             identifier="cdp-base-mainnet",
+            timeout_seconds=self._http_timeout_seconds,
         )
 
     def _map_response(
@@ -420,4 +480,5 @@ __all__ = [
     "CDPSettleError",
     "CDPX402Client",
     "CDPX402Error",
+    "resolve_cdp_http_timeout_seconds",
 ]
