@@ -128,6 +128,7 @@ def _build_payment_payload(
     intent_id: str,
     requirements: Any,
     payer_private_key: str | None = None,
+    resource_url: str | None = None,
 ) -> Any:
     """Build a signed x402v2 ``PaymentPayload`` for a CDP settle call.
 
@@ -144,7 +145,9 @@ def _build_payment_payload(
     so net spend is zero gas + dust slippage. For real buyer flows in V2+,
     this comes from the X-PAYMENT header instead of the env.
     """
-    from x402.schemas import PaymentPayload
+    from x402.schemas import PaymentPayload, ResourceInfo
+
+    resource_info = ResourceInfo(url=resource_url) if resource_url else None
 
     if not payer_private_key:
         # Stub-mode shape — preserved for tests that flow through the
@@ -154,6 +157,7 @@ def _build_payment_payload(
             x402_version=2,
             accepted=requirements,
             payload={"intent_id": intent_id, "amount": requirements.amount},
+            resource=resource_info,
         )
 
     from eth_account import Account
@@ -164,10 +168,14 @@ def _build_payment_payload(
 
     # ``inner`` is the dict-shaped {authorization, signature} body. Wrap
     # it in the v2 PaymentPayload envelope CDP /settle expects.
+    # Match the shape produced by the upstream x402Client._create_payment_
+    # payload_v2_core: includes `resource` so CDP can verify the
+    # authorization is bound to a specific paid endpoint.
     return PaymentPayload(
         x402_version=2,
         accepted=requirements,
         payload=inner,
+        resource=resource_info,
     )
 
 
@@ -267,6 +275,7 @@ class CDPX402Client:
             intent_id=intent.intent_id,
             requirements=requirements,
             payer_private_key=self._payer_private_key,
+            resource_url=self._resource_url,
         )
 
         try:
