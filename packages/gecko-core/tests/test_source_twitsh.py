@@ -110,7 +110,7 @@ _SAMPLE_RESPONSE: dict[str, Any] = {
 @pytest.mark.usefixtures("configured_env", "no_mongo")
 async def test_fetch_returns_normalized_citation_shape() -> None:
     async with respx.mock(base_url="https://x402.twit.sh", assert_all_called=False) as router:
-        router.get("/search/tweets").mock(return_value=httpx.Response(200, json=_SAMPLE_RESPONSE))
+        router.get("/tweets/search").mock(return_value=httpx.Response(200, json=_SAMPLE_RESPONSE))
 
         client = httpx.AsyncClient(base_url="https://x402.twit.sh")
         src = TwitshSource(http_client=client)
@@ -139,7 +139,7 @@ async def test_fetch_caps_results_at_max() -> None:
     """Top-N cap honored even when upstream returns more."""
     big_response = {"tweets": [{"text": f"t{i}", "user": {"screen_name": "x"}} for i in range(30)]}
     async with respx.mock(base_url="https://x402.twit.sh", assert_all_called=False) as router:
-        router.get("/search/tweets").mock(return_value=httpx.Response(200, json=big_response))
+        router.get("/tweets/search").mock(return_value=httpx.Response(200, json=big_response))
         client = httpx.AsyncClient(base_url="https://x402.twit.sh")
         src = TwitshSource(http_client=client)
         result = await src.fetch(idea="defi liquidity routing", categories={"defi"})
@@ -150,7 +150,7 @@ async def test_fetch_caps_results_at_max() -> None:
 @pytest.mark.usefixtures("configured_env", "no_mongo")
 async def test_fetch_propagates_http_error_verbatim() -> None:
     async with respx.mock(base_url="https://x402.twit.sh", assert_all_called=False) as router:
-        router.get("/search/tweets").mock(return_value=httpx.Response(503, text="upstream sad"))
+        router.get("/tweets/search").mock(return_value=httpx.Response(503, text="upstream sad"))
         client = httpx.AsyncClient(base_url="https://x402.twit.sh")
         src = TwitshSource(http_client=client)
         result = await src.fetch(idea="onchain fx swap", categories={"crypto"})
@@ -168,7 +168,7 @@ async def test_fetch_propagates_http_error_verbatim() -> None:
 async def test_spend_cap_halts_further_fetches() -> None:
     """When spend would exceed the cap, no HTTP call is issued."""
     async with respx.mock(base_url="https://x402.twit.sh", assert_all_called=False) as router:
-        route = router.get("/search/tweets").mock(
+        route = router.get("/tweets/search").mock(
             return_value=httpx.Response(200, json=_SAMPLE_RESPONSE)
         )
         client = httpx.AsyncClient(base_url="https://x402.twit.sh")
@@ -187,7 +187,7 @@ async def test_spend_cap_halts_further_fetches() -> None:
 async def test_spend_cap_at_default_allows_one_call() -> None:
     """At default cap ($0.05) one $0.005 call comfortably fits."""
     async with respx.mock(base_url="https://x402.twit.sh", assert_all_called=False) as router:
-        route = router.get("/search/tweets").mock(
+        route = router.get("/tweets/search").mock(
             return_value=httpx.Response(200, json=_SAMPLE_RESPONSE)
         )
         client = httpx.AsyncClient(base_url="https://x402.twit.sh")
@@ -220,7 +220,7 @@ async def test_cache_hit_short_circuits_http(monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.setattr(twitsh_mod, "set_cached", fake_set)
 
     async with respx.mock(base_url="https://x402.twit.sh", assert_all_called=False) as router:
-        route = router.get("/search/tweets").mock(
+        route = router.get("/tweets/search").mock(
             return_value=httpx.Response(200, json=_SAMPLE_RESPONSE)
         )
         client = httpx.AsyncClient(base_url="https://x402.twit.sh")
@@ -263,7 +263,7 @@ async def test_bypass_cache_forces_http_even_when_cached(
     monkeypatch.setattr(twitsh_mod, "set_cached", fake_set)
 
     async with respx.mock(base_url="https://x402.twit.sh", assert_all_called=False) as router:
-        route = router.get("/search/tweets").mock(
+        route = router.get("/tweets/search").mock(
             return_value=httpx.Response(200, json=_SAMPLE_RESPONSE)
         )
 
@@ -306,7 +306,7 @@ async def test_bypass_cache_via_env_var(monkeypatch: pytest.MonkeyPatch) -> None
     monkeypatch.setenv("TWITSH_BYPASS_CACHE", "true")
 
     async with respx.mock(base_url="https://x402.twit.sh", assert_all_called=False) as router:
-        route = router.get("/search/tweets").mock(
+        route = router.get("/tweets/search").mock(
             return_value=httpx.Response(200, json=_SAMPLE_RESPONSE)
         )
         # Pre-seed cache directly so we can prove it was ignored.

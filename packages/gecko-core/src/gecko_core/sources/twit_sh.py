@@ -52,8 +52,13 @@ _FIRES_FOR: frozenset[str] = frozenset({"crypto", "defi", "hackathon-team"})
 # Default endpoint catalog. Build-time `npx twitsh endpoints --json` will
 # eventually overwrite this via TWITSH_CATALOG_JSON. Keep paths under a
 # `searchTweets`/`userTweets` namespace so the override has a stable schema.
+#
+# S14-TWITSH-02: the Sprint 13 probe (`5c73936`) confirmed the live surface
+# is `/tweets/search?words=...`, not the previously-assumed
+# `/search/tweets?q=...`. Catalog updated to match production. Tests that
+# mock the legacy path are migrated alongside.
 DEFAULT_CATALOG: dict[str, dict[str, str]] = {
-    "searchTweets": {"path": "/search/tweets", "method": "GET", "query_param": "q"},
+    "searchTweets": {"path": "/tweets/search", "method": "GET", "query_param": "words"},
     "userTweets": {"path": "/users/tweets", "method": "GET", "query_param": "username"},
 }
 
@@ -61,10 +66,16 @@ DEFAULT_CATALOG: dict[str, dict[str, str]] = {
 # it client-side rather than rely on the wallet running dry.
 SPEND_CAP_USD: float = 0.05
 
-# Per-call price assumption for budget arithmetic. The actual debit comes
-# from the 402 challenge — this is just the planner's pre-charge estimate.
-# Sized so we get ~10 reads at the $0.05 cap (build plan §1).
-ASSUMED_PER_CALL_USD: float = 0.005
+# Per-call price for budget arithmetic. The actual debit comes from the
+# 402 challenge — this is the planner's pre-charge estimate.
+#
+# S14-TWITSH-02: the Sprint 13 probe captured the 402 challenge directly
+# and confirmed the per-call price is **$0.01 USDC**, not the prior
+# `0.005` constant. Cap math (`SPEND_CAP_USD / ASSUMED_PER_CALL_USD`) was
+# 2× off — the planner thought it could afford ~10 reads at $0.05 when
+# the actual ceiling is ~5. Constant corrected here so the spend-cap
+# loop in `TwitshSource.fetch` halts at the right call count.
+ASSUMED_PER_CALL_USD: float = 0.01
 
 # Network identity for x402 EVM scheme registration.
 _BASE_MAINNET_CAIP2: str = "eip155:8453"
@@ -327,8 +338,8 @@ class TwitshSource:
             )
 
         spec = self._catalog.get("searchTweets") or DEFAULT_CATALOG["searchTweets"]
-        path = spec.get("path", "/search/tweets")
-        param = spec.get("query_param", "q")
+        path = spec.get("path", "/tweets/search")
+        param = spec.get("query_param", "words")
         query = " ".join(keywords)
 
         spent: float = 0.0
