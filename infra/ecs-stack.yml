@@ -452,6 +452,8 @@ Resources:
               ValueFrom: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SSMPrefix}/X402_FACILITATOR_URL
             - Name: GECKO_WALLET_ADDRESS
               ValueFrom: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SSMPrefix}/GECKO_WALLET_ADDRESS
+            - Name: GECKO_WALLET_ADDRESS_BASE
+              ValueFrom: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SSMPrefix}/GECKO_WALLET_ADDRESS_BASE
             - Name: RESEARCH_BASIC_PRICE
               ValueFrom: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SSMPrefix}/RESEARCH_BASIC_PRICE
             - Name: RESEARCH_PRO_PRICE
