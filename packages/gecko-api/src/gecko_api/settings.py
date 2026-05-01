@@ -96,7 +96,10 @@ class Settings(BaseModel):
     # tools. /scaffold matches the MCP tool's $0.05 charge; /pulse is free
     # in stub mode (deferred pricing — operator can flip via PULSE_CALL_PRICE).
     scaffold_call_price: str = "$0.05"
-    pulse_call_price: str = "$0.00"
+    # S14-PULSE-01 / S14-PULSE-02 — pulse pricing.
+    # Per-call default flips to $0.50 (the v14 SKU). 12-pack prepay at $5.40.
+    pulse_call_price: str = "$0.50"
+    pulse_12pack_price: str = "$5.40"
     # S13-COMMO-01..03: Track E commoditization wedges. Each is a flat
     # per-call charge advertised on a dedicated route. Stub mode skips
     # registration (matches /review pattern) so dogfood loops run free.
@@ -232,7 +235,8 @@ class Settings(BaseModel):
         plan_price = os.environ.get("PLAN_CALL_PRICE", "$0.25")
         review_price = os.environ.get("REVIEW_CALL_PRICE", "$0.10")
         scaffold_price = os.environ.get("SCAFFOLD_CALL_PRICE", "$0.05")
-        pulse_price = os.environ.get("PULSE_CALL_PRICE", "$0.00")
+        pulse_price = os.environ.get("PULSE_CALL_PRICE", "$0.50")
+        pulse_12pack_price = os.environ.get("PULSE_12PACK_PRICE", "$5.40")
         # S13-COMMO-01..03 — Track E pricing knobs.
         advisor_voice_price = os.environ.get("ADVISOR_VOICE_PRICE", "$0.05")
         ask_call_price = os.environ.get("ASK_CALL_PRICE", "$0.01")
@@ -274,6 +278,7 @@ class Settings(BaseModel):
             review_call_price=review_price,
             scaffold_call_price=scaffold_price,
             pulse_call_price=pulse_price,
+            pulse_12pack_price=pulse_12pack_price,
             route_price_default=route_price_default,
             route_price_premium=route_price_premium,
             route_price_upgrade=route_price_upgrade,
