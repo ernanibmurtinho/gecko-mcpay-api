@@ -45,6 +45,7 @@ from gecko_core.sources.twit_sh import (
     TwitshSource,
     _is_twitsh_configured,
 )
+from gecko_core.sources.twitsh_circuit import reserve_spend
 
 from . import ProviderHealth, ProviderKind, SourceChunk
 
@@ -220,6 +221,15 @@ class TwitshProvider:
         categories = {c.strip() for c in cats_raw.split(",") if c.strip()}
 
         if not await self._source.applies_to(categories=categories):
+            return []
+
+        # S14-TWITSH-05: daily aggregate circuit breaker. Reserve the
+        # per-call cost (the eventual real spend may be slightly higher
+        # if the source fires multiple endpoints; reserving the planner
+        # estimate is the conservative call). Breaker tripped → caller
+        # surfaces "twitsh" in degraded_sources via fanout_fetch.
+        if not reserve_spend(TWITSH_PER_CALL_USD):
+            logger.info("twitsh_provider: daily cap reached; skipping fetch")
             return []
 
         result = await self._source.fetch(

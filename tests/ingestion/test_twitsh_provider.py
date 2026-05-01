@@ -29,7 +29,7 @@ from gecko_core.sources.twit_sh import TwitshSource
 
 
 @pytest.fixture
-def configured_env(monkeypatch: pytest.MonkeyPatch) -> None:
+def configured_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Make `_is_twitsh_configured()` return True + research flag on."""
     monkeypatch.setenv("TWITSH_ENABLED", "true")
     monkeypatch.setenv("TWITSH_RESEARCH_ENABLED", "true")
@@ -39,6 +39,11 @@ def configured_env(monkeypatch: pytest.MonkeyPatch) -> None:
     # Mongo cache off so each test starts cold.
     monkeypatch.delenv("MONGODB_URI", raising=False)
     monkeypatch.delenv("MONGO_URI", raising=False)
+    # Redirect the daily-aggregate ledger to a tmp file so tests don't
+    # touch ~/.gecko/twitsh_daily_spend.json.
+    from gecko_core.sources import twitsh_circuit
+
+    monkeypatch.setattr(twitsh_circuit, "DEFAULT_LEDGER_PATH", tmp_path / "twitsh_daily.json")
 
 
 # ---------------------------------------------------------------------------
@@ -393,6 +398,67 @@ async def test_fanout_fetch_marks_failed_provider_degraded() -> None:
     chunks, degraded = await fanout_fetch([p_ok, p_bad], query="x")
     assert degraded == ["twitsh"]
     assert chunks == []  # both providers had no chunks; failure didn't crash
+
+
+@pytest.mark.usefixtures("configured_env")
+@pytest.mark.asyncio
+async def test_circuit_breaker_skips_provider_past_daily_cap(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """S14-TWITSH-05: past the daily cap, fetch returns [] without
+    hitting HTTP. The dispatcher's fanout_fetch then surfaces 'twitsh'
+    in degraded_sources via the empty result + the in-memory health
+    check the next round."""
+    from gecko_core.sources import twitsh_circuit
+
+    # Cap at $0.005 — anything below the per-call $0.01 reservation
+    # trips the breaker on the very first call.
+    monkeypatch.setenv("TWITSH_DAILY_CAP_USD", "0.005")
+    monkeypatch.setattr(twitsh_circuit, "DEFAULT_LEDGER_PATH", tmp_path / "spend.json")
+
+    async with respx.mock(base_url="https://x402.twit.sh", assert_all_called=False) as router:
+        route = router.get("/tweets/search").mock(
+            return_value=httpx.Response(200, json=_SAMPLE_RESPONSE)
+        )
+        client = httpx.AsyncClient(base_url="https://x402.twit.sh")
+        provider = TwitshProvider(source=TwitshSource(http_client=client))
+        chunks = await provider.fetch("anything")
+        await provider.aclose()
+
+    assert chunks == []
+    # No HTTP call when breaker tripped.
+    assert route.call_count == 0
+
+
+def test_circuit_breaker_resets_on_utc_date_roll(tmp_path: Path) -> None:
+    """Yesterday's spend doesn't count against today's cap."""
+    from gecko_core.sources import twitsh_circuit
+
+    ledger_path = tmp_path / "spend.json"
+    # Pre-seed yesterday with the full $10 cap consumed.
+    yesterday = "2025-04-30"  # any past date
+    ledger_path.write_text('{"' + yesterday + '": 10.0}')
+
+    # Today's call must succeed regardless.
+    ok = twitsh_circuit.reserve_spend(0.01, ledger_path=ledger_path)
+    assert ok is True
+    today_spend = twitsh_circuit.get_today_spend(ledger_path=ledger_path)
+    assert today_spend == 0.01
+
+
+def test_circuit_breaker_accumulates_within_cap(tmp_path: Path) -> None:
+    from gecko_core.sources import twitsh_circuit
+
+    ledger_path = tmp_path / "spend.json"
+    # Cap = $0.05; three $0.01 reservations fit, fourth rejected.
+    for _ in range(5):
+        ok = twitsh_circuit.reserve_spend(0.01, ledger_path=ledger_path, cap_usd=0.05)
+        assert ok is True
+    # 6th would exceed.
+    rejected = twitsh_circuit.reserve_spend(0.01, ledger_path=ledger_path, cap_usd=0.05)
+    assert rejected is False
+    # And the ledger does NOT count the rejected reservation.
+    assert twitsh_circuit.get_today_spend(ledger_path=ledger_path) == pytest.approx(0.05)
 
 
 @pytest.mark.asyncio
