@@ -109,15 +109,21 @@ def write_session(
                 # land cleanly (chunk_index may change if a re-run
                 # produced different chunks).
                 conn.execute("DELETE FROM chunks WHERE session_id = ?", (session_id,))
-                rows = [
-                    (
-                        session_id,
-                        int(c.get("chunk_index", 0)),
-                        str(c.get("source_url", "")),
-                        str(c.get("text", "")),
+                rows = []
+                for c in chunks:
+                    raw_idx = c.get("chunk_index", 0) or 0
+                    try:
+                        idx = int(raw_idx) if isinstance(raw_idx, int | str | float) else 0
+                    except (TypeError, ValueError):
+                        idx = 0
+                    rows.append(
+                        (
+                            session_id,
+                            idx,
+                            str(c.get("source_url", "")),
+                            str(c.get("text", "")),
+                        )
                     )
-                    for c in chunks
-                ]
                 conn.executemany(
                     "INSERT INTO chunks(session_id, chunk_index, source_url, text) "
                     "VALUES (?, ?, ?, ?)",

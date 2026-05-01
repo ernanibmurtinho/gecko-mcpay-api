@@ -130,7 +130,7 @@ async def fanout_fetch(
         return_exceptions=True,
     )
 
-    chunks: list = []
+    chunks: list[SourceChunk] = []
     degraded: list[str] = []
     for provider, result in zip(providers, results, strict=True):
         if isinstance(result, BaseException):
