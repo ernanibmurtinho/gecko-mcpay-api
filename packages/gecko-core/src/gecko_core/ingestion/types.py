@@ -29,3 +29,10 @@ class IngestionResult(BaseModel):
     failed: int = 0
     total_chunks: int = 0
     outcomes: list[SourceOutcome] = Field(default_factory=list)
+    # S12-PROVIDER-01 — populated when a SourceProvider's fetch() times
+    # out, raises, or reports unhealthy. Empty by default. The S13+
+    # critic agent in `orchestration/pro.py` reads this to surface gaps
+    # in-debate ("we couldn't verify FlightAware reliability because the
+    # provider was unreachable; treat the verdict as conditional"),
+    # turning the failure mode into a visible feature.
+    degraded_sources: list[str] = Field(default_factory=list)

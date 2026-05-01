@@ -305,8 +305,17 @@ async def ingest(
     store: SessionStore,
     *,
     max_concurrent: int = MAX_CONCURRENT_SOURCES,
+    degraded_sources: list[str] | None = None,
 ) -> IngestionResult:
-    """Run the full pipeline over a batch of approved sources."""
+    """Run the full pipeline over a batch of approved sources.
+
+    S12-PROVIDER-01 — `degraded_sources` is forwarded into the result
+    when the upstream dispatcher had a provider time out or fail
+    health. The pipeline doesn't manufacture entries here; it
+    propagates what the dispatcher reports. Per-URL fetch failures
+    continue to land on `outcomes` with status="failed" (per-source
+    isolation is unchanged).
+    """
     sem = asyncio.Semaphore(max_concurrent)
     outcomes = await asyncio.gather(
         *(_process_one(session_id, c, store, sem) for c in sources),
@@ -325,7 +334,58 @@ async def ingest(
         failed=failed,
         total_chunks=total_chunks,
         outcomes=list(outcomes),
+        degraded_sources=list(degraded_sources or []),
     )
 
 
-__all__ = ["MAX_CONCURRENT_SOURCES", "ingest", "url_hash"]
+async def dispatch_providers(
+    idea: str,
+    providers: list[object] | None = None,
+) -> tuple[list[SourceCandidate], list[str]]:
+    """Fan out across SourceProviders; return (candidates, degraded_names).
+
+    S12-PROVIDER-01 — the seam that lets S13+ wire BazaarProvider,
+    ParagraphProvider, etc. without touching `discover()` or `ingest()`.
+    Today the only registered provider is the default FreeProvider, so
+    this function is a thin wrapper around `discover()` — but it
+    establishes the contract: per-provider timeouts go here, the
+    `degraded_sources` accounting goes here, the budget enforcement
+    will go here.
+
+    `providers=None` → use the module-level DEFAULT_FREE_PROVIDER. Pass
+    an explicit list to swap in alternates (tests, vertical suites).
+    """
+    # Lazy import: providers/free_provider re-imports from this package
+    # for `discover`, so importing it at module top-level would create
+    # a partial-init cycle.
+    from .providers.free_provider import DEFAULT_FREE_PROVIDER
+
+    selected: list[object] = list(providers) if providers is not None else [DEFAULT_FREE_PROVIDER]
+
+    results: list[SourceCandidate] = []
+    degraded: list[str] = []
+
+    for provider in selected:
+        name = getattr(provider, "name", provider.__class__.__name__)
+        try:
+            chunks = await provider.fetch(idea)  # type: ignore[attr-defined]
+        except Exception as exc:  # provider-level isolation
+            logger.warning(
+                "dispatch.provider_failed name=%s exc=%s msg=%s",
+                name,
+                exc.__class__.__name__,
+                str(exc)[:200],
+            )
+            degraded.append(name)
+            continue
+        results.extend(c.candidate for c in chunks)
+
+    return results, degraded
+
+
+__all__ = [
+    "MAX_CONCURRENT_SOURCES",
+    "dispatch_providers",
+    "ingest",
+    "url_hash",
+]

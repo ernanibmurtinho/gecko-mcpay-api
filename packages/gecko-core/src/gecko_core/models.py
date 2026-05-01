@@ -39,12 +39,46 @@ class SourceCandidate(BaseModel):
     score: float = Field(default=0.0, ge=0.0, le=1.0)
 
 
+class Provenance(BaseModel):
+    """Where a Citation's evidence came from + how it was paid for.
+
+    Sprint 12 S12-PROVIDER-01: stamped onto every Citation so the
+    verdict-renderer (and the S13+ Bazaar receipt anatomy) can surface
+    "evidence from <provider>, paid via <facilitator>, $X" without
+    changing the verdict shape itself.
+
+    Defaults to the free Tavily path so existing call sites that build
+    a Citation without specifying provenance keep working unchanged —
+    the Pydantic default fires and the field carries through to the
+    serialized output.
+
+    `payment` stays untyped (`dict | None`) here on purpose: the real
+    `PaymentReceipt` shape is being formalized in S13 Track C
+    (X402Client Protocol). Using a dict avoids an import cycle between
+    `models.py` and `gecko_core.payments`, and lets paid providers
+    serialize their receipt via `PaymentResult.model_dump()` without
+    locking the schema down before S13 lands.
+    """
+
+    provider_name: str = "tavily"
+    # Mirrors `gecko_core.ingestion.providers.ProviderKind`. Kept as a
+    # plain str (not Literal) here to avoid an ingestion → models import
+    # back-edge; the providers module is the source of truth for the
+    # accepted vocabulary.
+    provider_kind: str = "free"
+    payment: dict[str, object] | None = None
+
+
 class Citation(BaseModel):
     """A citation pointing back to a source chunk."""
 
     source_url: HttpUrl
     chunk_index: int
     similarity: float = Field(ge=0.0, le=1.0)
+    # S12-PROVIDER-01 — defaults to free/tavily so legacy call sites
+    # (LLM-emitted JSON, hand-built test citations) get a sensible
+    # provenance without changes. Paid providers (S13+) override.
+    provenance: Provenance = Field(default_factory=Provenance)
 
 
 class BusinessPlan(BaseModel):

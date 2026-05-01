@@ -202,7 +202,12 @@ async def _safe_classify(idea: str) -> set[str]:
         return set()
 
 
-async def discover(idea: str, max_results: int = 8) -> list[SourceCandidate]:
+async def discover(
+    idea: str,
+    max_results: int = 8,
+    *,
+    provider: object | None = None,
+) -> list[SourceCandidate]:
     """Surface up to `max_results` candidate sources for an idea.
 
     Network call dispatched via asyncio.to_thread because tavily-python is sync.
@@ -212,7 +217,17 @@ async def discover(idea: str, max_results: int = 8) -> list[SourceCandidate]:
     hints — see `_build_query` and the `_CATEGORY_QUERY_HINTS` table. The
     raw `idea` is **not** sent verbatim; that path was the source of the
     Sprint 6 builder-topic regression.
+
+    S12-PROVIDER-01 — when called through the SourceProvider Protocol
+    (FreeProvider in `providers/free_provider.py`), `discover` is the
+    inner Tavily-specific implementation. The `provider` kwarg is
+    accepted for forward-compatibility with S13's dispatcher; when
+    None, the legacy direct Tavily path runs unchanged. Today's
+    callers pass nothing.
     """
+    if provider is not None:
+        chunks = await provider.fetch(idea)  # type: ignore[attr-defined]
+        return [c.candidate for c in chunks]
     settings = get_ingestion_settings()
     categories = await _safe_classify(idea)
     query = _build_query(idea, categories)
