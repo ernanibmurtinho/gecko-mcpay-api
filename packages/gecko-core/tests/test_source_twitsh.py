@@ -359,3 +359,40 @@ def test_normalize_tweet_handles_alt_keys() -> None:
 def test_normalize_tweet_returns_none_on_empty() -> None:
     assert _normalize_tweet({}) is None
     assert _normalize_tweet({"user": {"screen_name": "x"}}) is None
+
+
+def test_normalize_tweet_prefers_note_tweet_long_form() -> None:
+    """S14-TWITSH-03: long-form posts have the full body in
+    ``note_tweet.text`` while ``text`` carries a truncated stub. The
+    normalizer must surface the long-form so the validation report
+    cites the full content, not the truncation."""
+    raw = {
+        "text": "This is the truncated stub that ends with an ellipsis…",
+        "note_tweet": {
+            "text": (
+                "This is the full long-form post body, "
+                "easily exceeding the 280-character limit, "
+                "with the analysis Gecko actually wants to cite."
+            )
+        },
+        "user": {"screen_name": "judge1"},
+        "url": "https://x.com/judge1/status/42",
+    }
+    norm = _normalize_tweet(raw)
+    assert norm is not None
+    assert "long-form post body" in norm["text"]
+    assert "truncated stub" not in norm["text"]
+
+
+def test_normalize_tweet_falls_back_to_text_when_note_tweet_empty() -> None:
+    """Empty / missing ``note_tweet.text`` must NOT mask the regular
+    ``text`` field — otherwise short tweets disappear."""
+    raw = {
+        "text": "regular short tweet",
+        "note_tweet": {"text": ""},
+        "user": {"screen_name": "alice"},
+        "url": "https://x.com/alice/status/1",
+    }
+    norm = _normalize_tweet(raw)
+    assert norm is not None
+    assert norm["text"] == "regular short tweet"

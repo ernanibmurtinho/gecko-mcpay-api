@@ -161,7 +161,7 @@ def _normalize_tweet(raw: dict[str, Any]) -> dict[str, Any] | None:
     """Coerce a twit.sh tweet dict into Gecko's citation shape.
 
     Keys we accept (best-effort, upstream-agnostic):
-        text       <- text | full_text | content
+        text       <- note_tweet.text | text | full_text | content
         author     <- user.screen_name | author_handle | author.username
         url        <- url | tweet_url | permalink
         likes      <- public_metrics.like_count | likes | favorite_count
@@ -169,10 +169,22 @@ def _normalize_tweet(raw: dict[str, Any]) -> dict[str, Any] | None:
         reposts    <- public_metrics.retweet_count | retweets | reposts
         created_at <- created_at | timestamp
 
+    S14-TWITSH-03: when X carries a long-form post, ``text`` is truncated
+    at ~280 chars and the full body lands in ``note_tweet.text``. The
+    probe found that twit.sh forwards ``note_tweet`` verbatim, so we
+    prefer it when present — otherwise the citation surfaces the
+    truncated stub and the validation report cites half a sentence.
+
     Returns None if neither text nor an id-shaped url can be recovered (a
     malformed entry shouldn't poison the whole result list).
     """
-    text = raw.get("text") or raw.get("full_text") or raw.get("content")
+    note_tweet = raw.get("note_tweet")
+    note_text: str | None = None
+    if isinstance(note_tweet, dict):
+        candidate = note_tweet.get("text")
+        if isinstance(candidate, str) and candidate.strip():
+            note_text = candidate
+    text = note_text or raw.get("text") or raw.get("full_text") or raw.get("content")
     if not text:
         return None
 
