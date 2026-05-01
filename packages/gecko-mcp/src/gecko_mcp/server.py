@@ -968,17 +968,28 @@ async def _run_pulse(
     project_id: str | None = None,
     tier_preset: str = "balanced",
 ) -> dict[str, Any]:
-    """Re-run the panel and surface deltas vs prior pulse.
+    """Re-run the panel against an existing session and emit a verdict.
 
-    Either ``session_id`` or ``project_id`` is required (S5-API-02).
-    project_id wins when both are given. Migration 019 persists each
-    pulse so subsequent runs compute real deltas across history.
+    Either ``session_id`` or ``project_id`` is required.
+
+    S14-PULSE-01 surface (when ``session_id`` is provided): runs the v14
+    pulse engine, which (a) creates a NEW session row with
+    ``phase="during_build"`` and ``parent_session_id=<input>``,
+    (b) re-runs the 5-voice advisor panel against the parent's RAG
+    context, (c) returns a structured PulseResult carrying verdict +
+    gap_classification + advisor closing lines + 3-bullet summary +
+    citations.
+
+    Legacy surface (S5-API-02): when only ``project_id`` is provided,
+    falls through to the older ``run_pulse`` which walks pulse history
+    across the project for delta detection.
     """
     from uuid import UUID
 
     from gecko_core.orchestration.advisor import (
         AdvisorSessionNotFoundError,
         run_pulse,
+        run_pulse_v14,
     )
     from gecko_core.routing.catalog import Tier
 
@@ -992,8 +1003,15 @@ async def _run_pulse(
     except ValueError:
         return {"error": "bad_tier", "message": f"unknown tier_preset {tier_preset!r}"}
     try:
+        if session_id:
+            v14 = await run_pulse_v14(
+                parent_session_id=UUID(session_id),
+                tier_preset=tier,
+            )
+            return v14.model_dump(mode="json")
+        # project_id-only legacy path.
         result = await run_pulse(
-            session_id=UUID(session_id) if session_id else None,
+            session_id=None,
             project_id=UUID(project_id) if project_id else None,
             tier_preset=tier,
         )

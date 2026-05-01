@@ -44,8 +44,10 @@ from gecko_core.orchestration.advisor.models import (
     AdvisorVoice,
     PulseDelta,
     PulsePanel,
+    PulseResult,
 )
 from gecko_core.orchestration.advisor.prompts import REQUIRED_VOICES, load_prompts
+from gecko_core.orchestration.advisor.pulse_engine import run_pulse_v14
 from gecko_core.routing.catalog import AgentRole, Tier
 from gecko_core.sessions.store import SessionStore
 
@@ -472,10 +474,12 @@ __all__ = [
     "AdvisorVoice",
     "PulseDelta",
     "PulsePanel",
+    "PulseResult",
     "compute_pulse_deltas",
     "generate_panel",
     "generate_voice",
     "load_context",
     "render_context_block",
     "run_pulse",
+    "run_pulse_v14",
 ]

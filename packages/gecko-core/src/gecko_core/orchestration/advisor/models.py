@@ -12,6 +12,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from gecko_core.models import Citation, GapClassification, Verdict
 from gecko_core.routing.catalog import AgentRole
 
 # Stable rendering order — CEO first (sets strategy), staff_manager last
@@ -72,6 +73,36 @@ class PulsePanel(BaseModel):
     previous_panel_at: datetime | None = None
 
 
+class PulseResult(BaseModel):
+    """S14-PULSE-01 — user-facing result of `gecko_pulse <session_id>`.
+
+    Wraps the existing PulsePanel and adds the founder-facing headline:
+    a single-token verdict + structured gap_classification + 3-bullet
+    "what changed since last pulse" summary + fresh citations.
+
+    A pulse run creates a NEW session row with ``phase="during_build"``
+    and ``parent_session_id`` set to the input session_id (the original
+    research). ``pulse_session_id`` is that new row's UUID; callers can
+    walk the pulse-history chain via the FK.
+
+    The 3-bullet ``summary_bullets`` is a TEXT-ONLY summary in v14 — no
+    delta computation. The full delta render lands in S15-PULSE-DELTA-01.
+    """
+
+    parent_session_id: str
+    pulse_session_id: str
+    idea: str
+    verdict: Verdict
+    gap_classification: GapClassification
+    panel: AdvisorPanel
+    citations: list[Citation] = Field(default_factory=list)
+    summary_bullets: list[str] = Field(default_factory=list)
+    generated_at: datetime = Field(default_factory=lambda: datetime.now().astimezone())
+    # 12-pack credit accounting (S14-PULSE-02). When non-None, the call
+    # decremented a prepaid credit instead of settling per-call.
+    credits_remaining_after: int | None = None
+
+
 class AdvisorError(Exception):
     """Raised when the advisor panel can't produce a result."""
 
@@ -93,4 +124,5 @@ __all__ = [
     "AdvisorVoice",
     "PulseDelta",
     "PulsePanel",
+    "PulseResult",
 ]
