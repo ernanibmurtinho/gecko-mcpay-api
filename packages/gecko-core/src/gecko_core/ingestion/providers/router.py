@@ -98,11 +98,11 @@ def build_provider_plan(
 
 
 async def fanout_fetch(
-    providers: list["SourceProvider"],
+    providers: list[SourceProvider],
     *,
     query: str,
     timeout_s: float = DEFAULT_PROVIDER_TIMEOUT_S,
-) -> tuple[list["SourceChunk"], list[str]]:
+) -> tuple[list[SourceChunk], list[str]]:
     """Run every provider's ``fetch`` in parallel via ``asyncio.gather``.
 
     Sprint 14 S14-TWITSH-04: the probe measured ~7.5s settlement latency
@@ -117,7 +117,7 @@ async def fanout_fetch(
     that paragraph_provider + the dispatcher already use.
     """
 
-    async def _one(provider: "SourceProvider") -> list["SourceChunk"]:
+    async def _one(provider: SourceProvider) -> list[SourceChunk]:
         # Per-provider timeout — keeps a slow provider from blocking
         # results from a fast peer past the per-session ceiling.
         return await asyncio.wait_for(provider.fetch(query), timeout=timeout_s)
