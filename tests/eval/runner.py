@@ -44,6 +44,7 @@ from tests.eval.mocks import MOCK_TRANSCRIPTS, MockTranscript, get_mock_transcri
 from tests.eval.rubric import (
     RubricScores,
     extract_verdict,
+    extract_verdict_v2,
     score_transcript_live,
     score_transcript_mock,
 )
@@ -91,6 +92,12 @@ class IdeaResult:
     # `idea_id` rather than `id`; surfacing it here means failures can be
     # filtered without rewriting the JSON layout consumers depend on.
     idea_id: str = ""
+    # S12-EVAL-02 — native KILL/REFINE/BUILD taxonomy. Empty string when the
+    # fixture has no `expected_verdict_v2` field (legacy v1-only path). The
+    # runner aggregates `verdict_accuracy_v2` only over results where
+    # `expected_verdict_v2` is populated.
+    expected_verdict_v2: str = ""
+    actual_verdict_v2: str = ""
 
 
 def _suite_path(suite: str) -> Path:
@@ -383,6 +390,9 @@ async def _evaluate_one(
             )
 
     expected = idea.get("expected_verdict")
+    # S12-EVAL-02 — v2 expected verdict, only set on relabeled fixtures.
+    # When None, score_transcript_* falls back to legacy v1 grading.
+    expected_v2 = idea.get("expected_verdict_v2")
 
     # S12-EVAL-01 — capture the last live transcript per idea so we can
     # dump judge prose + parsed verdicts after the rerun loop. Only the
@@ -391,6 +401,7 @@ async def _evaluate_one(
     # is sufficient signal for diagnosis).
     last_live_transcript: MockTranscript | None = None
     last_live_scores: RubricScores | None = None
+    verdicts_v2: list[str] = []
 
     for _ in range(reruns):
         t0 = time.perf_counter()
@@ -400,18 +411,27 @@ async def _evaluate_one(
                 rag_context=rag_context,
                 precedents=precedents,
             )
-            scores = score_transcript_live(transcript, expected_verdict=expected)
+            scores = score_transcript_live(
+                transcript,
+                expected_verdict=expected,
+                expected_verdict_v2=expected_v2,
+            )
             last_live_transcript = transcript
             last_live_scores = scores
         else:
             transcript = get_mock_transcript(idea["id"])
             scores = score_transcript_mock(
-                transcript, cohort_median_tokens, expected_verdict=expected
+                transcript,
+                cohort_median_tokens,
+                expected_verdict=expected,
+                expected_verdict_v2=expected_v2,
             )
         wall = time.perf_counter() - t0
 
         score_accum.append(scores)
-        verdicts.append(extract_verdict(transcript.get("judge", {"text": ""})["text"]))
+        judge_text = transcript.get("judge", {"text": ""})["text"]
+        verdicts.append(extract_verdict(judge_text))
+        verdicts_v2.append(extract_verdict_v2(judge_text))
         total = _transcript_total_tokens(transcript)
         tokens_accum.append(total)
         in_total = sum(t["tokens_in"] for t in transcript.values())
@@ -430,6 +450,7 @@ async def _evaluate_one(
         cost_predictability=round(statistics.mean(s.cost_predictability for s in score_accum), 2),
         verdict_correctness=round(statistics.mean(s.verdict_correctness for s in score_accum), 2),
     )
+    actual_v2 = _majority_verdict(verdicts_v2)
     result = IdeaResult(
         id=idea["id"],
         idea_id=idea["id"],
@@ -440,6 +461,10 @@ async def _evaluate_one(
         tokens_total=int(statistics.mean(tokens_accum)),
         cost_usd=round(statistics.mean(cost_accum), 4),
         v1_sources_cost_usd=round(v1_spend_usd, 4),
+        expected_verdict_v2=str(expected_v2) if expected_v2 is not None else "",
+        # _majority_verdict returns lowercase "unknown" on empty input;
+        # normalize to UNKNOWN so the v2 token vocabulary stays uppercase.
+        actual_verdict_v2=actual_v2 if actual_v2 != "unknown" else "UNKNOWN",
     )
     # S12-EVAL-01 — dump raw judge transcript per idea for live runs so a
     # later regression diagnosis can read what the judge actually said,
@@ -492,6 +517,7 @@ def _archive_live_transcript(
         "expected_verdict": idea.get("expected_verdict"),
         "expected_verdict_v2": idea.get("expected_verdict_v2"),
         "actual_verdict": result.actual_verdict,
+        "actual_verdict_v2": result.actual_verdict_v2,
         "agent_turns": {
             agent: {
                 "text": turn["text"],
@@ -526,6 +552,8 @@ def _aggregate(results: list[IdeaResult]) -> dict[str, Any]:
         return {
             "kill_rate": 0.0,
             "verdict_accuracy": 0.0,
+            "verdict_accuracy_v2": 0.0,
+            "n_v2": 0,
             "median_score": 0.0,
             "median_weighted_score": 0.0,
             "median_cost_usd": 0.0,
@@ -537,11 +565,22 @@ def _aggregate(results: list[IdeaResult]) -> dict[str, Any]:
         if _normalize_verdict(r.actual_verdict) == _normalize_verdict(r.expected_verdict)
     )
     kills = sum(1 for r in results if _normalize_verdict(r.actual_verdict) == "kill")
+    # S12-EVAL-02 — v2 accuracy is computed only over results whose fixture
+    # has `expected_verdict_v2` populated. A suite with zero v2-labeled
+    # fixtures reports `verdict_accuracy_v2=0.0, n_v2=0`, which a downstream
+    # consumer can detect and ignore. No collapse: REFINE is its own bucket,
+    # not pivot=kill softening — that's the whole point of the migration.
+    v2_results = [r for r in results if r.expected_verdict_v2]
+    v2_correct = sum(
+        1 for r in v2_results if r.actual_verdict_v2.upper() == r.expected_verdict_v2.upper()
+    )
     median_scores = [statistics.median(r.scores.values()) for r in results]
     weighted_scores = [_weighted_idea_score(r.scores) for r in results]
     return {
         "kill_rate": round(kills / len(results), 3),
         "verdict_accuracy": round(correct / len(results), 3),
+        "verdict_accuracy_v2": (round(v2_correct / len(v2_results), 3) if v2_results else 0.0),
+        "n_v2": len(v2_results),
         "median_score": round(statistics.median(median_scores), 3),
         # `median_weighted_score` is the prompt-iteration north star — it
         # rewards getting the verdict right (2x weight) without changing the

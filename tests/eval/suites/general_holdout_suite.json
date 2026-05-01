@@ -3,130 +3,324 @@
     "id": "holdout-good-comp-band-diff",
     "text": "A side-by-side compensation-band diff tool for talent ops at YC-stage startups: paste two Pave compensation snapshots, get role-by-role band overlaps, gaps, and equity-grant deltas with a recruiter view toggle.",
     "expected_verdict": "ship",
-    "expected_categories": ["saas"],
+    "expected_verdict_v2": "REFINE",
+    "expected_categories": [
+      "saas"
+    ],
     "must_cite_sources": [],
     "why": "narrow doc-class wedge for talent ops + founders; calculation/diff logic over structured Pave data is the moat",
     "rag_context": "- Pave reports ~6,000 startup customers contributing real-time compensation benchmarks; talent ops leaders run ad-hoc spreadsheet diffs at every offer cycle. (source: Pave Series C deck 2024)\n- Talent-ops practitioners on People Ops Society slack repeatedly flagged 'no native diff between two Pave snapshots' as a recurring workflow gap. (source: People Ops Society 2025 thread index)\n- YC startups have ~3.5 hires per quarter on average through Series A; compensation drift creates internal-equity issues that talent ops resolves manually today. (source: YC internal H&L data shared at Founder Summit 2024)\n- Comparable: Figures (European comp-bands SaaS) reached profitable scale by productizing structured comp-data workflows; band-diff is the analogous wedge in the Pave-customer base.",
     "mock_precedents": [
-      {"verdict": "ship", "similarity": 0.68, "idea_summary": "Narrow doc-class diff tool over structured HR/comp data with toggle views for two personas", "key_comparables": ["Figures", "Pave"]},
-      {"verdict": "kill", "similarity": 0.50, "idea_summary": "Generic AI compensation-letter writer for individual job seekers, $19/mo", "key_comparables": ["ChatGPT", "Resume.io"]}
+      {
+        "verdict": "ship",
+        "similarity": 0.68,
+        "idea_summary": "Narrow doc-class diff tool over structured HR/comp data with toggle views for two personas",
+        "key_comparables": [
+          "Figures",
+          "Pave"
+        ]
+      },
+      {
+        "verdict": "kill",
+        "similarity": 0.5,
+        "idea_summary": "Generic AI compensation-letter writer for individual job seekers, $19/mo",
+        "key_comparables": [
+          "ChatGPT",
+          "Resume.io"
+        ]
+      }
     ]
   },
   {
     "id": "holdout-good-twilio-webhook-replay",
     "text": "A CLI that captures Twilio messaging webhooks from production and replays them against a local handler, with re-signed X-Twilio-Signature and idempotency-key collision detection.",
     "expected_verdict": "ship",
-    "expected_categories": ["devtools"],
+    "expected_verdict_v2": "BUILD",
+    "expected_categories": [
+      "devtools"
+    ],
     "must_cite_sources": [],
     "why": "specific developer pain in messaging-eng dev loop; Twilio CLI does not cover replay-from-prod; narrow tool for a real ICP",
     "rag_context": "- Twilio Messaging serves >300k developer accounts; webhook handler bugs are the #1 source of message-status drift incidents in production. (source: Twilio SIGNAL 2024 reliability report)\n- The official Twilio CLI supports `twilio webhooks` for inspection but has no replay-from-prod primitive, mirroring the long-standing gap in the Stripe CLI.\n- Messaging engineers on dev community forums pay $200-400/hr to debug X-Twilio-Signature mismatches and re-delivery races. (source: Twilio Community forum trends 2024-2025)\n- Industry signal: ngrok and Hookdeck monetize hosted webhook infrastructure across the messaging vendor ecosystem; the local-replay-with-signing CLI is the missing dev-loop primitive for Twilio specifically.",
     "mock_precedents": [
-      {"verdict": "ship", "similarity": 0.70, "idea_summary": "Local-dev primitive CLI replaying captured webhooks for a single messaging vendor with re-signing", "key_comparables": ["ngrok", "Hookdeck"]},
-      {"verdict": "ship", "similarity": 0.62, "idea_summary": "Narrow dev tool selling into a messaging-vendor ecosystem with a focused engineer ICP", "key_comparables": ["Twilio CLI", "Svix"]}
+      {
+        "verdict": "ship",
+        "similarity": 0.7,
+        "idea_summary": "Local-dev primitive CLI replaying captured webhooks for a single messaging vendor with re-signing",
+        "key_comparables": [
+          "ngrok",
+          "Hookdeck"
+        ]
+      },
+      {
+        "verdict": "ship",
+        "similarity": 0.62,
+        "idea_summary": "Narrow dev tool selling into a messaging-vendor ecosystem with a focused engineer ICP",
+        "key_comparables": [
+          "Twilio CLI",
+          "Svix"
+        ]
+      }
     ]
   },
   {
     "id": "holdout-good-ame-intake",
     "text": "A paper-replacement intake app for FAA Aviation Medical Examiner (AME) offices: replaces airman-medical paper forms with structured digital intake under the new MedXPress reforms, including AOPA-sponsored disclosures.",
     "expected_verdict": "ship",
-    "expected_categories": ["saas", "regulated"],
+    "expected_verdict_v2": "BUILD",
+    "expected_categories": [
+      "saas",
+      "regulated"
+    ],
     "must_cite_sources": [],
     "why": "regulated boundary IS the wedge (FAA AME credentialing + MedXPress data flow), narrow buyer (AME offices)",
     "rag_context": "- FAA reports ~2,800 active AMEs in the United States; airman-medical paper intake is still the dominant workflow despite MedXPress digital submission downstream. (source: FAA Aerospace Medicine 2024 directory)\n- AOPA's 2024-2025 medical-reform advocacy raised compliance and disclosure expectations for AME offices, increasing per-exam paperwork load. (source: AOPA Pilot magazine 2025 reform briefings)\n- AMEs are paid $80-150 per exam and run 6-12 exams/day; unstructured paper intake adds 8-15 minutes per visit. (source: industry survey by Aviation Medical Society 2024)\n- Comparable: athenahealth and Phreesia built durable companies on paper-replacement intake for niche regulated practice types; AME offices are an analogously fragmented but regulated-segment wedge.",
     "mock_precedents": [
-      {"verdict": "ship", "similarity": 0.71, "idea_summary": "Paper-replacement digital intake SaaS for a fragmented regulated medical-practice segment", "key_comparables": ["athenahealth", "Phreesia"]},
-      {"verdict": "kill", "similarity": 0.49, "idea_summary": "Direct-to-pilot consumer telemedicine product issuing airman-medical certificates without AME oversight", "key_comparables": ["DoNotPay", "Replika"]}
+      {
+        "verdict": "ship",
+        "similarity": 0.71,
+        "idea_summary": "Paper-replacement digital intake SaaS for a fragmented regulated medical-practice segment",
+        "key_comparables": [
+          "athenahealth",
+          "Phreesia"
+        ]
+      },
+      {
+        "verdict": "kill",
+        "similarity": 0.49,
+        "idea_summary": "Direct-to-pilot consumer telemedicine product issuing airman-medical certificates without AME oversight",
+        "key_comparables": [
+          "DoNotPay",
+          "Replika"
+        ]
+      }
     ]
   },
   {
     "id": "holdout-good-mcp-clickhouse-explainer",
     "text": "An MCP server for ClickHouse query explanation: ingests a ClickHouse cluster's schema and lets a developer ask 'why is this query slow?' answered with EXPLAIN PLAN traces, projection hits, and recent system.query_log entries.",
     "expected_verdict": "ship",
-    "expected_categories": ["devtools"],
+    "expected_verdict_v2": "BUILD",
+    "expected_categories": [
+      "devtools"
+    ],
     "must_cite_sources": [],
     "why": "narrow agentic-infra dev tool; real DBA pain; MCP install zero-friction; ClickHouse audience is large and growing",
     "rag_context": "- ClickHouse Cloud reported >1,500 paying organizations as of late 2024, with >40% YoY growth driven by analytics-heavy workloads. (source: ClickHouse Cloud product update 2024)\n- ClickHouse query optimization requires reading EXPLAIN, projection hits, and system.query_log together; manual triage takes 30-60 min per regression. (source: ClickHouse community Slack triage threads 2025)\n- Anthropic MCP registry shows database-introspection servers consistently in the top installed cohort, with steady weekly install growth. (source: anthropic.com/mcp registry 2025)\n- Industry signal: Pydantic v2 + LLM-tool-use best-practices guides flag typed query-explanation tools as among the highest-leverage agentic dev surfaces.",
     "mock_precedents": [
-      {"verdict": "ship", "similarity": 0.71, "idea_summary": "Narrow agentic-infra MCP server for an analytics database exposing structured EXPLAIN traces", "key_comparables": ["Anthropic MCP", "ClickHouse"]},
-      {"verdict": "kill", "similarity": 0.52, "idea_summary": "Generic GPT-wrapper SQL chatbot for non-technical analysts at $29/mo", "key_comparables": ["ChatGPT", "Text2SQL"]}
+      {
+        "verdict": "ship",
+        "similarity": 0.71,
+        "idea_summary": "Narrow agentic-infra MCP server for an analytics database exposing structured EXPLAIN traces",
+        "key_comparables": [
+          "Anthropic MCP",
+          "ClickHouse"
+        ]
+      },
+      {
+        "verdict": "kill",
+        "similarity": 0.52,
+        "idea_summary": "Generic GPT-wrapper SQL chatbot for non-technical analysts at $29/mo",
+        "key_comparables": [
+          "ChatGPT",
+          "Text2SQL"
+        ]
+      }
     ]
   },
   {
     "id": "holdout-good-hhs-rfp-budget",
     "text": "An HHS-RFP-to-budget-spreadsheet generator for federal contractors: parses a Health-and-Human-Services solicitation and a contractor's narrative, produces a compliant CPFF budget workbook ready for SF-1408 review.",
     "expected_verdict": "ship",
-    "expected_categories": ["saas", "regulated"],
+    "expected_verdict_v2": "BUILD",
+    "expected_categories": [
+      "saas",
+      "regulated"
+    ],
     "must_cite_sources": [],
     "why": "research/contracting admin pain; HHS templates change yearly; $200/proposal willingness; doc-class workflow replacement is the wedge",
     "rag_context": "- HHS issues ~1,800 substantive RFPs per year across NIH/CDC/HRSA components; CPFF budget workbook prep takes 8-15 hours per response from a federal-contracts admin. (source: SAM.gov solicitation indices 2024)\n- The SF-1408 'pre-award accounting system review' enforces a structured budget format that generic LLMs fail without a curated template corpus. (source: DCAA SF-1408 guidance 2024)\n- Federal contractors polled in 2024 industry surveys reported $150-300/proposal willingness for an automated narrative-to-budget converter. (source: Federal Contractors Association survey 2024)\n- Comparable: Deltek and Unison reached >$100M ARR each on adjacent federal-contracting workflow software; the narrative-to-CPFF-workbook gap is the unmet step in their pipelines.",
     "mock_precedents": [
-      {"verdict": "ship", "similarity": 0.70, "idea_summary": "Doc-class workflow tool for federal-contracting admins selling adjacent to entrenched contracting suites", "key_comparables": ["Deltek", "Unison"]},
-      {"verdict": "kill", "similarity": 0.48, "idea_summary": "Generic AI proposal-writer chatbot for individual federal contractors at $19/mo", "key_comparables": ["ChatGPT", "Grammarly"]}
+      {
+        "verdict": "ship",
+        "similarity": 0.7,
+        "idea_summary": "Doc-class workflow tool for federal-contracting admins selling adjacent to entrenched contracting suites",
+        "key_comparables": [
+          "Deltek",
+          "Unison"
+        ]
+      },
+      {
+        "verdict": "kill",
+        "similarity": 0.48,
+        "idea_summary": "Generic AI proposal-writer chatbot for individual federal contractors at $19/mo",
+        "key_comparables": [
+          "ChatGPT",
+          "Grammarly"
+        ]
+      }
     ]
   },
   {
     "id": "holdout-bad-childcare-swap",
     "text": "An Airbnb-for-childcare-swaps marketplace in Tier-2 US cities: parents trade hours of in-home care via reciprocal credits, $9/mo membership.",
     "expected_verdict": "kill",
-    "expected_categories": ["saas"],
+    "expected_verdict_v2": "KILL",
+    "expected_categories": [
+      "saas"
+    ],
     "must_cite_sources": [],
     "why": "saturated marketplace dynamics in childcare segment, two-sided liquidity moat impossible at hobby pricing, regulatory exposure",
     "rag_context": "- Care.com (publicly traded until 2020 take-private at $500M) and SitterCity dominate US in-home childcare matching; both spent >$100M on supply acquisition before reaching liquidity. (source: Care.com 10-K 2019)\n- Tier-2-city childcare-swap reachable indie SOM is <$3M after 24mo per category-diligence template (Andrew Chen 'cold start' framework applied to fragmented two-sided geographies).\n- State childcare licensing rules (CA, NY, IL) impose disclosure and background-check requirements on non-relative paid care; reciprocal-hour swaps face the same exposure. (source: state childcare licensing handbooks 2024)\n- Industry signal: KidsKare and similar reciprocal-credit experiments shut down in 2018-2022 after failing to reach liquidity in any non-Tier-1 metro.",
     "mock_precedents": [
-      {"verdict": "kill", "similarity": 0.69, "idea_summary": "Hyperlocal reciprocal-credit marketplace for in-home services in Tier-2 geographies, indie launch", "key_comparables": ["Care.com", "SitterCity"]},
-      {"verdict": "ship", "similarity": 0.54, "idea_summary": "Vertical SaaS for licensed independent in-home childcare providers (single-sided ops tool, not a marketplace)", "key_comparables": ["Brightwheel", "Procare"]}
+      {
+        "verdict": "kill",
+        "similarity": 0.69,
+        "idea_summary": "Hyperlocal reciprocal-credit marketplace for in-home services in Tier-2 geographies, indie launch",
+        "key_comparables": [
+          "Care.com",
+          "SitterCity"
+        ]
+      },
+      {
+        "verdict": "ship",
+        "similarity": 0.54,
+        "idea_summary": "Vertical SaaS for licensed independent in-home childcare providers (single-sided ops tool, not a marketplace)",
+        "key_comparables": [
+          "Brightwheel",
+          "Procare"
+        ]
+      }
     ]
   },
   {
     "id": "holdout-bad-sales-action-extractor",
     "text": "AI sales-call action-item extractor: Zoom plugin that listens to sales calls and emails reps a list of follow-up tasks, $14/seat/mo, generic extraction prompt.",
     "expected_verdict": "kill",
-    "expected_categories": ["saas"],
+    "expected_verdict_v2": "KILL",
+    "expected_categories": [
+      "saas"
+    ],
     "must_cite_sources": [],
     "why": "Gong, Chorus, Zoom AI Companion, MS Teams Premium, Granola all bundle this; commodity feature, no buyer pain unsolved",
     "rag_context": "- Gong (~$300M ARR), Chorus (acquired by ZoomInfo 2021), Salesloft Conversations, MS Teams Premium all ship native action-item extraction for sales calls. (source: G2 Conversation Intelligence category 2025)\n- Zoom AI Companion shipped free to all paid tiers in October 2024, including action-item extraction across all call types. (source: Zoom IR Q3 2024)\n- Granola's $43M Series B set a new UX bar for general-purpose meeting-AI; indie sales-specific entrant has no acquisition wedge over either Gong's vertical depth or Granola's UX. (source: TechCrunch Granola 2024)\n- Industry signal: Gartner 2025 sales-tech roundup reclassified action-item extraction as a 'feature' shipped by every horizontal call platform, removing standalone-product viability.",
     "mock_precedents": [
-      {"verdict": "kill", "similarity": 0.74, "idea_summary": "Generic-ICP AI call-summary plugin priced per seat against bundled freemium incumbents", "key_comparables": ["Gong", "Granola"]},
-      {"verdict": "kill", "similarity": 0.66, "idea_summary": "Horizontal action-item-extraction SaaS competing on extraction quality alone", "key_comparables": ["Chorus", "Zoom AI Companion"]}
+      {
+        "verdict": "kill",
+        "similarity": 0.74,
+        "idea_summary": "Generic-ICP AI call-summary plugin priced per seat against bundled freemium incumbents",
+        "key_comparables": [
+          "Gong",
+          "Granola"
+        ]
+      },
+      {
+        "verdict": "kill",
+        "similarity": 0.66,
+        "idea_summary": "Horizontal action-item-extraction SaaS competing on extraction quality alone",
+        "key_comparables": [
+          "Chorus",
+          "Zoom AI Companion"
+        ]
+      }
     ]
   },
   {
     "id": "holdout-bad-ai-marriage-counselor",
     "text": "AI marriage-counselor chatbot: $35/mo, replaces traditional couples therapy, no licensed clinician in the loop.",
     "expected_verdict": "kill",
-    "expected_categories": ["saas", "regulated"],
+    "expected_verdict_v2": "KILL",
+    "expected_categories": [
+      "saas",
+      "regulated"
+    ],
     "must_cite_sources": [],
     "why": "FDA-class mental-health-software exposure, state LMFT licensing rules, liability for self-harm cases, insurance won't cover",
     "rag_context": "- FDA Sept 2024 guidance on Generative-AI Mental Health Software covers therapy-substitute chatbots as Class II SaMD requiring 510(k) clearance, regardless of relationship vs individual focus. (source: FDA-2024-D-3417)\n- Most US states require an LMFT (Licensed Marriage and Family Therapist) credential for paid couples therapy; offering 'replacement' without one creates per-state unauthorized-practice exposure. (source: AAMFT state licensing tracker 2024)\n- Character.ai parent companies sued in 2024 over teen-suicide tied to chatbot interactions ($800M class action pending); precedent extends to relational AI with vulnerable users. (source: NYT 2024-12-12)\n- Industry signal: APA 2025 ethics guidance and state licensing boards in CA/NY/TX have explicitly cautioned against unlicensed consumer-direct AI 'therapy' products, including relational variants.",
     "mock_precedents": [
-      {"verdict": "kill", "similarity": 0.72, "idea_summary": "Consumer-direct mental-health chatbot replacing licensed therapy without clinician oversight", "key_comparables": ["Character.ai", "Replika"]},
-      {"verdict": "ship", "similarity": 0.55, "idea_summary": "Clinician-in-the-loop intake and homework-tracking SaaS for licensed couples-therapy practices", "key_comparables": ["SimplePractice", "Headway"]}
+      {
+        "verdict": "kill",
+        "similarity": 0.72,
+        "idea_summary": "Consumer-direct mental-health chatbot replacing licensed therapy without clinician oversight",
+        "key_comparables": [
+          "Character.ai",
+          "Replika"
+        ]
+      },
+      {
+        "verdict": "ship",
+        "similarity": 0.55,
+        "idea_summary": "Clinician-in-the-loop intake and homework-tracking SaaS for licensed couples-therapy practices",
+        "key_comparables": [
+          "SimplePractice",
+          "Headway"
+        ]
+      }
     ]
   },
   {
     "id": "holdout-bad-fitness-loyalty-chain",
     "text": "Blockchain loyalty points for boutique fitness studios: cycling and pilates studios mint cNFT punch cards that members can swap across studios in a city.",
     "expected_verdict": "kill",
-    "expected_categories": ["crypto"],
+    "expected_verdict_v2": "KILL",
+    "expected_categories": [
+      "crypto"
+    ],
     "must_cite_sources": [],
     "why": "wallet UX hostile to fitness-studio members, no merchant pain solved, prior on-chain-loyalty graveyard pattern",
     "rag_context": "- ClassPass already provides cross-studio loyalty/credits at scale (~10k partner studios) without any wallet primitive; member-facing demand for an on-chain alternative is unmeasured. (source: ClassPass partner page 2025)\n- Mindbody (point-of-sale at >50k boutique fitness studios) bundles native loyalty/punch-card features at $0 marginal to studios. (source: Mindbody product pages 2024)\n- Median wallet-creation drop-off at point-of-sale across consumer crypto experiments has been 70-80%; fitness-studio members skew older than typical crypto-app cohorts. (source: Solana Mobile retail UX study 2024)\n- Industry signal: every prior boutique-loyalty-on-chain experiment (including a16z-backed Blackbird's restaurant-loyalty pivot away from required wallets in 2024-2025) has walked back consumer-wallet requirements as the binding constraint.",
     "mock_precedents": [
-      {"verdict": "kill", "similarity": 0.71, "idea_summary": "On-chain SMB-loyalty product for a fragmented retail vertical requiring end-customer wallets", "key_comparables": ["Blackbird", "Mindbody"]},
-      {"verdict": "kill", "similarity": 0.62, "idea_summary": "cNFT cross-merchant punch-card SaaS competing against incumbent POS-bundled loyalty plus ClassPass", "key_comparables": ["ClassPass", "Solana Pay"]}
+      {
+        "verdict": "kill",
+        "similarity": 0.71,
+        "idea_summary": "On-chain SMB-loyalty product for a fragmented retail vertical requiring end-customer wallets",
+        "key_comparables": [
+          "Blackbird",
+          "Mindbody"
+        ]
+      },
+      {
+        "verdict": "kill",
+        "similarity": 0.62,
+        "idea_summary": "cNFT cross-merchant punch-card SaaS competing against incumbent POS-bundled loyalty plus ClassPass",
+        "key_comparables": [
+          "ClassPass",
+          "Solana Pay"
+        ]
+      }
     ]
   },
   {
     "id": "holdout-bad-ai-estate-planner",
-    "text": "AI estate-planning advisor: chatbot drafts wills, trusts, and beneficiary designations for individuals — no licensed estate attorney in the loop.",
+    "text": "AI estate-planning advisor: chatbot drafts wills, trusts, and beneficiary designations for individuals \u2014 no licensed estate attorney in the loop.",
     "expected_verdict": "kill",
-    "expected_categories": ["saas", "regulated"],
+    "expected_verdict_v2": "KILL",
+    "expected_categories": [
+      "saas",
+      "regulated"
+    ],
     "must_cite_sources": [],
     "why": "regulatory landmine (state UPL bars, varying probate code), liability per document exceeds plausible CAC, insurance won't cover",
     "rag_context": "- Every US state bar has unauthorized-practice-of-law (UPL) rules that cover preparing customized estate-planning documents for compensation; many states explicitly enumerate wills and trusts. (source: ABA UPL committee survey 2024)\n- LegalZoom and Trust & Will both retain licensed-attorney review steps in their estate workflows specifically to mitigate UPL exposure. (source: LegalZoom and Trust & Will product pages 2024)\n- DoNotPay paused its legal-services product in 2023 after multiple state-bar inquiries; precedent is directly relevant to AI-only estate planning. (source: WSJ 2023 coverage of DoNotPay state-bar inquiries)\n- Industry signal: E&O insurance carriers do not currently underwrite AI-only estate-planning products as of 2025, mirroring the AI-only-tax-prep market structure.",
     "mock_precedents": [
-      {"verdict": "kill", "similarity": 0.72, "idea_summary": "Consumer-direct regulated-document chatbot without credentialed human in loop", "key_comparables": ["DoNotPay", "LegalZoom"]},
-      {"verdict": "ship", "similarity": 0.58, "idea_summary": "Workpaper/intake SaaS for licensed estate-planning attorneys (tool for the credentialed pro, not a replacement)", "key_comparables": ["Trust & Will", "Clio"]}
+      {
+        "verdict": "kill",
+        "similarity": 0.72,
+        "idea_summary": "Consumer-direct regulated-document chatbot without credentialed human in loop",
+        "key_comparables": [
+          "DoNotPay",
+          "LegalZoom"
+        ]
+      },
+      {
+        "verdict": "ship",
+        "similarity": 0.58,
+        "idea_summary": "Workpaper/intake SaaS for licensed estate-planning attorneys (tool for the credentialed pro, not a replacement)",
+        "key_comparables": [
+          "Trust & Will",
+          "Clio"
+        ]
+      }
     ]
   }
 ]

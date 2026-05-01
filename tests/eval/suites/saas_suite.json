@@ -3,195 +3,488 @@
     "id": "saas-ship-stripe-webhook-replay",
     "text": "Replay-CLI for Stripe webhooks during local dev: records prod payloads to SQLite, replays into a localhost server with re-signed signatures.",
     "expected_verdict": "ship",
-    "expected_categories": ["devtools", "saas"],
+    "expected_verdict_v2": "BUILD",
+    "expected_categories": [
+      "devtools",
+      "saas"
+    ],
     "must_cite_sources": [],
     "why": "narrow dev pain, Stripe CLI doesn't cover replay-from-prod, $9/mo to focused payments-eng team",
     "rag_context": "- Stripe CLI ships `stripe listen`/`stripe trigger` but does NOT replay captured production payloads. (source: Stripe CLI docs)\n- Payments engineers (Stripe, Lithic, Increase, Paddle alumni) discuss webhook-replay-from-prod as recurring pain. (source: twit_sh @t3dotgg, @theprimeagen 2025-2026)\n- Hookdeck, Svix offer hosted webhook infra but no local-replay-with-signing CLI. (source: Hookdeck 2024 product update)\n- Industry signal: Stripe's own 2024 'integration patterns' guide flags webhook replay-from-prod as the #1 missing primitive in the local dev loop, but the docs explicitly punt to third-party tooling.",
     "mock_precedents": [
-      {"verdict": "ship", "similarity": 0.70, "idea_summary": "Local-dev primitive CLI for payments engineers replaying captured webhooks with re-signing", "key_comparables": ["Stripe CLI", "Hookdeck"]},
-      {"verdict": "kill", "similarity": 0.51, "idea_summary": "Generic AI 'webhook debugger' chatbot SaaS for non-engineers across all vendors, $39/mo", "key_comparables": ["ChatGPT", "Zapier"]}
+      {
+        "verdict": "ship",
+        "similarity": 0.7,
+        "idea_summary": "Local-dev primitive CLI for payments engineers replaying captured webhooks with re-signing",
+        "key_comparables": [
+          "Stripe CLI",
+          "Hookdeck"
+        ]
+      },
+      {
+        "verdict": "kill",
+        "similarity": 0.51,
+        "idea_summary": "Generic AI 'webhook debugger' chatbot SaaS for non-engineers across all vendors, $39/mo",
+        "key_comparables": [
+          "ChatGPT",
+          "Zapier"
+        ]
+      }
     ]
   },
   {
     "id": "saas-ship-grant-budget-nih-r01",
     "text": "Grant-budget rewriter for federal R01 NIH applications: parses PI narrative + R01 PHS-398 template, outputs a compliant budget justification DOCX.",
     "expected_verdict": "ship",
-    "expected_categories": ["saas", "regulated"],
+    "expected_verdict_v2": "BUILD",
+    "expected_categories": [
+      "saas",
+      "regulated"
+    ],
     "must_cite_sources": [],
     "why": "regulated wedge (NIH PHS-398 versioning), narrow buyer (research admins), $200/grant willingness, template moat",
-    "rag_context": "- NIH receives ~50k R01 applications per year; budget-justification rewrite takes 6-12 hrs per application. (source: NIH RePORTER 2024)\n- PHS-398 form versions update annually; current rewriters (Cayuse, InfoEd) handle CTMS workflow but not narrative→budget DOCX generation. (source: NCURA 2024 panel)\n- Research admins willingness-to-pay: $150-300/grant validated. (source: NCURA Sponsored Projects survey 2024)\n- Comparable: Cayuse and InfoEd reached >$50M ARR each on adjacent sponsored-projects workflows; the narrative-to-budget DOCX gap is the unmet step in their pipelines.",
+    "rag_context": "- NIH receives ~50k R01 applications per year; budget-justification rewrite takes 6-12 hrs per application. (source: NIH RePORTER 2024)\n- PHS-398 form versions update annually; current rewriters (Cayuse, InfoEd) handle CTMS workflow but not narrative\u2192budget DOCX generation. (source: NCURA 2024 panel)\n- Research admins willingness-to-pay: $150-300/grant validated. (source: NCURA Sponsored Projects survey 2024)\n- Comparable: Cayuse and InfoEd reached >$50M ARR each on adjacent sponsored-projects workflows; the narrative-to-budget DOCX gap is the unmet step in their pipelines.",
     "mock_precedents": [
-      {"verdict": "ship", "similarity": 0.72, "idea_summary": "Doc-class workflow tool selling adjacent to entrenched sponsored-projects CTMS vendors", "key_comparables": ["Cayuse", "InfoEd"]},
-      {"verdict": "kill", "similarity": 0.50, "idea_summary": "Generic AI grant-writer chatbot for individual academics at $19/mo", "key_comparables": ["ChatGPT", "Grammarly"]}
+      {
+        "verdict": "ship",
+        "similarity": 0.72,
+        "idea_summary": "Doc-class workflow tool selling adjacent to entrenched sponsored-projects CTMS vendors",
+        "key_comparables": [
+          "Cayuse",
+          "InfoEd"
+        ]
+      },
+      {
+        "verdict": "kill",
+        "similarity": 0.5,
+        "idea_summary": "Generic AI grant-writer chatbot for individual academics at $19/mo",
+        "key_comparables": [
+          "ChatGPT",
+          "Grammarly"
+        ]
+      }
     ]
   },
   {
     "id": "saas-ship-mcp-postgres-rls-tester",
     "text": "MCP server that fuzzes Postgres Row-Level-Security policies: Claude asks 'can role X read rows for tenant Y?' and the server proves or breaks the policy.",
     "expected_verdict": "ship",
-    "expected_categories": ["devtools", "saas"],
+    "expected_verdict_v2": "BUILD",
+    "expected_categories": [
+      "devtools",
+      "saas"
+    ],
     "must_cite_sources": [],
     "why": "narrow dev pain, multi-tenant SaaS auditor audience, MCP install is one command",
     "rag_context": "- Multi-tenant SaaS using Supabase or Postgres RLS: ~15k orgs (Supabase 2024 customer count). RLS bugs are #1 cause of cross-tenant data leaks. (source: Supabase incident retrospective 2024)\n- Postgres has no first-party RLS fuzzer; manual testing is the norm. (source: Crunchy Data DBA blog 2024)\n- twit_sh: SaaS founders (@kpman, @rauchg, @leeerob) explicitly asked for 'Claude-fuzzes-my-RLS' tool. (source: twit_sh 2025)\n- Industry signal: Supabase's own 2024 incident retrospective named RLS misconfiguration as the top recurring root cause in postmortems they reviewed across customer apps.",
     "mock_precedents": [
-      {"verdict": "ship", "similarity": 0.70, "idea_summary": "Narrow dev-test MCP server exposing Postgres-specific behavior to Claude Code", "key_comparables": ["Supabase", "Anthropic MCP"]},
-      {"verdict": "kill", "similarity": 0.51, "idea_summary": "Generic GPT chatbot that 'audits your database security' for non-engineers, $49/mo", "key_comparables": ["ChatGPT", "DoNotPay"]}
+      {
+        "verdict": "ship",
+        "similarity": 0.7,
+        "idea_summary": "Narrow dev-test MCP server exposing Postgres-specific behavior to Claude Code",
+        "key_comparables": [
+          "Supabase",
+          "Anthropic MCP"
+        ]
+      },
+      {
+        "verdict": "kill",
+        "similarity": 0.51,
+        "idea_summary": "Generic GPT chatbot that 'audits your database security' for non-engineers, $49/mo",
+        "key_comparables": [
+          "ChatGPT",
+          "DoNotPay"
+        ]
+      }
     ]
   },
   {
     "id": "saas-ship-deposition-summarizer",
     "text": "Deposition summarizer for plaintiff-side personal-injury law firms: ingests certified transcripts and produces an ABA-style key-fact index keyed to line numbers.",
     "expected_verdict": "ship",
-    "expected_categories": ["saas", "regulated"],
+    "expected_verdict_v2": "BUILD",
+    "expected_categories": [
+      "saas",
+      "regulated"
+    ],
     "must_cite_sources": [],
     "why": "narrow buyer (PI firms), regulated workflow, line-number keying is the wedge over generic summarizers",
     "rag_context": "- ~13,500 plaintiff-side PI law firms in the US (American Lawyer 2024); deposition summary is a $100-250/hr paralegal task averaging 8 hrs per transcript.\n- ABA key-fact index format requires line-number citations; generic LLM summarizers fail this format. (source: ABA litigation tech report 2024)\n- LexisNexis CaseLines and Clio handle case management but not depo-summary line-keyed output. (source: Clio product gaps 2024)\n- Comparable: EvenUp raised >$100M Series B 2024 selling AI demand-letter automation specifically into plaintiff-PI firms; validates ACV and the narrow-vertical legal-tech buyer.",
     "mock_precedents": [
-      {"verdict": "ship", "similarity": 0.71, "idea_summary": "Narrow legal-vertical workflow tool selling into plaintiff-PI firms with regulated output format", "key_comparables": ["EvenUp", "Clio"]},
-      {"verdict": "ship", "similarity": 0.62, "idea_summary": "Format-specific document-summary product where output schema is the wedge over generic LLMs", "key_comparables": ["LexisNexis", "Westlaw"]}
+      {
+        "verdict": "ship",
+        "similarity": 0.71,
+        "idea_summary": "Narrow legal-vertical workflow tool selling into plaintiff-PI firms with regulated output format",
+        "key_comparables": [
+          "EvenUp",
+          "Clio"
+        ]
+      },
+      {
+        "verdict": "ship",
+        "similarity": 0.62,
+        "idea_summary": "Format-specific document-summary product where output schema is the wedge over generic LLMs",
+        "key_comparables": [
+          "LexisNexis",
+          "Westlaw"
+        ]
+      }
     ]
   },
   {
     "id": "saas-ship-cli-feature-flag-diff",
     "text": "CLI that diffs feature-flag states across LaunchDarkly + Statsig + Unleash environments and produces a single audit report for SOC2 reviews.",
     "expected_verdict": "ship",
-    "expected_categories": ["devtools", "saas", "regulated"],
+    "expected_verdict_v2": "REFINE",
+    "expected_categories": [
+      "devtools",
+      "saas",
+      "regulated"
+    ],
     "must_cite_sources": [],
     "why": "narrow dev+compliance audience, SOC2 wedge, multi-vendor diff is the moat over any single FF tool",
     "rag_context": "- LaunchDarkly (~5k orgs), Statsig (~2k orgs), Unleash (open-source, ~8k self-hosted) often co-deployed; SOC2 auditors require single audit report. (source: SOC2 audit firms PwC/Deloitte 2024)\n- No single FF vendor exports a multi-vendor diff; Drata/Vanta partial support. (source: Drata integrations catalog 2025)\n- twit_sh: platform-eng leads (@stripe, @vercel, @supabase eng) publicly asked for 'one-tool FF diff for SOC2 prep.' (source: twit_sh 2025)\n- Comparable: Drata reached unicorn status in 2022 by automating evidence collection across heterogeneous SaaS vendors; FF-diff is an analogous evidence-collection wedge.",
     "mock_precedents": [
-      {"verdict": "ship", "similarity": 0.70, "idea_summary": "Cross-vendor evidence-collection dev tool for SOC2 audit prep", "key_comparables": ["Drata", "Vanta"]},
-      {"verdict": "ship", "similarity": 0.62, "idea_summary": "Multi-vendor diff CLI where heterogeneity is the wedge over any single FF vendor's native tooling", "key_comparables": ["LaunchDarkly", "Statsig"]}
+      {
+        "verdict": "ship",
+        "similarity": 0.7,
+        "idea_summary": "Cross-vendor evidence-collection dev tool for SOC2 audit prep",
+        "key_comparables": [
+          "Drata",
+          "Vanta"
+        ]
+      },
+      {
+        "verdict": "ship",
+        "similarity": 0.62,
+        "idea_summary": "Multi-vendor diff CLI where heterogeneity is the wedge over any single FF vendor's native tooling",
+        "key_comparables": [
+          "LaunchDarkly",
+          "Statsig"
+        ]
+      }
     ]
   },
   {
     "id": "saas-ship-vertical-hvac-permit",
     "text": "Vertical SaaS for residential HVAC contractors: auto-fills city building-permit PDFs from job estimates and submits via local-portal scrapers.",
     "expected_verdict": "ship",
-    "expected_categories": ["saas", "regulated"],
+    "expected_verdict_v2": "REFINE",
+    "expected_categories": [
+      "saas",
+      "regulated"
+    ],
     "must_cite_sources": [],
     "why": "narrow buyer (HVAC GCs), regulated workflow, per-city permit drift is the staying-current moat",
     "rag_context": "- US has ~120k residential HVAC contractors (BLS 2024); permit-paperwork is the #1 admin pain (4-8 hrs per job). (source: ACCA HVAC contractor survey 2024)\n- Each major US city has a unique permit portal with annual form drift; ServiceTitan and Housecall Pro handle dispatch but not city-specific permits. (source: ServiceTitan product gaps 2024)\n- Trade-vertical SaaS comparables: ServiceTitan ($9.5B IPO 2024), Procore ($8B). (source: TechCrunch verticalization 2024)\n- Comparable: PermitFlow raised $31M Series A 2024 for general-contractor permit automation; HVAC-specific drilldown is the analogous narrow wedge into a specific trade.",
     "mock_precedents": [
-      {"verdict": "ship", "similarity": 0.71, "idea_summary": "Vertical SaaS for skilled-trades contractors automating per-municipality permit workflow", "key_comparables": ["PermitFlow", "ServiceTitan"]},
-      {"verdict": "kill", "similarity": 0.50, "idea_summary": "Consumer-direct AI 'permit writer' chatbot for homeowners doing DIY HVAC, $19/mo", "key_comparables": ["DoNotPay", "ChatGPT"]}
+      {
+        "verdict": "ship",
+        "similarity": 0.71,
+        "idea_summary": "Vertical SaaS for skilled-trades contractors automating per-municipality permit workflow",
+        "key_comparables": [
+          "PermitFlow",
+          "ServiceTitan"
+        ]
+      },
+      {
+        "verdict": "kill",
+        "similarity": 0.5,
+        "idea_summary": "Consumer-direct AI 'permit writer' chatbot for homeowners doing DIY HVAC, $19/mo",
+        "key_comparables": [
+          "DoNotPay",
+          "ChatGPT"
+        ]
+      }
     ]
   },
   {
     "id": "saas-ship-mcp-datadog-explainer",
     "text": "MCP server that connects to Datadog APM and answers 'what changed in p99 latency for /checkout this week?' with deploy-correlated explanations.",
     "expected_verdict": "ship",
-    "expected_categories": ["devtools", "saas"],
+    "expected_verdict_v2": "BUILD",
+    "expected_categories": [
+      "devtools",
+      "saas"
+    ],
     "must_cite_sources": [],
     "why": "narrow SRE pain, Datadog audience addressable, MCP install zero-friction, deploy-correlation is the wedge",
     "rag_context": "- Datadog has ~28k customer orgs; SRE 'what changed' triage is the #1 on-call task averaging 35 min per incident. (source: Datadog State of DevOps 2024)\n- Datadog Watchdog AI surfaces anomalies but doesn't correlate to deploys conversationally. (source: Datadog product blog 2024)\n- twit_sh: SRE leads (@sebmck, @leeerob, @rakyll) asked for 'Claude-via-MCP-on-Datadog' multiple times Q4 2025. (source: twit_sh 2025-2026)\n- Comparable: Honeycomb's 'BubbleUp' deploy-correlation feature drove top-of-funnel conversion; the same correlation primitive exposed via MCP into Claude Code is the wedge over Datadog's native dashboard.",
     "mock_precedents": [
-      {"verdict": "ship", "similarity": 0.70, "idea_summary": "Narrow MCP server exposing observability vendor data to Claude Code with deploy correlation", "key_comparables": ["Datadog", "Honeycomb"]},
-      {"verdict": "kill", "similarity": 0.52, "idea_summary": "Generic 'AI on-call assistant' Slack bot for SMBs across any infra stack, $29/seat/mo", "key_comparables": ["ChatGPT", "PagerDuty"]}
+      {
+        "verdict": "ship",
+        "similarity": 0.7,
+        "idea_summary": "Narrow MCP server exposing observability vendor data to Claude Code with deploy correlation",
+        "key_comparables": [
+          "Datadog",
+          "Honeycomb"
+        ]
+      },
+      {
+        "verdict": "kill",
+        "similarity": 0.52,
+        "idea_summary": "Generic 'AI on-call assistant' Slack bot for SMBs across any infra stack, $29/seat/mo",
+        "key_comparables": [
+          "ChatGPT",
+          "PagerDuty"
+        ]
+      }
     ]
   },
   {
     "id": "saas-kill-meeting-summarizer-ai",
     "text": "Another team-meeting summarizer with AI: Zoom plugin, GPT-4 backend, $12/seat/mo, generic action-item extraction.",
     "expected_verdict": "kill",
-    "expected_categories": ["saas"],
+    "expected_verdict_v2": "KILL",
+    "expected_categories": [
+      "saas"
+    ],
     "must_cite_sources": [],
     "why": "Otter, Fireflies, Zoom AI Companion, MS Teams Premium all bundle this; commodity, no buyer pain unsolved",
-    "rag_context": "- Zoom AI Companion shipped free to all paid tiers Oct 2024; Otter, Fireflies, Fathom, MS Teams Premium, Granola all bundle this. (source: Zoom IR Q3 2024)\n- Granola raised $43M Series B for 'better UX' which sets the new bar; indie entrant has no acquisition wedge. (source: TechCrunch Granola 2024)\n- twit_sh: zero builder demand for 'another meeting summarizer' in 2025-2026.\n- Industry signal: Gartner 2025 productivity-tools roundup classifies meeting-summarization as a 'feature, not a product' — every horizontal collaboration suite has shipped a free first-party version.",
+    "rag_context": "- Zoom AI Companion shipped free to all paid tiers Oct 2024; Otter, Fireflies, Fathom, MS Teams Premium, Granola all bundle this. (source: Zoom IR Q3 2024)\n- Granola raised $43M Series B for 'better UX' which sets the new bar; indie entrant has no acquisition wedge. (source: TechCrunch Granola 2024)\n- twit_sh: zero builder demand for 'another meeting summarizer' in 2025-2026.\n- Industry signal: Gartner 2025 productivity-tools roundup classifies meeting-summarization as a 'feature, not a product' \u2014 every horizontal collaboration suite has shipped a free first-party version.",
     "mock_precedents": [
-      {"verdict": "kill", "similarity": 0.74, "idea_summary": "Generic-ICP AI meeting-summary plugin priced per seat against bundled freemium incumbents", "key_comparables": ["Otter", "Granola"]},
-      {"verdict": "kill", "similarity": 0.66, "idea_summary": "Horizontal action-item extraction SaaS competing on summary quality alone", "key_comparables": ["Fireflies", "Zoom AI Companion"]}
+      {
+        "verdict": "kill",
+        "similarity": 0.74,
+        "idea_summary": "Generic-ICP AI meeting-summary plugin priced per seat against bundled freemium incumbents",
+        "key_comparables": [
+          "Otter",
+          "Granola"
+        ]
+      },
+      {
+        "verdict": "kill",
+        "similarity": 0.66,
+        "idea_summary": "Horizontal action-item extraction SaaS competing on summary quality alone",
+        "key_comparables": [
+          "Fireflies",
+          "Zoom AI Companion"
+        ]
+      }
     ]
   },
   {
     "id": "saas-kill-ai-resume-builder",
     "text": "AI resume builder: paste your job target, get a polished PDF resume tailored to the JD, $19/mo.",
     "expected_verdict": "kill",
-    "expected_categories": ["saas"],
+    "expected_verdict_v2": "KILL",
+    "expected_categories": [
+      "saas"
+    ],
     "must_cite_sources": [],
     "why": "Teal, Rezi, Kickresume, Zety crowded; ChatGPT free; one-time-use SaaS = brutal churn",
-    "rag_context": "- Teal, Rezi, Kickresume, Zety, Resume.io saturate this segment. (source: G2 Resume Builders category 2025)\n- ChatGPT free + Claude.ai do this in 1 prompt. (source: r/jobsearch threads 2024-2025)\n- One-time-use SaaS pattern: 60-day churn median. (source: ProfitWell SaaS Benchmarks 2024)\n- Comparable: Enhancv reached ~$8M ARR before plateauing — empirical ceiling on point-tool individual-buyer resume products is well established.",
+    "rag_context": "- Teal, Rezi, Kickresume, Zety, Resume.io saturate this segment. (source: G2 Resume Builders category 2025)\n- ChatGPT free + Claude.ai do this in 1 prompt. (source: r/jobsearch threads 2024-2025)\n- One-time-use SaaS pattern: 60-day churn median. (source: ProfitWell SaaS Benchmarks 2024)\n- Comparable: Enhancv reached ~$8M ARR before plateauing \u2014 empirical ceiling on point-tool individual-buyer resume products is well established.",
     "mock_precedents": [
-      {"verdict": "kill", "similarity": 0.73, "idea_summary": "Individual-buyer one-shot career-document SaaS subscription against free LLM alternatives", "key_comparables": ["Teal", "Enhancv"]},
-      {"verdict": "ship", "similarity": 0.52, "idea_summary": "B2B resume-keyword API for ATS/recruiting platforms (sells to platforms, not job seekers)", "key_comparables": ["Greenhouse", "Lever"]}
+      {
+        "verdict": "kill",
+        "similarity": 0.73,
+        "idea_summary": "Individual-buyer one-shot career-document SaaS subscription against free LLM alternatives",
+        "key_comparables": [
+          "Teal",
+          "Enhancv"
+        ]
+      },
+      {
+        "verdict": "ship",
+        "similarity": 0.52,
+        "idea_summary": "B2B resume-keyword API for ATS/recruiting platforms (sells to platforms, not job seekers)",
+        "key_comparables": [
+          "Greenhouse",
+          "Lever"
+        ]
+      }
     ]
   },
   {
     "id": "saas-kill-gpt-email-assistant",
     "text": "GPT-powered email assistant Chrome extension that writes replies in your tone of voice, $25/mo for individuals.",
     "expected_verdict": "kill",
-    "expected_categories": ["saas"],
+    "expected_verdict_v2": "KILL",
+    "expected_categories": [
+      "saas"
+    ],
     "must_cite_sources": [],
     "why": "Superhuman AI, Gmail Smart Reply, Apple Intelligence bundling at $0 marginal; commodity wrapper",
     "rag_context": "- Gmail Smart Reply (free, 2B+ users), Superhuman AI ($30/mo bundled), Apple Intelligence (Sept 2024, free) cover this. (source: Google IR 2024, Apple Intelligence launch)\n- Microsoft Copilot for Outlook included in $20/mo M365 Business tier. (source: Microsoft 365 pricing 2024)\n- Indie individuals show no $25/mo standalone willingness; ChatGPT browser extension (free) does this. (source: Reddit r/productivity threads 2025)\n- Industry signal: every major OS/email vendor (Apple, Microsoft, Google) has shipped first-party tone-of-voice reply features in 2024-2025, eating the standalone-extension distribution surface.",
     "mock_precedents": [
-      {"verdict": "kill", "similarity": 0.73, "idea_summary": "Consumer GPT-wrapper extension competing against free OS-bundled email assistants", "key_comparables": ["Superhuman AI", "Apple Intelligence"]},
-      {"verdict": "kill", "similarity": 0.65, "idea_summary": "Individual-priced email-reply SaaS in a feature-bundled-by-incumbent category", "key_comparables": ["Gmail Smart Reply", "M365 Copilot"]}
+      {
+        "verdict": "kill",
+        "similarity": 0.73,
+        "idea_summary": "Consumer GPT-wrapper extension competing against free OS-bundled email assistants",
+        "key_comparables": [
+          "Superhuman AI",
+          "Apple Intelligence"
+        ]
+      },
+      {
+        "verdict": "kill",
+        "similarity": 0.65,
+        "idea_summary": "Individual-priced email-reply SaaS in a feature-bundled-by-incumbent category",
+        "key_comparables": [
+          "Gmail Smart Reply",
+          "M365 Copilot"
+        ]
+      }
     ]
   },
   {
     "id": "saas-kill-ai-blog-generator",
     "text": "AI blog post generator for SMB content marketing teams: enter a topic, get a 1500-word SEO-optimized post, $39/mo.",
     "expected_verdict": "kill",
-    "expected_categories": ["saas"],
+    "expected_verdict_v2": "KILL",
+    "expected_categories": [
+      "saas"
+    ],
     "must_cite_sources": [],
     "why": "Jasper, Copy.ai, ChatGPT direct; Google Helpful Content updates kill auto-generated SEO; no moat",
     "rag_context": "- Jasper (writedown 2024), Copy.ai, Writer, Anyword saturate. (source: TechCrunch Jasper 2024)\n- Google March 2024 Helpful Content update demoted ~40% of pure-AI blog posts. (source: SearchEngineLand 2024)\n- ChatGPT free does this in 1 prompt. (source: r/SEO threads 2025)\n- Industry signal: SearchEngineLand 2025 SEO survey shows >55% of marketers report measurable traffic loss from pure-AI content; product-market downside has materialized.",
     "mock_precedents": [
-      {"verdict": "kill", "similarity": 0.74, "idea_summary": "Generic SMB content-marketing LLM-wrapper SaaS in a Google-actively-demoting category", "key_comparables": ["Jasper", "Copy.ai"]},
-      {"verdict": "kill", "similarity": 0.66, "idea_summary": "Subscription SEO-blog-writer with no moat over $0 ChatGPT alternative", "key_comparables": ["Writer", "Anyword"]}
+      {
+        "verdict": "kill",
+        "similarity": 0.74,
+        "idea_summary": "Generic SMB content-marketing LLM-wrapper SaaS in a Google-actively-demoting category",
+        "key_comparables": [
+          "Jasper",
+          "Copy.ai"
+        ]
+      },
+      {
+        "verdict": "kill",
+        "similarity": 0.66,
+        "idea_summary": "Subscription SEO-blog-writer with no moat over $0 ChatGPT alternative",
+        "key_comparables": [
+          "Writer",
+          "Anyword"
+        ]
+      }
     ]
   },
   {
     "id": "saas-kill-no-code-app-builder",
     "text": "No-code app builder powered by AI: describe your app in English, get a deployed React + Postgres CRUD app, $99/mo.",
     "expected_verdict": "kill",
-    "expected_categories": ["saas"],
+    "expected_verdict_v2": "KILL",
+    "expected_categories": [
+      "saas"
+    ],
     "must_cite_sources": [],
     "why": "Bubble, Retool, Lovable, v0, Replit Agent saturated; no audience wedge; deploy-and-maintain liability",
     "rag_context": "- Bubble (~3M users), Retool, Lovable (raised $200M 2024), v0 by Vercel, Replit Agent saturate AI no-code. (source: TechCrunch AI no-code roundup 2024)\n- Deployed-and-maintained liability: SOC2/HIPAA/PCI exposure for the builder vendor; legal moat needed. (source: Stripe Atlas legal-risk briefing 2024)\n- Indie '$99/mo no-code AI' has no acquisition wedge given $0 v0/Replit Agent free tiers. (source: Reddit r/nocode 2025)\n- Industry signal: Vercel's v0 and Anthropic's Claude Artifacts both moved to free tiers in 2024-2025, compressing the standalone-paid-no-code-builder market dramatically.",
     "mock_precedents": [
-      {"verdict": "kill", "similarity": 0.73, "idea_summary": "Generic-ICP English-to-deployed-app SaaS competing against free first-party platform builders", "key_comparables": ["Bubble", "Lovable"]},
-      {"verdict": "kill", "similarity": 0.65, "idea_summary": "AI no-code app product carrying deploy-and-maintain compliance liability without legal moat", "key_comparables": ["Retool", "Replit Agent"]}
+      {
+        "verdict": "kill",
+        "similarity": 0.73,
+        "idea_summary": "Generic-ICP English-to-deployed-app SaaS competing against free first-party platform builders",
+        "key_comparables": [
+          "Bubble",
+          "Lovable"
+        ]
+      },
+      {
+        "verdict": "kill",
+        "similarity": 0.65,
+        "idea_summary": "AI no-code app product carrying deploy-and-maintain compliance liability without legal moat",
+        "key_comparables": [
+          "Retool",
+          "Replit Agent"
+        ]
+      }
     ]
   },
   {
     "id": "saas-kill-ai-customer-support",
     "text": "AI customer support chatbot for e-commerce sites: drop-in widget that answers product questions, $79/mo.",
     "expected_verdict": "kill",
-    "expected_categories": ["saas"],
+    "expected_verdict_v2": "KILL",
+    "expected_categories": [
+      "saas"
+    ],
     "must_cite_sources": [],
     "why": "Intercom Fin, Zendesk AI, Gorgias AI bundled; commodity; no acquisition wedge for indie",
     "rag_context": "- Intercom Fin, Zendesk AI, Gorgias AI, Drift, Ada all ship drop-in e-commerce support widgets. (source: G2 AI Customer Support 2025)\n- Shopify-native chatbots (Tidio, Gorgias) have $0 attach via app store. (source: Shopify App Store rankings 2025)\n- $79/mo indie has no acquisition wedge. (source: ProfitWell e-commerce SaaS 2024)\n- Industry signal: Shopify's 2024 'Magic' rollout absorbed the basic-product-Q&A use case as a free first-party feature for all merchants on the platform.",
     "mock_precedents": [
-      {"verdict": "kill", "similarity": 0.73, "idea_summary": "Generic AI support-widget SaaS competing against bundled platform-native chatbots", "key_comparables": ["Intercom Fin", "Gorgias AI"]},
-      {"verdict": "kill", "similarity": 0.65, "idea_summary": "Drop-in e-commerce Q&A chatbot in a Shopify-Magic-absorbed feature category", "key_comparables": ["Zendesk AI", "Tidio"]}
+      {
+        "verdict": "kill",
+        "similarity": 0.73,
+        "idea_summary": "Generic AI support-widget SaaS competing against bundled platform-native chatbots",
+        "key_comparables": [
+          "Intercom Fin",
+          "Gorgias AI"
+        ]
+      },
+      {
+        "verdict": "kill",
+        "similarity": 0.65,
+        "idea_summary": "Drop-in e-commerce Q&A chatbot in a Shopify-Magic-absorbed feature category",
+        "key_comparables": [
+          "Zendesk AI",
+          "Tidio"
+        ]
+      }
     ]
   },
   {
     "id": "saas-kill-team-standup-bot",
     "text": "Slack standup bot that asks each team member 3 questions every morning and posts an AI summary to a channel, $5/seat/mo.",
     "expected_verdict": "kill",
-    "expected_categories": ["saas"],
+    "expected_verdict_v2": "KILL",
+    "expected_categories": [
+      "saas"
+    ],
     "must_cite_sources": [],
     "why": "Geekbot, Standuply, Range crowded; commodity feature; no buyer pain unsolved",
     "rag_context": "- Geekbot (~3k paid teams), Standuply, Range, Polly all serve this exact use case. (source: G2 Team Standup category 2025)\n- Slack itself shipped Workflow Builder Q&A flows for free; commodity. (source: Slack changelog 2024)\n- 'AI summary of standups' is the canonical commodity feature; no buyer-segment wedge. (source: r/productivity 2025)\n- Industry signal: Slack's own AI summary product (2024 GA) bundles channel-summary and recap inside paid tiers, eating the per-seat-add-on opportunity.",
     "mock_precedents": [
-      {"verdict": "kill", "similarity": 0.73, "idea_summary": "Per-seat Slack-bot SaaS in a category absorbed by Slack's first-party AI summary feature", "key_comparables": ["Geekbot", "Standuply"]},
-      {"verdict": "kill", "similarity": 0.64, "idea_summary": "Daily-questions async-standup product with no buyer-segment wedge over commodity competitors", "key_comparables": ["Range", "Polly"]}
+      {
+        "verdict": "kill",
+        "similarity": 0.73,
+        "idea_summary": "Per-seat Slack-bot SaaS in a category absorbed by Slack's first-party AI summary feature",
+        "key_comparables": [
+          "Geekbot",
+          "Standuply"
+        ]
+      },
+      {
+        "verdict": "kill",
+        "similarity": 0.64,
+        "idea_summary": "Daily-questions async-standup product with no buyer-segment wedge over commodity competitors",
+        "key_comparables": [
+          "Range",
+          "Polly"
+        ]
+      }
     ]
   },
   {
     "id": "saas-kill-ai-social-scheduler",
     "text": "AI-powered social media scheduler that writes and queues posts across 6 networks for SMBs, $49/mo.",
     "expected_verdict": "kill",
-    "expected_categories": ["saas"],
+    "expected_verdict_v2": "KILL",
+    "expected_categories": [
+      "saas"
+    ],
     "must_cite_sources": [],
     "why": "Buffer, Hootsuite, Later, Sprout, Publer all have AI; saturated B2C-SMB; no wedge",
     "rag_context": "- Buffer (~85k paid), Hootsuite, Later, Sprout Social, Publer all bundle AI post-writing. (source: G2 Social Media Management 2025)\n- Meta + LinkedIn shipped native AI post composers in 2024 free. (source: Meta Q4 2024)\n- Indie SMB acquisition cost > $200; payback impossible at $49/mo with churn. (source: ProfitWell SMB SaaS 2024)\n- Industry signal: every major social network (Meta, LinkedIn, X, TikTok) has shipped first-party AI compose/schedule tools in 2024-2025, collapsing the cross-platform-scheduler value prop.",
     "mock_precedents": [
-      {"verdict": "kill", "similarity": 0.72, "idea_summary": "SMB cross-platform social-scheduling SaaS against 5+ entrenched incumbents and free network-native composers", "key_comparables": ["Buffer", "Hootsuite"]},
-      {"verdict": "kill", "similarity": 0.64, "idea_summary": "AI multi-network post-writer for small businesses with $200+ CAC and unmanageable payback at $49/mo", "key_comparables": ["Later", "Publer"]}
+      {
+        "verdict": "kill",
+        "similarity": 0.72,
+        "idea_summary": "SMB cross-platform social-scheduling SaaS against 5+ entrenched incumbents and free network-native composers",
+        "key_comparables": [
+          "Buffer",
+          "Hootsuite"
+        ]
+      },
+      {
+        "verdict": "kill",
+        "similarity": 0.64,
+        "idea_summary": "AI multi-network post-writer for small businesses with $200+ CAC and unmanageable payback at $49/mo",
+        "key_comparables": [
+          "Later",
+          "Publer"
+        ]
+      }
     ]
   }
 ]

@@ -73,6 +73,82 @@ class RubricScores:
 
 
 Verdict = Literal["kill", "ship", "pivot", "unknown"]
+# S12-EVAL-02 — native KILL/REFINE/BUILD taxonomy. Distinct from the legacy
+# `Verdict` Literal above (`ship/kill/pivot/unknown`) so v1 callers keep
+# their type contract while v2 callers get the new bucket set.
+VerdictV2 = Literal["KILL", "REFINE", "BUILD", "UNKNOWN"]
+
+
+# S12-EVAL-02 — extract the post-S11 `Final verdict: KILL|REFINE|BUILD` line.
+# Mirrors `gecko_core.workflows._JUDGE_VERDICT_RE` so we read the same
+# contract the renderer/MCP/journal already speak. Falls back to UNKNOWN
+# when the judge prose doesn't carry a v2 token (e.g. mock transcripts
+# pre-dating S11).
+_V2_VERDICT_RE = re.compile(r"(?im)^\s*(?:final\s+)?verdict\s*[:\-]\s*(KILL|REFINE|BUILD)\b")
+
+
+def extract_verdict_v2(judge_text: str) -> VerdictV2:
+    """Parse the judge's `Final verdict: KILL|REFINE|BUILD` line.
+
+    Returns "UNKNOWN" when no token can be inferred. Distinct from
+    `extract_verdict` because v1 collapses BUILD→ship and has no slot for
+    REFINE; v2 grading needs all three buckets distinguishable.
+
+    Fallback ladder (in order):
+      1. Post-S11 contract: `Final verdict: KILL|REFINE|BUILD` line.
+      2. Inline v2 token mention (`\\bKILL\\b` / `\\bBUILD\\b` / `\\bREFINE\\b`).
+      3. Legacy v1 bridge: parse `extract_verdict` and map SHIP→BUILD,
+         KILL→KILL, PIVOT→REFINE. This keeps the deterministic mock-mode
+         scorer meaningful for the v2 axis without forcing a regen of all
+         canned mock transcripts in `tests/eval/mocks.py`.
+    """
+    if not judge_text:
+        return "UNKNOWN"
+    match = _V2_VERDICT_RE.search(judge_text)
+    if match is not None:
+        return match.group(1).upper()  # type: ignore[return-value]
+    upper = judge_text.upper()
+    for token in ("KILL", "REFINE", "BUILD"):
+        if re.search(rf"\b{token}\b", upper):
+            return token
+    # Legacy bridge — map v1 token to its closest v2 bucket. SHIP→BUILD
+    # because the legacy v1 SHIP token maps to the new BUILD slot per the
+    # S11 verdict-surface migration; PIVOT→REFINE because PIVOT was
+    # historically the soft-kill / soft-ship bucket and REFINE inherits
+    # that role.
+    legacy = extract_verdict(judge_text)
+    if legacy == "ship":
+        return "BUILD"
+    if legacy == "kill":
+        return "KILL"
+    if legacy == "pivot":
+        return "REFINE"
+    return "UNKNOWN"
+
+
+def compute_verdict_correctness_v2(actual: str, expected: str | None) -> float:
+    """Map (actual, expected) v2 verdicts to a 0-10 correctness score.
+
+    Three-bucket scoring per `docs/diagnostics/2026-04-30-rubric-native-verdict-proposal.md`:
+      - exact match → 10.0
+      - {KILL, REFINE} near-match → 5.0 (right intuition, softer framing)
+      - {BUILD, REFINE} near-match → 5.0 (right intuition, harder framing)
+      - {KILL, BUILD} mismatch → 0.0 (full disagreement)
+      - UNKNOWN → 0.0
+      - expected=None → 5.0 (neutral)
+    """
+    if expected is None:
+        return 5.0
+    a = actual.strip().upper()
+    e = expected.strip().upper()
+    if a == e:
+        return 10.0
+    if a == "UNKNOWN":
+        return 0.0
+    pair = {a, e}
+    if pair == {"KILL", "REFINE"} or pair == {"BUILD", "REFINE"}:
+        return 5.0
+    return 0.0
 
 
 def compute_verdict_correctness(actual: str, expected: str | None) -> float:
@@ -227,6 +303,7 @@ def score_transcript_mock(
     cohort_median_tokens: float,
     *,
     expected_verdict: str | None = None,
+    expected_verdict_v2: str | None = None,
 ) -> RubricScores:
     """Deterministic mock scorer — no LLM, no network.
 
@@ -234,15 +311,25 @@ def score_transcript_mock(
     `tests/eval/test_rubric.py` keep their two-arg call signature. When
     omitted, `verdict_correctness` is the neutral 5.0; the runner always
     passes the suite's expected_verdict.
+
+    S12-EVAL-02 — when `expected_verdict_v2` is set, the verdict_correctness
+    axis grades against the native KILL/REFINE/BUILD taxonomy. Otherwise it
+    falls back to the legacy ship/kill/pivot path. The runner threads v2
+    through whenever a fixture has the new field populated.
     """
     judge_text = transcript.get("judge", {"text": ""})["text"]
-    actual = extract_verdict(judge_text)
+    if expected_verdict_v2 is not None:
+        actual_v2 = extract_verdict_v2(judge_text)
+        correctness = compute_verdict_correctness_v2(actual_v2, expected_verdict_v2)
+    else:
+        actual = extract_verdict(judge_text)
+        correctness = compute_verdict_correctness(actual, expected_verdict)
     return RubricScores(
         agent_voice=_score_agent_voice(transcript),
         source_grounding=_score_source_grounding(transcript),
         verdict_justification=_score_verdict_justification(transcript),
         cost_predictability=_score_cost_predictability(transcript, cohort_median_tokens),
-        verdict_correctness=compute_verdict_correctness(actual, expected_verdict),
+        verdict_correctness=correctness,
     )
 
 
@@ -305,6 +392,7 @@ def score_transcript_live(
     transcript: MockTranscript,
     *,
     expected_verdict: str | None = None,
+    expected_verdict_v2: str | None = None,
 ) -> RubricScores:
     """Call Claude Sonnet 4.6 as the judge. Requires ANTHROPIC_API_KEY.
 
@@ -359,11 +447,18 @@ def score_transcript_live(
     data = tool_use.input
     if not isinstance(data, dict):
         raise RuntimeError(f"Anthropic judge tool input is not a dict: {type(data).__name__}")
-    actual = extract_verdict(transcript.get("judge", {"text": ""})["text"])
+    judge_text = transcript.get("judge", {"text": ""})["text"]
+    # S12-EVAL-02 — v2 grading takes precedence when the fixture supplies it.
+    if expected_verdict_v2 is not None:
+        actual_v2 = extract_verdict_v2(judge_text)
+        correctness = compute_verdict_correctness_v2(actual_v2, expected_verdict_v2)
+    else:
+        actual = extract_verdict(judge_text)
+        correctness = compute_verdict_correctness(actual, expected_verdict)
     return RubricScores(
         agent_voice=float(data.get("agent_voice", 0.0)),
         source_grounding=float(data.get("source_grounding", 0.0)),
         verdict_justification=float(data.get("verdict_justification", 0.0)),
         cost_predictability=float(data.get("cost_predictability", 0.0)),
-        verdict_correctness=compute_verdict_correctness(actual, expected_verdict),
+        verdict_correctness=correctness,
     )

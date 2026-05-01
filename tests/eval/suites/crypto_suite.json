@@ -3,195 +3,505 @@
     "id": "crypto-ship-mcp-validator-monitor",
     "text": "MCP server for monitoring Solana validator commission changes, with Claude Code alerts when stake-weighted commission shifts >2% in 24h.",
     "expected_verdict": "ship",
-    "expected_categories": ["crypto", "devtools"],
-    "must_cite_sources": ["x_signal"],
+    "expected_verdict_v2": "BUILD",
+    "expected_categories": [
+      "crypto",
+      "devtools"
+    ],
+    "must_cite_sources": [
+      "x_signal"
+    ],
     "why": "narrow operator pain (delegators, stake pools), MCP install zero-friction, on-chain data is free via RPC",
     "rag_context": "- Solana has ~1,800 active validators with ~$80B SOL staked; commission changes directly impact LP yields and trigger delegation moves. (source: Solana Beach validator stats Q4 2025)\n- Helius DAS + Solana RPC expose validator commission deltas for free. (source: Helius docs 2025)\n- twit_sh: stake-pool ops at Marinade, Jito, Edgevana publicly described 'always-on commission watcher' as missing tool. (source: twit_sh @felix, @jito_labs 2025)\n- Comparable: Stakewiz (independent validator dashboard) reached steady weekly active operator usage despite no monetization, demonstrating real demand for commission/health tracking that has not been productized as an agent surface.",
     "mock_precedents": [
-      {"verdict": "ship", "similarity": 0.72, "idea_summary": "Narrow operator-tooling MCP server exposing on-chain validator state to Claude Code", "key_comparables": ["Helius", "Anthropic MCP"]},
-      {"verdict": "kill", "similarity": 0.51, "idea_summary": "Retail-facing 'validator score' Chrome extension for SOL stakers, $9/mo subscription", "key_comparables": ["GoPlus", "Phantom"]}
+      {
+        "verdict": "ship",
+        "similarity": 0.72,
+        "idea_summary": "Narrow operator-tooling MCP server exposing on-chain validator state to Claude Code",
+        "key_comparables": [
+          "Helius",
+          "Anthropic MCP"
+        ]
+      },
+      {
+        "verdict": "kill",
+        "similarity": 0.51,
+        "idea_summary": "Retail-facing 'validator score' Chrome extension for SOL stakers, $9/mo subscription",
+        "key_comparables": [
+          "GoPlus",
+          "Phantom"
+        ]
+      }
     ]
   },
   {
     "id": "crypto-ship-cap-table-echo",
     "text": "Cap-table diff CLI for SAFE-funded startups raising on Echo: parses term sheets and produces dilution + on-chain settlement preview for the lead.",
     "expected_verdict": "ship",
-    "expected_categories": ["crypto", "regulated", "devtools"],
-    "must_cite_sources": ["colosseum"],
+    "expected_verdict_v2": "REFINE",
+    "expected_categories": [
+      "crypto",
+      "regulated",
+      "devtools"
+    ],
+    "must_cite_sources": [
+      "colosseum"
+    ],
     "why": "Echo is new, narrow doc class, regulated wedge (Reg D), founder+lead audience addressable",
     "rag_context": "- Echo (Solana-native fundraising platform, launched 2025) is processing ~$120M of crypto-native SAFE-equivalents per quarter. (source: Echo investor update Q4 2025)\n- Reg D 506(c) verification on chain is the active regulatory boundary; lead investors run ad-hoc spreadsheet diffs today. (source: Cooley GO crypto-fundraising guide 2025)\n- twit_sh: @balajis, @cdixon, multiple Echo leads asked for an on-chain SAFE-diff tool publicly. (source: twit_sh 2025)\n- colosseum: 2 Solana hackathon finalists in 2025 worked in this space, validating the wedge through builder selection.",
     "mock_precedents": [
-      {"verdict": "ship", "similarity": 0.70, "idea_summary": "Narrow doc-class CLI for crypto-native fundraising leads with on-chain wedge", "key_comparables": ["Echo", "Pulley"]},
-      {"verdict": "kill", "similarity": 0.55, "idea_summary": "Generic on-chain cap-table SaaS for retail crypto investors with no Reg D wedge", "key_comparables": ["AngelList", "Coinbase"]}
+      {
+        "verdict": "ship",
+        "similarity": 0.7,
+        "idea_summary": "Narrow doc-class CLI for crypto-native fundraising leads with on-chain wedge",
+        "key_comparables": [
+          "Echo",
+          "Pulley"
+        ]
+      },
+      {
+        "verdict": "kill",
+        "similarity": 0.55,
+        "idea_summary": "Generic on-chain cap-table SaaS for retail crypto investors with no Reg D wedge",
+        "key_comparables": [
+          "AngelList",
+          "Coinbase"
+        ]
+      }
     ]
   },
   {
     "id": "crypto-ship-defi-safe-harbor-checker",
     "text": "Compliance checker that maps a DeFi protocol's smart-contract surface against the SEC DeFi Safe Harbor 2.0 carve-outs and emits a human-readable report.",
     "expected_verdict": "ship",
-    "expected_categories": ["crypto", "defi", "regulated"],
+    "expected_verdict_v2": "BUILD",
+    "expected_categories": [
+      "crypto",
+      "defi",
+      "regulated"
+    ],
     "must_cite_sources": [],
     "why": "regulated wedge, narrow buyer (protocol legal), defensible against generic LLM via curated rule corpus",
-    "rag_context": "- SEC DeFi Safe Harbor 2.0 (Peirce proposal, expanded 2024) defines 11 carve-outs that protocols must self-attest to. (source: SEC.gov Peirce statement 2024)\n- ~340 active DeFi protocols with TVL >$10M; legal counsel charges $40-80k for manual Safe Harbor mapping. (source: DeFiLlama TVL Q4 2025)\n- Cooley, Latham, Fenwick crypto teams publicly discussed need for 'mechanical Safe Harbor checker.' (source: Cooley crypto blog 2025)\n- Comparable: Chainalysis Reactor and TRM Labs reached 9-figure ARR by productizing curated regulatory rule corpora over on-chain data — Safe Harbor checking is an analogous compliance-tool wedge for protocol-side legal teams.",
+    "rag_context": "- SEC DeFi Safe Harbor 2.0 (Peirce proposal, expanded 2024) defines 11 carve-outs that protocols must self-attest to. (source: SEC.gov Peirce statement 2024)\n- ~340 active DeFi protocols with TVL >$10M; legal counsel charges $40-80k for manual Safe Harbor mapping. (source: DeFiLlama TVL Q4 2025)\n- Cooley, Latham, Fenwick crypto teams publicly discussed need for 'mechanical Safe Harbor checker.' (source: Cooley crypto blog 2025)\n- Comparable: Chainalysis Reactor and TRM Labs reached 9-figure ARR by productizing curated regulatory rule corpora over on-chain data \u2014 Safe Harbor checking is an analogous compliance-tool wedge for protocol-side legal teams.",
     "mock_precedents": [
-      {"verdict": "ship", "similarity": 0.71, "idea_summary": "Curated-rules compliance reporting tool for DeFi protocol legal teams", "key_comparables": ["Chainalysis", "TRM Labs"]},
-      {"verdict": "kill", "similarity": 0.53, "idea_summary": "Consumer 'is this DeFi protocol legal?' subscription extension, $9/mo retail", "key_comparables": ["GoPlus", "ChatGPT"]}
+      {
+        "verdict": "ship",
+        "similarity": 0.71,
+        "idea_summary": "Curated-rules compliance reporting tool for DeFi protocol legal teams",
+        "key_comparables": [
+          "Chainalysis",
+          "TRM Labs"
+        ]
+      },
+      {
+        "verdict": "kill",
+        "similarity": 0.53,
+        "idea_summary": "Consumer 'is this DeFi protocol legal?' subscription extension, $9/mo retail",
+        "key_comparables": [
+          "GoPlus",
+          "ChatGPT"
+        ]
+      }
     ]
   },
   {
     "id": "crypto-ship-x402-receipts",
     "text": "x402 settlement receipts CLI: subscribes to a merchant wallet, parses incoming x402 payments on Solana, emits Stripe-shaped JSON for accountants.",
     "expected_verdict": "ship",
-    "expected_categories": ["crypto", "devtools"],
-    "must_cite_sources": ["x_signal"],
+    "expected_verdict_v2": "REFINE",
+    "expected_categories": [
+      "crypto",
+      "devtools"
+    ],
+    "must_cite_sources": [
+      "x_signal"
+    ],
     "why": "agent-payments is new, accountant-tooling pain is real, narrow integration target (x402 spec)",
     "rag_context": "- x402 (Coinbase/Anthropic spec, 2024) is the dominant agent-payments standard; Q1 2026 estimated >$8M monthly volume on Solana. (source: x402.org spec + Solana on-chain data)\n- Merchants accepting x402 today export raw on-chain logs; accountants reject these (no Stripe-shaped 1099-K mapping). (source: Crypto Tax Calculator product team 2025)\n- twit_sh: builders using x402 for agent-revenue posted 'we need a Stripe-shaped receipt CLI' 6+ times Q1 2026. (source: twit_sh 2026)\n- Industry signal: IRS Form 1099-K reporting thresholds explicitly require structured per-transaction records; merchants without a Stripe-shaped export hit a compliance wall at year-end.",
     "mock_precedents": [
-      {"verdict": "ship", "similarity": 0.71, "idea_summary": "Accounting-export dev tool wrapping a new payments spec with structured output", "key_comparables": ["Stripe", "x402"]},
-      {"verdict": "kill", "similarity": 0.52, "idea_summary": "Retail crypto tax-filing chatbot for individuals with no CPA in the loop, $19/mo", "key_comparables": ["TurboTax", "Koinly"]}
+      {
+        "verdict": "ship",
+        "similarity": 0.71,
+        "idea_summary": "Accounting-export dev tool wrapping a new payments spec with structured output",
+        "key_comparables": [
+          "Stripe",
+          "x402"
+        ]
+      },
+      {
+        "verdict": "kill",
+        "similarity": 0.52,
+        "idea_summary": "Retail crypto tax-filing chatbot for individuals with no CPA in the loop, $19/mo",
+        "key_comparables": [
+          "TurboTax",
+          "Koinly"
+        ]
+      }
     ]
   },
   {
     "id": "crypto-ship-helius-das-typed",
     "text": "Typed Python SDK over Helius DAS: codegen Pydantic models from Solana token metadata, expose typed cNFT queries to Claude Code via MCP.",
     "expected_verdict": "ship",
-    "expected_categories": ["crypto", "devtools"],
-    "must_cite_sources": ["x_signal"],
+    "expected_verdict_v2": "BUILD",
+    "expected_categories": [
+      "crypto",
+      "devtools"
+    ],
+    "must_cite_sources": [
+      "x_signal"
+    ],
     "why": "agentic infra, narrow dev audience already on Helius, typed schema is the moat over raw JSON",
     "rag_context": "- Helius DAS API serves ~12B requests/month from ~3,200 dev orgs; current SDK is untyped JSON. (source: Helius investor update Q4 2025)\n- Pydantic v2 + LLM-tool-use need typed schemas; raw DAS responses break Claude Code tool calls. (source: Anthropic MCP best-practices 2025)\n- twit_sh: Solana Python devs (~800 named handles) consistently asked for 'typed Helius SDK + MCP' in 2025-2026. (source: twit_sh @0xMert_, @aeyakovenko mentions)\n- Industry signal: OpenAPI-to-Pydantic codegen patterns are an established Python ecosystem norm; the Solana data-provider ecosystem is the laggard with untyped JSON SDKs.",
     "mock_precedents": [
-      {"verdict": "ship", "similarity": 0.70, "idea_summary": "Typed Python SDK + MCP wrapper for an entrenched untyped data-provider API", "key_comparables": ["Helius", "Pydantic"]},
-      {"verdict": "ship", "similarity": 0.61, "idea_summary": "Narrow agentic-infra primitive for Solana Python developers using Claude Code", "key_comparables": ["Anthropic MCP", "Solana Web3"]}
+      {
+        "verdict": "ship",
+        "similarity": 0.7,
+        "idea_summary": "Typed Python SDK + MCP wrapper for an entrenched untyped data-provider API",
+        "key_comparables": [
+          "Helius",
+          "Pydantic"
+        ]
+      },
+      {
+        "verdict": "ship",
+        "similarity": 0.61,
+        "idea_summary": "Narrow agentic-infra primitive for Solana Python developers using Claude Code",
+        "key_comparables": [
+          "Anthropic MCP",
+          "Solana Web3"
+        ]
+      }
     ]
   },
   {
     "id": "crypto-ship-validator-slashing-postmortem",
     "text": "Slashing-postmortem generator for Solana SOL stake pool operators: ingests on-chain slash events and a validator's logs, produces an LP-facing PDF.",
     "expected_verdict": "ship",
-    "expected_categories": ["crypto", "regulated"],
-    "must_cite_sources": ["x_signal"],
+    "expected_verdict_v2": "BUILD",
+    "expected_categories": [
+      "crypto",
+      "regulated"
+    ],
+    "must_cite_sources": [
+      "x_signal"
+    ],
     "why": "narrow buyer (pool operators), regulated-LP pain real, structured on-chain inputs",
-    "rag_context": "- Solana introduced selective slashing for stake pool operators in 2024; ~14 slash events in 2025 each requiring LP communication. (source: Solana Foundation governance updates 2024-2025)\n- Pool operators (Marinade, Jito, Edgevana, Sanctum) currently send hand-written postmortems; LPs expect SLA-bound disclosures. (source: Marinade DAO post-mortem template 2025)\n- twit_sh: stake-pool ops asked for 'auto-postmortem generator' after each 2025 slash event. (source: twit_sh @cogentcrypto, @jito_labs 2025)\n- Comparable: PagerDuty and Statuspage built durable companies around structured incident-disclosure artifacts for SaaS — the LP-facing slashing postmortem is the same shape for stake pools.",
+    "rag_context": "- Solana introduced selective slashing for stake pool operators in 2024; ~14 slash events in 2025 each requiring LP communication. (source: Solana Foundation governance updates 2024-2025)\n- Pool operators (Marinade, Jito, Edgevana, Sanctum) currently send hand-written postmortems; LPs expect SLA-bound disclosures. (source: Marinade DAO post-mortem template 2025)\n- twit_sh: stake-pool ops asked for 'auto-postmortem generator' after each 2025 slash event. (source: twit_sh @cogentcrypto, @jito_labs 2025)\n- Comparable: PagerDuty and Statuspage built durable companies around structured incident-disclosure artifacts for SaaS \u2014 the LP-facing slashing postmortem is the same shape for stake pools.",
     "mock_precedents": [
-      {"verdict": "ship", "similarity": 0.70, "idea_summary": "Structured incident-disclosure artifact generator for a regulated operator buyer", "key_comparables": ["Statuspage", "PagerDuty"]},
-      {"verdict": "ship", "similarity": 0.61, "idea_summary": "Narrow tooling for Solana stake-pool operators with LP-disclosure obligation", "key_comparables": ["Marinade", "Sanctum"]}
+      {
+        "verdict": "ship",
+        "similarity": 0.7,
+        "idea_summary": "Structured incident-disclosure artifact generator for a regulated operator buyer",
+        "key_comparables": [
+          "Statuspage",
+          "PagerDuty"
+        ]
+      },
+      {
+        "verdict": "ship",
+        "similarity": 0.61,
+        "idea_summary": "Narrow tooling for Solana stake-pool operators with LP-disclosure obligation",
+        "key_comparables": [
+          "Marinade",
+          "Sanctum"
+        ]
+      }
     ]
   },
   {
     "id": "crypto-ship-defi-vault-rebalance",
     "text": "Rebalance-as-a-CLI for Solana DeFi LPs: detects out-of-band drift across Kamino + Drift positions and proposes a single signed multi-leg tx.",
     "expected_verdict": "ship",
-    "expected_categories": ["crypto", "defi", "devtools"],
-    "must_cite_sources": ["x_signal"],
+    "expected_verdict_v2": "BUILD",
+    "expected_categories": [
+      "crypto",
+      "defi",
+      "devtools"
+    ],
+    "must_cite_sources": [
+      "x_signal"
+    ],
     "why": "narrow LP audience, clear wedge over existing UI flows (atomic multi-leg), x402-friendly metering",
     "rag_context": "- Kamino TVL ~$1.6B, Drift ~$700M; cross-protocol rebalance is the #1 LP power-user complaint (manual UI hops, slippage). (source: DeFiLlama Solana DeFi 2026, Kamino/Drift Discord)\n- Solana's atomic multi-instruction tx model is a wedge over Ethereum-style sequential rebalance bots. (source: Solana Cookbook 2025)\n- twit_sh: prosumer LPs publicly asked for 'one-tx Kamino+Drift rebalance' multiple times. (source: twit_sh @Chrisshrimp, @DeFiKid 2025-2026)\n- Comparable: Jupiter aggregator demonstrated that atomic Solana multi-leg routing is a defensible wedge with sticky power-user adoption.",
     "mock_precedents": [
-      {"verdict": "ship", "similarity": 0.70, "idea_summary": "Atomic multi-leg routing CLI exploiting Solana's tx model for power-user LPs", "key_comparables": ["Jupiter", "Kamino"]},
-      {"verdict": "kill", "similarity": 0.54, "idea_summary": "Retail-facing yield rotator app on Ethereum mainnet with monthly subscription", "key_comparables": ["Yearn", "Beefy"]}
+      {
+        "verdict": "ship",
+        "similarity": 0.7,
+        "idea_summary": "Atomic multi-leg routing CLI exploiting Solana's tx model for power-user LPs",
+        "key_comparables": [
+          "Jupiter",
+          "Kamino"
+        ]
+      },
+      {
+        "verdict": "kill",
+        "similarity": 0.54,
+        "idea_summary": "Retail-facing yield rotator app on Ethereum mainnet with monthly subscription",
+        "key_comparables": [
+          "Yearn",
+          "Beefy"
+        ]
+      }
     ]
   },
   {
     "id": "crypto-kill-eth-dex-aggregator",
     "text": "Yet another DEX aggregator on Ethereum, with our own routing algorithm and a 5bp fee.",
     "expected_verdict": "kill",
-    "expected_categories": ["crypto", "defi"],
+    "expected_verdict_v2": "KILL",
+    "expected_categories": [
+      "crypto",
+      "defi"
+    ],
     "must_cite_sources": [],
     "why": "saturated (1inch, Matcha, CoWSwap, ParaSwap, Odos), no routing wedge, MEV-constrained margins",
     "rag_context": "- 1inch ($1.2B aggregate volume/day Q4 2025), Matcha (0x), CoWSwap, ParaSwap, Odos saturate Ethereum aggregation. (source: DefiLlama DEX Aggregators 2025)\n- Aggregator margins compressed to <2bp net of MEV builder fees post-PBS. (source: Frontier Research MEV Q3 2025)\n- twit_sh: zero builder demand for new ETH aggregator in 2025-2026. (source: twit_sh keyword scan)\n- Industry signal: Frontier Research and Flashbots reports both show ETH-mainnet routing economics consolidating around CoW-style auctions, leaving no margin for a 5bp-fee entrant.",
     "mock_precedents": [
-      {"verdict": "kill", "similarity": 0.74, "idea_summary": "New ETH-mainnet DEX router with proprietary algorithm and explicit fee", "key_comparables": ["1inch", "CoWSwap"]},
-      {"verdict": "kill", "similarity": 0.66, "idea_summary": "Aggregation product launching into a market with sub-2bp margins and 4+ entrenched incumbents", "key_comparables": ["Matcha", "Odos"]}
+      {
+        "verdict": "kill",
+        "similarity": 0.74,
+        "idea_summary": "New ETH-mainnet DEX router with proprietary algorithm and explicit fee",
+        "key_comparables": [
+          "1inch",
+          "CoWSwap"
+        ]
+      },
+      {
+        "verdict": "kill",
+        "similarity": 0.66,
+        "idea_summary": "Aggregation product launching into a market with sub-2bp margins and 4+ entrenched incumbents",
+        "key_comparables": [
+          "Matcha",
+          "Odos"
+        ]
+      }
     ]
   },
   {
     "id": "crypto-kill-nft-smb-loyalty",
     "text": "AI-powered NFT generator for SMB loyalty programs: small businesses mint cNFTs as punch cards.",
     "expected_verdict": "kill",
-    "expected_categories": ["crypto"],
+    "expected_verdict_v2": "KILL",
+    "expected_categories": [
+      "crypto"
+    ],
     "must_cite_sources": [],
     "why": "wallet UX hostile to SMB customers, no merchant pain solved, prior NFT-loyalty graveyard (Starbucks Odyssey killed)",
     "rag_context": "- Starbucks Odyssey shut down March 2024; Reddit r/coffee 'NFT punch card' threads averaged -5 net votes. (source: Decrypt 2024-03-14)\n- Square Loyalty + Toast Rewards installed at >300k SMBs; zero churn drivers favor NFT alternative. (source: Square 10-K 2024)\n- 73% wallet-creation drop-off at coffee-shop POS (Solana Mobile retail UX study 2024).\n- Industry signal: Blackbird (a16z-backed restaurant loyalty on Solana, 2023 launch) repeatedly walked back consumer-wallet requirements over 2024-2025, showing even well-funded teams struggle with the SMB-end-customer onboarding problem.",
     "mock_precedents": [
-      {"verdict": "kill", "similarity": 0.71, "idea_summary": "On-chain SMB loyalty product requiring end-customer wallet creation at POS", "key_comparables": ["Starbucks Odyssey", "Blackbird"]},
-      {"verdict": "kill", "similarity": 0.63, "idea_summary": "cNFT-based punch-card SaaS competing against free incumbent POS-bundled loyalty", "key_comparables": ["Square Loyalty", "Toast"]}
+      {
+        "verdict": "kill",
+        "similarity": 0.71,
+        "idea_summary": "On-chain SMB loyalty product requiring end-customer wallet creation at POS",
+        "key_comparables": [
+          "Starbucks Odyssey",
+          "Blackbird"
+        ]
+      },
+      {
+        "verdict": "kill",
+        "similarity": 0.63,
+        "idea_summary": "cNFT-based punch-card SaaS competing against free incumbent POS-bundled loyalty",
+        "key_comparables": [
+          "Square Loyalty",
+          "Toast"
+        ]
+      }
     ]
   },
   {
     "id": "crypto-kill-l1-social",
     "text": "Decentralized LinkedIn on a brand-new L1 chain, post-to-earn token model with anti-sybil via Worldcoin verify.",
     "expected_verdict": "kill",
-    "expected_categories": ["crypto"],
+    "expected_verdict_v2": "KILL",
+    "expected_categories": [
+      "crypto"
+    ],
     "must_cite_sources": [],
     "why": "Lens, Farcaster, Bluesky exist; new-L1 is irrelevant to user; post-to-earn is a known anti-pattern",
     "rag_context": "- Farcaster (~600k DAU, 2026), Lens (~250k DAU), Bluesky (~5M MAU) lock the decentralized social graph. (source: a16z crypto consumer 2026)\n- Steemit (2017), Friend.tech (peaked 2023-08, collapsed 2024), BitClout (2021): every post-to-earn social died. (source: Messari graveyard report 2024)\n- New-L1 add-on is invisible to consumers; chain-choice gating kills onboarding. (source: Variant Fund consumer-crypto study 2025)\n- Industry signal: Worldcoin's own product roadmap pivoted away from app-developer integrations toward identity-as-a-service after sybil-resistant social experiments produced no durable engagement gains.",
     "mock_precedents": [
-      {"verdict": "kill", "similarity": 0.73, "idea_summary": "Token-rewarded professional social network on a novel chain with sybil verification", "key_comparables": ["Steemit", "Friend.tech"]},
-      {"verdict": "kill", "similarity": 0.65, "idea_summary": "Consumer social product whose chain choice creates onboarding friction without user benefit", "key_comparables": ["Lens", "Farcaster"]}
+      {
+        "verdict": "kill",
+        "similarity": 0.73,
+        "idea_summary": "Token-rewarded professional social network on a novel chain with sybil verification",
+        "key_comparables": [
+          "Steemit",
+          "Friend.tech"
+        ]
+      },
+      {
+        "verdict": "kill",
+        "similarity": 0.65,
+        "idea_summary": "Consumer social product whose chain choice creates onboarding friction without user benefit",
+        "key_comparables": [
+          "Lens",
+          "Farcaster"
+        ]
+      }
     ]
   },
   {
     "id": "crypto-kill-gpt-trading-bot",
     "text": "GPT-4 powered Solana memecoin trading bot, $99/mo subscription, no track record.",
     "expected_verdict": "kill",
-    "expected_categories": ["crypto", "defi"],
+    "expected_verdict_v2": "KILL",
+    "expected_categories": [
+      "crypto",
+      "defi"
+    ],
     "must_cite_sources": [],
     "why": "no edge, regulatory exposure (investment advice), $99/mo can't survive vs $0 Telegram bots",
-    "rag_context": "- BonkBot, Trojan, BananaGun (free or 1% per trade) dominate Solana memecoin trading; $99/mo subscription model has zero attach. (source: Dune dashboard 'Solana memecoin bots' 2025)\n- SEC and CFTC: GPT-style 'auto-trade your funds' triggers Investment Advisers Act §202 unless registered. (source: SEC.gov staff alert 2024-09)\n- Memecoin alpha is fully reflexive; no LLM-derivable edge per academic studies. (source: NBER working paper 'LLM trading edge' 2024)\n- Industry signal: SEC enforcement action against AI-themed retail trading products (April 2024 Delphia/Global Predictions settlements) covers exactly this 'AI Adviser' positioning.",
+    "rag_context": "- BonkBot, Trojan, BananaGun (free or 1% per trade) dominate Solana memecoin trading; $99/mo subscription model has zero attach. (source: Dune dashboard 'Solana memecoin bots' 2025)\n- SEC and CFTC: GPT-style 'auto-trade your funds' triggers Investment Advisers Act \u00a7202 unless registered. (source: SEC.gov staff alert 2024-09)\n- Memecoin alpha is fully reflexive; no LLM-derivable edge per academic studies. (source: NBER working paper 'LLM trading edge' 2024)\n- Industry signal: SEC enforcement action against AI-themed retail trading products (April 2024 Delphia/Global Predictions settlements) covers exactly this 'AI Adviser' positioning.",
     "mock_precedents": [
-      {"verdict": "kill", "similarity": 0.72, "idea_summary": "Retail trading-bot subscription on Solana memecoins with no track record", "key_comparables": ["BonkBot", "Trojan"]},
-      {"verdict": "kill", "similarity": 0.65, "idea_summary": "Subscription AI 'adviser' product priced against free Telegram-bot alternatives", "key_comparables": ["BananaGun", "TipBot"]}
+      {
+        "verdict": "kill",
+        "similarity": 0.72,
+        "idea_summary": "Retail trading-bot subscription on Solana memecoins with no track record",
+        "key_comparables": [
+          "BonkBot",
+          "Trojan"
+        ]
+      },
+      {
+        "verdict": "kill",
+        "similarity": 0.65,
+        "idea_summary": "Subscription AI 'adviser' product priced against free Telegram-bot alternatives",
+        "key_comparables": [
+          "BananaGun",
+          "TipBot"
+        ]
+      }
     ]
   },
   {
     "id": "crypto-kill-gpt-tokenomics",
     "text": "AI tokenomics designer: feeds in your project description and outputs a whitepaper plus token distribution chart, $49 one-time.",
     "expected_verdict": "kill",
-    "expected_categories": ["crypto"],
+    "expected_verdict_v2": "KILL",
+    "expected_categories": [
+      "crypto"
+    ],
     "must_cite_sources": [],
     "why": "GPT-wrapper, one-time-use SaaS, target buyer is shrinking with token-issuance fatigue",
     "rag_context": "- New token launches per month 2025: down 64% YoY (CoinGecko listings 2025); tokenomics designers are a shrinking buyer pool. (source: CoinGecko data 2025)\n- ChatGPT free + Claude.ai produce equivalent whitepapers; no moat. (source: r/cryptocurrency 'AI whitepaper' threads 2025)\n- One-time $49 SaaS = brutal LTV/CAC. (source: ProfitWell SaaS Benchmarks 2024)\n- Industry signal: Variant Fund's 2025 'consumer crypto thesis' and a16z's 2026 outlook both explicitly de-emphasize new-token launches as a viable distribution wedge.",
     "mock_precedents": [
-      {"verdict": "kill", "similarity": 0.72, "idea_summary": "One-time-purchase LLM-wrapper for crypto launch artifacts in a shrinking buyer market", "key_comparables": ["ChatGPT", "TokenTool"]},
-      {"verdict": "kill", "similarity": 0.64, "idea_summary": "Generic AI whitepaper-and-chart generator targeting token-issuing teams", "key_comparables": ["Claude.ai", "Coinbase"]}
+      {
+        "verdict": "kill",
+        "similarity": 0.72,
+        "idea_summary": "One-time-purchase LLM-wrapper for crypto launch artifacts in a shrinking buyer market",
+        "key_comparables": [
+          "ChatGPT",
+          "TokenTool"
+        ]
+      },
+      {
+        "verdict": "kill",
+        "similarity": 0.64,
+        "idea_summary": "Generic AI whitepaper-and-chart generator targeting token-issuing teams",
+        "key_comparables": [
+          "Claude.ai",
+          "Coinbase"
+        ]
+      }
     ]
   },
   {
     "id": "crypto-kill-uber-gpu",
     "text": "Uber for spare GPUs: laptop owners rent idle 4090s to AI training jobs, settled in our new ERC-20 token.",
     "expected_verdict": "kill",
-    "expected_categories": ["crypto"],
+    "expected_verdict_v2": "KILL",
+    "expected_categories": [
+      "crypto"
+    ],
     "must_cite_sources": [],
     "why": "Akash, io.net, Render saturated; consumer-GPU-as-supply latency unviable for training; token adds friction not value",
     "rag_context": "- Akash, io.net, Render, Aethir saturate decentralized-GPU; combined ~400k GPUs marketed. (source: Messari decentralized compute Q4 2025)\n- Consumer 4090s lack NVLink/InfiniBand; training jobs require <2us inter-GPU latency that home networks can't deliver. (source: NVIDIA H100 vs RTX whitepaper 2024)\n- New ERC-20 settlement adds friction over existing USDC rails. (source: Variant Fund crypto-payments 2025)\n- Industry signal: io.net's own 2024 retro acknowledged that consumer-GPU supply is mostly used for inference (not training) due to interconnect limits, contradicting the originally pitched training use case.",
     "mock_precedents": [
-      {"verdict": "kill", "similarity": 0.73, "idea_summary": "Consumer-GPU marketplace settled in a project-specific token rather than USDC", "key_comparables": ["Akash", "Render"]},
-      {"verdict": "kill", "similarity": 0.65, "idea_summary": "Decentralized-compute network targeting training workloads on residential connectivity", "key_comparables": ["io.net", "Aethir"]}
+      {
+        "verdict": "kill",
+        "similarity": 0.73,
+        "idea_summary": "Consumer-GPU marketplace settled in a project-specific token rather than USDC",
+        "key_comparables": [
+          "Akash",
+          "Render"
+        ]
+      },
+      {
+        "verdict": "kill",
+        "similarity": 0.65,
+        "idea_summary": "Decentralized-compute network targeting training workloads on residential connectivity",
+        "key_comparables": [
+          "io.net",
+          "Aethir"
+        ]
+      }
     ]
   },
   {
     "id": "crypto-kill-defi-yield-aggregator",
     "text": "DeFi yield aggregator that auto-rotates between 30 protocols on Ethereum mainnet for retail LPs, 2/20 fee.",
     "expected_verdict": "kill",
-    "expected_categories": ["crypto", "defi"],
+    "expected_verdict_v2": "KILL",
+    "expected_categories": [
+      "crypto",
+      "defi"
+    ],
     "must_cite_sources": [],
     "why": "Yearn, Beefy, Sommelier already; mainnet gas eats retail size; 2/20 fee structure is uncompetitive",
-    "rag_context": "- Yearn (~$280M TVL), Beefy ($420M), Sommelier dominate yield aggregation. (source: DeFiLlama yield aggregators 2025)\n- Ethereum mainnet base fee + rotation gas eats >40% of retail-sized yield (≤$5k positions). (source: Glassnode gas-yield analysis 2024)\n- 2/20 fee structure is hedge-fund-era; modern competitors charge 5-10bp performance only. (source: a16z DeFi fees survey 2024)\n- Industry signal: Idle Finance and Harvest Finance both retired or pivoted retail-yield-aggregator product lines after gas costs eroded retail unit economics — repeated outcome across the cohort.",
+    "rag_context": "- Yearn (~$280M TVL), Beefy ($420M), Sommelier dominate yield aggregation. (source: DeFiLlama yield aggregators 2025)\n- Ethereum mainnet base fee + rotation gas eats >40% of retail-sized yield (\u2264$5k positions). (source: Glassnode gas-yield analysis 2024)\n- 2/20 fee structure is hedge-fund-era; modern competitors charge 5-10bp performance only. (source: a16z DeFi fees survey 2024)\n- Industry signal: Idle Finance and Harvest Finance both retired or pivoted retail-yield-aggregator product lines after gas costs eroded retail unit economics \u2014 repeated outcome across the cohort.",
     "mock_precedents": [
-      {"verdict": "kill", "similarity": 0.73, "idea_summary": "Retail yield aggregator on ETH mainnet competing against 3+ entrenched incumbents on fee", "key_comparables": ["Yearn", "Beefy"]},
-      {"verdict": "kill", "similarity": 0.64, "idea_summary": "DeFi product with hedge-fund-era 2/20 fees in a market that has compressed to 5-10bp", "key_comparables": ["Sommelier", "Idle"]}
+      {
+        "verdict": "kill",
+        "similarity": 0.73,
+        "idea_summary": "Retail yield aggregator on ETH mainnet competing against 3+ entrenched incumbents on fee",
+        "key_comparables": [
+          "Yearn",
+          "Beefy"
+        ]
+      },
+      {
+        "verdict": "kill",
+        "similarity": 0.64,
+        "idea_summary": "DeFi product with hedge-fund-era 2/20 fees in a market that has compressed to 5-10bp",
+        "key_comparables": [
+          "Sommelier",
+          "Idle"
+        ]
+      }
     ]
   },
   {
     "id": "crypto-kill-ai-rugpull-detector",
     "text": "AI-powered rug-pull detector Chrome extension that scans any token contract and shows a risk score, $9/mo.",
     "expected_verdict": "kill",
-    "expected_categories": ["crypto"],
+    "expected_verdict_v2": "KILL",
+    "expected_categories": [
+      "crypto"
+    ],
     "must_cite_sources": [],
     "why": "GoPlus, De.Fi, Honeypot.is free; signal is commoditized; $9/mo retail subscription has brutal churn",
     "rag_context": "- GoPlus (free, 12M MAU), De.Fi Security Score (free), Honeypot.is (free) cover this exact use case. (source: each project's docs 2025)\n- Risk-score signal is fully commoditized via on-chain heuristics; no LLM moat. (source: Trail of Bits 'rug detection' analysis 2024)\n- $9/mo retail crypto SaaS median 30-day churn 41%. (source: ProfitWell crypto SaaS benchmark 2024)\n- Industry signal: most leading wallets (Phantom, Rabby, MetaMask Snaps) now bundle native scam-detection at $0 to end users, eating the standalone-extension distribution surface.",
     "mock_precedents": [
-      {"verdict": "kill", "similarity": 0.71, "idea_summary": "Retail-priced security-score SaaS competing against free on-chain heuristic tools", "key_comparables": ["GoPlus", "De.Fi"]},
-      {"verdict": "kill", "similarity": 0.63, "idea_summary": "Wallet-adjacent extension product whose feature is being absorbed by wallet incumbents", "key_comparables": ["Phantom", "MetaMask"]}
+      {
+        "verdict": "kill",
+        "similarity": 0.71,
+        "idea_summary": "Retail-priced security-score SaaS competing against free on-chain heuristic tools",
+        "key_comparables": [
+          "GoPlus",
+          "De.Fi"
+        ]
+      },
+      {
+        "verdict": "kill",
+        "similarity": 0.63,
+        "idea_summary": "Wallet-adjacent extension product whose feature is being absorbed by wallet incumbents",
+        "key_comparables": [
+          "Phantom",
+          "MetaMask"
+        ]
+      }
     ]
   }
 ]

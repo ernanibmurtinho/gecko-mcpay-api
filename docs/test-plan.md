@@ -155,13 +155,28 @@ Do not flip `X402_MODE=live` without all five boxes checked.
 
 ## 5. Eval gates — how to run + thresholds
 
-| Suite | Command | Threshold |
-|---|---|---|
-| general | `bash scripts/run_eval_gate.sh general` | mean score **≥ 0.95** |
-| holdout | `bash scripts/run_eval_gate.sh holdout` | **= 1.0** (no leakage tolerated) |
-| crypto | `bash scripts/run_eval_gate.sh crypto` | **≥ 0.95** |
-| saas | `bash scripts/run_eval_gate.sh saas` | **≥ 0.95** |
-| holdout-live (live RAG) | `bash scripts/run_eval_gate_live.sh` | **≥ 0.80** (V1 baseline; tighten in Sprint 11) |
+| Suite | Command | `expected_verdict` (v1) threshold | `expected_verdict_v2` grading (S12-EVAL-02) |
+|---|---|---|---|
+| general | `bash scripts/run_eval_gate.sh general` | mean score **≥ 0.95** | **≥ 0.80** (3-bucket KILL/REFINE/BUILD; structurally harder than 2-bucket; tighten after 3 baseline runs) |
+| holdout | `bash scripts/run_eval_gate.sh holdout` | **= 1.0** (no leakage tolerated) | **≥ 0.80** (same threshold; v2 grading on relabeled fixtures) |
+| crypto | `bash scripts/run_eval_gate.sh crypto` | **≥ 0.95** | **≥ 0.80** |
+| saas | `bash scripts/run_eval_gate.sh saas` | **≥ 0.95** | **≥ 0.80** |
+| holdout-live (live RAG) | `bash scripts/run_eval_gate_live.sh` | **≥ 0.80** (V1 baseline; tighten in Sprint 11) | **≥ 0.80** (initial; v2 baselines pending Sprint 12 acceptance live run) |
+
+**Two grading modes**: every suite is graded twice — once against the legacy
+`expected_verdict` (`ship | kill`, with `pivot ↔ kill` softening) and once
+against `expected_verdict_v2` (`KILL | REFINE | BUILD`) when the fixture
+has the new field populated. Per S12-EVAL-02 the rubric reads v2 when
+present and falls back to v1 otherwise. The legacy column is unchanged so
+ADRs/runbooks pinned to the v1 thresholds keep their meaning during the
+migration.
+
+**Why v2 thresholds start at 0.80 (not 0.95)**: 3-bucket scoring is
+structurally harder than 2-bucket — REFINE is its own bucket, not pivot=kill
+softening. Stub-mode v2 floors 0.85–0.87 across general/crypto/saas with
+the current relabel (driven by the legacy SHIP→BUILD bridge in
+`extract_verdict_v2`); 0.80 is the calibration floor, with tightening
+gated on ≥3 live baseline runs per CLAUDE.md "Variance is real at small N".
 
 Mechanics:
 
