@@ -123,21 +123,51 @@ def _build_payment_requirements(
     )
 
 
-def _build_payment_payload(*, intent_id: str, requirements: Any) -> Any:
-    """Build a minimal x402v2 ``PaymentPayload`` for a settle call.
+def _build_payment_payload(
+    *,
+    intent_id: str,
+    requirements: Any,
+    payer_private_key: str | None = None,
+) -> Any:
+    """Build a signed x402v2 ``PaymentPayload`` for a CDP settle call.
 
-    Real production payloads carry a signed authorization from the payer
-    wallet. For Sprint 12 we model the shape so tests can flow through
-    the facilitator-call boundary; live mainnet smoke (Track C) will
-    plug in real authorizations (signed `exact`-scheme authorization
-    bytes pasted into ``payload``).
+    When ``payer_private_key`` is supplied, signs a real EIP-3009
+    ``transferWithAuthorization`` over the requirements via the x402 SDK's
+    ``ExactEvmScheme`` (Track C live-smoke path). Without a key, returns a
+    placeholder shape used only by stub-mode tests; CDP rejects placeholder
+    payloads with HTTP 400 ('signature' / 'transaction' required), which
+    is the intended fail-fast for "production with no signer wired."
+
+    ``payer_private_key`` is the buyer wallet's secret. For Gecko's V1
+    pay-yourself flow it is ``TWITSH_WALLET_PRIVATE_KEY`` (a server-managed
+    EOA), and the receiving wallet (requirements.pay_to) is also TWITSH —
+    so net spend is zero gas + dust slippage. For real buyer flows in V2+,
+    this comes from the X-PAYMENT header instead of the env.
     """
     from x402.schemas import PaymentPayload
 
+    if not payer_private_key:
+        # Stub-mode shape — preserved for tests that flow through the
+        # facilitator-call boundary without signing. CDP will 400 if this
+        # ever reaches a real settle endpoint, which is what we want.
+        return PaymentPayload(
+            x402_version=2,
+            accepted=requirements,
+            payload={"intent_id": intent_id, "amount": requirements.amount},
+        )
+
+    from eth_account import Account
+    from x402.mechanisms.evm.exact.client import ExactEvmScheme
+
+    account = Account.from_key(payer_private_key)
+    inner = ExactEvmScheme(account).create_payment_payload(requirements)
+
+    # ``inner`` is the dict-shaped {authorization, signature} body. Wrap
+    # it in the v2 PaymentPayload envelope CDP /settle expects.
     return PaymentPayload(
         x402_version=2,
         accepted=requirements,
-        payload={"intent_id": intent_id, "amount": requirements.amount},
+        payload=inner,
     )
 
 
@@ -172,6 +202,7 @@ class CDPX402Client:
         api_key_id: str | None = None,
         api_key_secret: SecretStr | str | None = None,
         treasury_address: str | None = None,
+        payer_private_key: SecretStr | str | None = None,
         network: str = BASE_MAINNET_NETWORK_ID,
         asset_contract: str = BASE_MAINNET_USDC_CONTRACT,
         base_url: str = CDP_FACILITATOR_BASE_URL,
@@ -187,6 +218,13 @@ class CDPX402Client:
             self._api_key_secret: str | None = api_key_secret.get_secret_value()
         else:
             self._api_key_secret = api_key_secret
+        # Buyer-side EIP-3009 signer key. For Gecko's V1 pay-yourself flow
+        # this is TWITSH_WALLET_PRIVATE_KEY (server-managed EOA on Base).
+        # Tests pass None and stay on the stub payload path.
+        if isinstance(payer_private_key, SecretStr):
+            self._payer_private_key: str | None = payer_private_key.get_secret_value()
+        else:
+            self._payer_private_key = payer_private_key
         self._treasury = treasury_address
         self._network = network
         self._asset_contract = asset_contract
@@ -228,6 +266,7 @@ class CDPX402Client:
         payload = _build_payment_payload(
             intent_id=intent.intent_id,
             requirements=requirements,
+            payer_private_key=self._payer_private_key,
         )
 
         try:

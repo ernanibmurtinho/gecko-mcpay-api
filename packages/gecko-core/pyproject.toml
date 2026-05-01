@@ -22,6 +22,10 @@ dependencies = [
     "numpy>=1.26",
     "motor>=3.5",
     "pypdfium2>=4.30",
+    # EIP-3009 buyer-side signer for the CDP/Base path (S12-CDP-01).
+    # x402[svm] doesn't pull this; we need it explicitly for EVM signing.
+    "eth-account>=0.13",
+    "x402[evm,svm]>=2.8.0",
 ]
 
 [build-system]

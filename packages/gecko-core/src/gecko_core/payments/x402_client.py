@@ -247,6 +247,13 @@ class PaymentSettings(BaseSettings):
     cdp_api_key_id: str | None = Field(default=None, alias="CDP_API_KEY_ID")
     cdp_api_key_secret: SecretStr | None = Field(default=None, alias="CDP_API_KEY_SECRET")
     base_treasury_address: str | None = Field(default=None, alias="GECKO_WALLET_ADDRESS_BASE")
+    # Buyer-side EIP-3009 signer for the CDP/Base path. V1 reuses TWITSH
+    # (server-managed Base EOA, already wired for twit.sh) so pay-yourself
+    # smoke flows. Independent from CDP_API_KEY_SECRET (which signs CDP
+    # JWTs, not on-chain transfers).
+    twitsh_wallet_private_key: SecretStr | None = Field(
+        default=None, alias="TWITSH_WALLET_PRIVATE_KEY"
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -676,6 +683,7 @@ def get_client(mode: str | None = None) -> X402Client:
             api_key_id=s.cdp_api_key_id,
             api_key_secret=s.cdp_api_key_secret,
             treasury_address=s.base_treasury_address,
+            payer_private_key=s.twitsh_wallet_private_key,
         )
     raise ValueError(f"unknown X402_MODE: {selected!r}")
 
