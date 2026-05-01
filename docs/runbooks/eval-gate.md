@@ -100,6 +100,34 @@ proceed to mainnet.** Recovery sequence:
    negatives) vs. which expected-`kill` cases are getting shipped (false
    positives). Cluster by `expected_categories`.
 
+   **S12-EVAL-01 — read the raw judge transcripts.** Every live run also
+   archives per-idea judge prose under
+   `tests/eval/live_runs/<date>-<suite>-transcripts/<idea_id>.json` (stub
+   mode skips this — the canned mocks are already on disk). Use the
+   transcripts to see *what the judge actually said*, not just the
+   aggregate verdict_accuracy:
+
+   ```bash
+   # Show the full judge prose + parsed verdict for one failing idea
+   jq '{idea_id, judge_prose, parsed_verdict, expected_verdict, actual_verdict, rubric_score}' \
+     tests/eval/live_runs/<date>-<suite>-transcripts/<idea_id>.json
+
+   # Cluster all failing ideas' judge prose for a regression diagnosis
+   for f in tests/eval/live_runs/<date>-<suite>-transcripts/*.json; do
+     jq -r 'select(.actual_verdict != .expected_verdict)
+            | "\(.idea_id) [exp=\(.expected_verdict) act=\(.actual_verdict)]\n\(.judge_prose | .[0:300])\n---"' "$f"
+   done
+   ```
+
+   Schema fields: `idea_id`, `idea_text`, `judge_prose`, `parsed_verdict`
+   (legacy 3-token), `agent_turns` (per-voice text + tokens for analyst /
+   critic / architect / scoper / judge), `rubric_score`, `expected_verdict`
+   / `expected_verdict_v2`, `actual_verdict`. The advisor-panel fields
+   (`gap_classification`, `gap_summary`, `advisor_voices`,
+   `advisor_consensus`) are reserved as null — the eval runner calls
+   `pro.generate` directly rather than the full `workflows.run_research`
+   pipeline, so those advisor-side surfaces aren't observable here.
+
 3. **File a prompt-rework follow-up ticket** (`S2X-15-followup-prompts-vN`)
    tagging the failing sub-suite and 2-3 representative idea IDs.
 

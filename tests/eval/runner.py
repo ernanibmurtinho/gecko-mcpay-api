@@ -384,6 +384,14 @@ async def _evaluate_one(
 
     expected = idea.get("expected_verdict")
 
+    # S12-EVAL-01 — capture the last live transcript per idea so we can
+    # dump judge prose + parsed verdicts after the rerun loop. Only the
+    # most recent rerun is archived (reruns are usually 1; for >1 the
+    # majority verdict already lands in IdeaResult, and a single transcript
+    # is sufficient signal for diagnosis).
+    last_live_transcript: MockTranscript | None = None
+    last_live_scores: RubricScores | None = None
+
     for _ in range(reruns):
         t0 = time.perf_counter()
         if live:
@@ -393,6 +401,8 @@ async def _evaluate_one(
                 precedents=precedents,
             )
             scores = score_transcript_live(transcript, expected_verdict=expected)
+            last_live_transcript = transcript
+            last_live_scores = scores
         else:
             transcript = get_mock_transcript(idea["id"])
             scores = score_transcript_mock(
@@ -420,7 +430,7 @@ async def _evaluate_one(
         cost_predictability=round(statistics.mean(s.cost_predictability for s in score_accum), 2),
         verdict_correctness=round(statistics.mean(s.verdict_correctness for s in score_accum), 2),
     )
-    return IdeaResult(
+    result = IdeaResult(
         id=idea["id"],
         idea_id=idea["id"],
         expected_verdict=idea["expected_verdict"],
@@ -431,6 +441,68 @@ async def _evaluate_one(
         cost_usd=round(statistics.mean(cost_accum), 4),
         v1_sources_cost_usd=round(v1_spend_usd, 4),
     )
+    # S12-EVAL-01 — dump raw judge transcript per idea for live runs so a
+    # later regression diagnosis can read what the judge actually said,
+    # not just the aggregate verdict_accuracy. Stub mode skips this — the
+    # canned mock transcripts are already on disk in tests/eval/mocks.py.
+    if live and last_live_transcript is not None:
+        _archive_live_transcript(
+            idea=idea,
+            transcript=last_live_transcript,
+            result=result,
+            scores=last_live_scores,
+        )
+    return result
+
+
+def _archive_live_transcript(
+    *,
+    idea: dict[str, Any],
+    transcript: MockTranscript,
+    result: IdeaResult,
+    scores: RubricScores | None,
+) -> None:
+    """Write per-idea judge transcript + parsed verdict to live_runs/<date>-<suite>-transcripts/<idea_id>.json.
+
+    Schema documented in docs/runbooks/eval-gate.md §Debug. Fields that the
+    eval-runner doesn't observe directly (gap_classification, gap_summary,
+    advisor_voices, advisor_consensus) are emitted as null — the runner
+    calls `pro.generate` rather than the full `workflows.run_research`
+    pipeline, so those advisor-side surfaces aren't available here. The
+    schema reserves the keys so a future runner that threads the workflow
+    payload can fill them without breaking consumers.
+    """
+    suite = str(idea.get("_suite", "unknown"))
+    date = time.strftime("%Y-%m-%d")
+    out_dir = LIVE_RUNS_DIR / f"{date}-{suite}-transcripts"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    judge_text = transcript.get("judge", {"text": ""})["text"]
+    payload: dict[str, Any] = {
+        "idea_id": idea["id"],
+        "idea_text": idea.get("text", ""),
+        "judge_prose": judge_text,
+        "parsed_verdict": extract_verdict(judge_text),
+        # Reserved — populated by the workflow-level payload, not the
+        # eval runner. Kept null so consumers can rely on the key shape.
+        "gap_classification": None,
+        "gap_summary": None,
+        "advisor_voices": None,
+        "advisor_consensus": None,
+        "rubric_score": scores.to_dict() if scores is not None else None,
+        "expected_verdict": idea.get("expected_verdict"),
+        "expected_verdict_v2": idea.get("expected_verdict_v2"),
+        "actual_verdict": result.actual_verdict,
+        "agent_turns": {
+            agent: {
+                "text": turn["text"],
+                "tokens_in": turn["tokens_in"],
+                "tokens_out": turn["tokens_out"],
+            }
+            for agent, turn in transcript.items()
+        },
+    }
+    out_path = out_dir / f"{idea['id']}.json"
+    out_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
 
 _OTHER_AXES = ("agent_voice", "source_grounding", "verdict_justification", "cost_predictability")
