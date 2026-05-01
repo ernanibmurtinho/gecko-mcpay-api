@@ -44,9 +44,11 @@ from gecko_core.payments.verifier import (
     verify_targets,
 )
 from gecko_core.payments.x402_client import (
+    PAYMENT_MODES,
     FramesX402Client,
     LiveX402Client,
     NetworkKind,
+    PaymentMode,
     StubX402Client,
     X402Client,
     X402Mode,
@@ -61,6 +63,7 @@ __all__ = [
     "BASE_SEPOLIA_NETWORK_ID",
     "CDP_FACILITATOR_BASE_URL",
     "NETWORKS",
+    "PAYMENT_MODES",
     "CDPAuthProvider",
     "CDPCredentials",
     "CDPFacilitatorClient",
@@ -74,6 +77,7 @@ __all__ = [
     "NetworkKind",
     "NetworkName",
     "PaymentIntent",
+    "PaymentMode",
     "PaymentRequiredError",
     "PaymentResult",
     "StubX402Client",

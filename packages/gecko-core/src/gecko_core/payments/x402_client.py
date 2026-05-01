@@ -38,18 +38,25 @@ import uuid
 from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Final, Literal, Protocol, runtime_checkable
+from typing import Any, Final, Protocol, runtime_checkable
 
 import httpx
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from gecko_core.payments.models import PaymentIntent, PaymentResult
+
+# Single source of truth (S12.5-TEST-01). Every consumer — gecko-api
+# settings, the session store, the SQL CHECK constraint — derives its
+# accepted set from PAYMENT_MODES. Sprint 12 shipped four parallel copies
+# of this list; each fix on the live-mainnet smoke (76bf278, 7e97c59,
+# a7f7cc5, ...) flipped one of them while leaving the others stale.
+# The schema-drift test in tests/test_payment_mode_consistency.py asserts
+# every parallel definition stays in sync.
+from gecko_core.payments.modes import PAYMENT_MODES, PaymentMode, X402Mode
 from gecko_core.payments.networks import NetworkConfig, resolve_network
 
 logger = logging.getLogger(__name__)
-
-X402Mode = Literal["stub", "live", "frames", "cdp"]
 
 # Frames.ag base URL — overridable for staging / tests.
 DEFAULT_FRAMES_BASE = "https://frames.ag/api"
@@ -774,6 +781,7 @@ def _reset_settings_cache() -> None:
 
 __all__ = [
     "AGENT_WALLET_CONFIG",
+    "PAYMENT_MODES",
     "SOLANA_DEVNET_USDC_MINT",
     "SOLANA_MAINNET_USDC_MINT",
     "ConfirmationTimeoutError",
@@ -785,6 +793,7 @@ __all__ = [
     "LiveX402Error",
     "NetworkKind",
     "NetworkMismatchError",
+    "PaymentMode",
     "PaymentSettings",
     "StubX402Client",
     "TreasuryNotConfiguredError",

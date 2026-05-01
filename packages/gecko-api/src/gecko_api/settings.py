@@ -17,16 +17,19 @@ explicitly overrides ``X402_FACILITATOR_URL``.
 from __future__ import annotations
 
 import os
-from typing import Literal
 
 from gecko_core.payments.cdp import is_unconfigured
+
+# Single source of truth (S12.5-TEST-01) — pulled from gecko_core so the
+# accepted X402_MODE set, the session-store PaymentMode literal, and the
+# SQL CHECK constraint can never drift apart again. Each previous Sprint 12
+# `cdp` fix (76bf278, 7e97c59, a7f7cc5) flipped one of these in isolation.
+from gecko_core.payments.modes import PAYMENT_MODES, X402Mode
 from gecko_core.payments.networks import NetworkConfig, resolve_network
 from gecko_core.wallets.privy import is_privy_configured as _privy_configured
 from pydantic import BaseModel, SecretStr
 
 _TWITSH_SENTINELS = ("", "__unset__", "__dev_change_me__")
-
-X402Mode = Literal["stub", "live", "frames", "cdp"]
 
 
 class Settings(BaseModel):
@@ -146,7 +149,7 @@ class Settings(BaseModel):
     @classmethod
     def from_env(cls) -> Settings:
         mode = os.environ.get("X402_MODE", "stub")
-        if mode not in ("stub", "live", "frames", "cdp"):
+        if mode not in PAYMENT_MODES:
             raise ValueError(f"unknown X402_MODE: {mode!r}")
 
         # Resolve network FIRST — `resolve_network` raises on unknown values

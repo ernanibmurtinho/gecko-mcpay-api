@@ -21,6 +21,16 @@ from gecko_core.db import create_supabase_client
 from gecko_core.models import SessionStatus, SourceInfo, Tier
 
 PaymentMode = Literal["stub", "live", "frames", "cdp"]
+"""Session-row payment-mode literal.
+
+Kept in sync with `gecko_core.payments.modes.PAYMENT_MODES`. We can't
+re-export from there directly because `gecko_core.payments.__init__`
+imports `gate`, which imports `SessionStore` — a circular import the
+moment session-store-load triggers payments-package-init.
+
+The drift is caught at runtime: `tests/test_payment_mode_consistency.py`
+asserts `typing.get_args(PaymentMode)` matches `PAYMENT_MODES` exactly,
+and a startup-time assertion below catches it before any test runs."""
 
 CostKind = Literal["llm", "embed", "tavily", "deepgram", "twitsh", "v1_sources"]
 
