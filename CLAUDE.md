@@ -140,11 +140,19 @@ Before merging:
 
 ### Project conventions
 
-(empty)
+- **Single source of truth for shared `Literal` types.** Live in one canonical module (e.g. `gecko_core.payments.modes` for `PaymentMode`). Every consumer imports from there — never redeclare. SQL `CHECK` constraints reference a comment block naming the canonical Python enum. Adding a value = touch exactly one Python file + one migration. Schema-drift test in `tests/test_payment_mode_consistency.py` enforces this; replicate the pattern for new shared Literals.
+- **Bucketed reputation/score bands, never raw floats public.** Per the profile-thesis synthesis (PD anti-gaming flag): public surfaces show `emerging` / `established` / `senior` style buckets. Raw scores stay internal. No public leaderboards.
+- **Wallet/facilitator neutrality.** frames.ag for Solana, CDP for Base, Cloudflare for HTTP, awal as parallel. Never hard-code one in the product. The product works above any x402-capable wallet.
 
 ### Recurring patterns
 
-(empty)
+- **Pattern A — Parallel `Literal` redeclarations of the same concept.** `PaymentMode` lived in 4 places before S12.5; each Sprint 12 fix flipped one and missed others. **Encoding:** when a new shared concept needs to live in Python and SQL, route everyone through `gecko_core.types` (or its domain-specific equivalent). Replicate the schema-drift test pattern from `test_payment_mode_consistency.py`.
+
+- **Pattern B — Stubbed-but-shipped code.** Sprint 12 Track A's `_build_payment_payload` shipped as a stub and took ~10 fix iterations against live mainnet to get right. **Encoding:** for any new wire-protocol integration, the *first* deliverable is a free local simulation script (eth_call-style for EVM, RPC mock for Solana) that can falsify the implementation without spending money. Live smoke is the *final* verification, never the primary debug tool.
+
+- **Pattern C — Tests that exercise stubs, not real wires.** Sprint 12 CDP tests passed in stub mode and on `/verify`; `/settle` failed because verify is a pure signature check that doesn't exercise the dispatch branch. **Encoding:** for payment-touching code, every `X402Client` conformer ships with a recorded-fixture contract test (vcr-style) against the real facilitator's relevant endpoints. Adding a new client is gated on the contract test passing. The `live_cdp` marker pattern in S12.5-TEST-04 is the template.
+
+- **Pattern D — "Orchestration" claims need defensibility checks against Perplexity.** When a thesis adds "orchestration + context" as a wedge claim, ask the AI/ML lens whether that's actually defensible against Perplexity / ChatGPT / Bazaar's own discovery. **Orchestration is table stakes; the wedge is rarely orchestration.** Find the actual moat (verdict shape, dissent quality, settlement layer, contributor reputation, etc.) and lead with it. The 2026-05-01 profile-thesis synthesis hit this — AI/ML pushed back on the "orchestration + context" framing and reframed the wedge as the adversarial-debate verdict + grounded dissent.
 
 ---
 
