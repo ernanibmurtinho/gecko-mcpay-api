@@ -17,9 +17,11 @@ This is a thin transport layer — all business logic lives in `gecko_core`.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import os
+import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from decimal import Decimal
@@ -361,6 +363,139 @@ app.add_middleware(
     routes=_routes_config,
     server=_resource_server,
 )
+
+
+# ---------------------------------------------------------------------------
+# S12-HARDEN-01 — unauthenticated rate limit on the public 402 surface.
+#
+# Listing in CDP Bazaar discovery exposes /research and /plan to anonymous
+# probes. slowapi handles authenticated /projects routes; this middleware
+# adds a separate IP-bucket limit ahead of x402 so abuse traffic gets
+# rejected before we burn a verify call. Authenticated paid traffic
+# bypasses entirely — payment is itself the rate gate.
+#
+# Added AFTER PaymentMiddlewareASGI so it wraps it (Starlette's
+# add_middleware adds new layers as the OUTER wrapper).
+# ---------------------------------------------------------------------------
+
+
+# 30 requests/minute/IP — generous for legitimate browsing (Bazaar
+# discovery probes, manual exploration), tight enough that scraping or
+# DDoS becomes uneconomical.
+_UNPAID_RATE_LIMIT_PER_MINUTE = 30
+_RATE_LIMITED_PATHS = frozenset({"/research", "/research/pro", "/plan"})
+
+
+# Per-IP token bucket state. Single-process only; Sprint 13+ should
+# migrate to Redis for multi-replica deploys.
+_unpaid_rate_state: dict[str, list[float]] = {}
+_unpaid_rate_lock = asyncio.Lock()
+
+
+def _has_payment_header(headers: dict[bytes, bytes]) -> bool:
+    """True if the request looks like an authenticated paid call."""
+    for name in (b"x-payment", b"payment-signature", b"x-payment-signature"):
+        if headers.get(name):
+            return True
+    return False
+
+
+async def _send_json_error(
+    send: Callable[[dict[str, Any]], Awaitable[None]],
+    *,
+    status: int,
+    detail: str,
+    extra_headers: list[tuple[bytes, bytes]] | None = None,
+) -> None:
+    """Shared ASGI-level JSON error response used by the harden middlewares."""
+    body = json.dumps({"detail": detail}).encode()
+    headers: list[tuple[bytes, bytes]] = [
+        (b"content-type", b"application/json"),
+        (b"content-length", str(len(body)).encode()),
+    ]
+    if extra_headers:
+        headers.extend(extra_headers)
+    await send(
+        {
+            "type": "http.response.start",
+            "status": status,
+            "headers": headers,
+        }
+    )
+    await send({"type": "http.response.body", "body": body, "more_body": False})
+
+
+class _UnauthenticatedRateLimitMiddleware:
+    """30/min/IP rate limit on the public 402-path routes."""
+
+    def __init__(
+        self,
+        app: Any,
+        *,
+        rate_per_minute: int,
+        paths: frozenset[str],
+    ) -> None:
+        self.app = app
+        self.rate = int(rate_per_minute)
+        self.paths = paths
+        self.window = 60.0
+
+    async def __call__(
+        self,
+        scope: dict[str, Any],
+        receive: Callable[[], Awaitable[dict[str, Any]]],
+        send: Callable[[dict[str, Any]], Awaitable[None]],
+    ) -> None:
+        if scope.get("type") != "http":
+            await self.app(scope, receive, send)
+            return
+        path = scope.get("path", "")
+        method = scope.get("method", "").upper()
+        if method != "POST" or path not in self.paths:
+            await self.app(scope, receive, send)
+            return
+
+        headers = {k.lower(): v for k, v in scope.get("headers", [])}
+        if _has_payment_header(headers):
+            await self.app(scope, receive, send)
+            return
+
+        client = scope.get("client") or ("unknown", 0)
+        client_ip = client[0] if isinstance(client, tuple | list) else "unknown"
+        xff = headers.get(b"x-forwarded-for")
+        if xff:
+            with contextlib.suppress(UnicodeDecodeError, AttributeError):
+                client_ip = xff.decode("latin-1").split(",", 1)[0].strip()[:64]
+
+        now = time.monotonic()
+        cutoff = now - self.window
+        async with _unpaid_rate_lock:
+            entries = _unpaid_rate_state.get(client_ip, [])
+            entries = [t for t in entries if t >= cutoff]
+            if len(entries) >= self.rate:
+                _unpaid_rate_state[client_ip] = entries
+                await _send_json_error(
+                    send,
+                    status=429,
+                    detail=(
+                        f"rate limit exceeded: {self.rate} requests/minute for "
+                        "unauthenticated traffic. Authenticated x402 calls bypass."
+                    ),
+                    extra_headers=[(b"retry-after", b"60")],
+                )
+                return
+            entries.append(now)
+            _unpaid_rate_state[client_ip] = entries
+
+        await self.app(scope, receive, send)
+
+
+app.add_middleware(
+    _UnauthenticatedRateLimitMiddleware,
+    rate_per_minute=_UNPAID_RATE_LIMIT_PER_MINUTE,
+    paths=_RATE_LIMITED_PATHS,
+)
+
 
 # Internal ops routes (S2X-09: /internal/twitsh/balance for EventBridge).
 # Mounted after middleware so x402 doesn't gate them; they're free and
