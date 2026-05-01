@@ -81,6 +81,26 @@ The unblocker. Bazaar listing requires settlement through the CDP Facilitator at
 
 **Owner:** staff-engineer
 
+### Track I — Production hardening before Bazaar listing (S12-HARDEN-01..04) **CRITICAL — gates Track C**
+
+Per user decision 2026-04-30 (option B from `live-cdp-bazaar-smoke.md` pre-flight): listing in CDP Bazaar surfaces our 402 endpoint to public discovery. Risk is traffic-shaped (DDoS, abuse, prompt injection) not security-shaped (payment gate covers that), but worth a 4-item harden pass before flipping the listing.
+
+- **S12-HARDEN-01 — Rate limit on `/research` and `/plan`.**
+  Tighten slowapi config in `packages/gecko-api/src/gecko_api/main.py` so unauthenticated 402-path requests are bounded per IP (e.g. 30/minute/IP — generous enough for legitimate browsing, tight enough to make scraping unappealing). Test: hit endpoint 50× from one IP without payment, expect 429 well before 50. **Owner:** software-engineer.
+
+- **S12-HARDEN-02 — Input size cap on `idea` field.**
+  Pydantic field constraint: `idea: str = Field(..., min_length=10, max_length=2000)`. Body-size middleware: reject POST > 10KB at ASGI layer before route handler. Test: 100KB `idea` payload → 400, not OOM. **Owner:** software-engineer.
+
+- **S12-HARDEN-03 — Production judge transcript capture.**
+  S12-EVAL-01 archives transcripts for eval runs only. Add equivalent capture for **production** `/research` and `/plan` calls so every public verdict has an audit trail (compliance + post-hoc review of misranked verdicts surfaced by Bazaar). Storage: `judge_transcripts` Supabase table or filesystem with same schema as eval transcripts (`idea_id`, `judge_prose`, `parsed_verdict`, `agent_turns`, `actual_verdict`). **Owner:** ai-ml-engineer (schema + capture logic) + data-engineer (table migration if filesystem path is rejected).
+
+- **S12-HARDEN-04 — Cost circuit breaker.**
+  Track in-flight LLM spend per minute (in-memory counter or Redis). When > $5/min cumulative across all sessions, return 503 with `Retry-After` header for new POST `/research` and `/plan` requests until the rolling window cools. Existing in-flight calls complete normally. **Owner:** software-engineer.
+
+**Acceptance:** all 4 sub-tickets green; one synthetic load test (50 rps for 60s with mix of valid/invalid payloads) shows expected 429s, 400s, 503s without OOM or crash.
+
+**Track C (live smoke) gates on Track I.** Until I-04 lands, do not fire the smoke from a deployed environment.
+
 ### Track G — Eval transcripts + rubric v2 migration (S12-EVAL-01..02) **HIGH**
 
 Per `docs/diagnostics/2026-04-30-verdict-regression-analysis.md` + `docs/diagnostics/2026-04-30-rubric-native-verdict-proposal.md`. Sprint 11 closed with the live-V1 gate at 0.60 (live-LLM noise + Track A nudge effect). Diagnosis is blind without raw judge transcripts; rubric still grades legacy `ship/kill/pivot` while pipeline emits `KILL/REFINE/BUILD`.
