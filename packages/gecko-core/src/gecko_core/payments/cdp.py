@@ -144,7 +144,12 @@ def _sign_jwt(
         # window. Ample entropy for our verify/settle volume.
         "nonce": pysecrets.token_hex(16),
     }
-    secret = creds.key_secret.strip()
+    # When a multi-line PEM is stored in a .env file (or SSM SecureString),
+    # the newlines are typically escaped as the two-character sequence "\n"
+    # rather than real newlines. cryptography/pyjwt then fails to parse with
+    # `InvalidData(InvalidByte(0, 92))` (byte 92 = backslash). Restore them
+    # before signing. No-op if the secret already has real newlines.
+    secret = creds.key_secret.strip().replace("\\n", "\n")
 
     # Algorithm sniff: PEM EC keys → ES256; everything else → Ed25519. We
     # default to Ed25519 because CDP's recommended onboarding mints Ed25519.
