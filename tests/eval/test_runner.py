@@ -210,3 +210,35 @@ def test_live_accepts_claude_api_key_alias() -> None:
     src = inspect.getsource(rubric.score_transcript_live)
     assert "ANTHROPIC_API_KEY" in src
     assert "CLAUDE_API_KEY" in src
+
+
+def test_phase_dir_pre_product_aliases_suites() -> None:
+    """S13-PHASE-03 — pre_product resolves to the legacy suites/ directory."""
+    assert runner._phase_dir("pre_product") == runner.SUITES_DIR
+
+
+def test_phase_dir_during_build_resolves_to_fixtures() -> None:
+    """S13-PHASE-03 — during_build resolves under fixtures/."""
+    p = runner._phase_dir("during_build")
+    assert p == runner.FIXTURES_DIR / "during_build"
+    assert p.is_dir(), f"expected {p} to exist as a directory"
+
+
+def test_phase_dir_ongoing_resolves_to_fixtures() -> None:
+    """S13-PHASE-03 — ongoing resolves under fixtures/."""
+    p = runner._phase_dir("ongoing")
+    assert p == runner.FIXTURES_DIR / "ongoing"
+    assert p.is_dir()
+
+
+def test_phase_dir_unknown_phase_raises() -> None:
+    """Unknown phase short-circuits with a clear error rather than silently no-op."""
+    with pytest.raises(SystemExit):
+        runner._phase_dir("launching")
+
+
+def test_load_ideas_default_phase_is_pre_product() -> None:
+    """Loading with the default phase returns suites/ ideas with `_phase=pre_product`."""
+    ideas = runner._load_ideas(filter_id=None, suite="general")
+    assert ideas, "expected the general suite to be non-empty"
+    assert all(i.get("_phase") == "pre_product" for i in ideas)

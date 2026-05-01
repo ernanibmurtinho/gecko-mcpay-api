@@ -59,6 +59,32 @@ SUITES_DIR = EVAL_DIR / "suites"
 BASELINES_DIR = EVAL_DIR / "baselines"
 LIVE_RUNS_DIR = EVAL_DIR / "live_runs"
 
+# S13-PHASE-03 — phase-aware fixture roots. `pre_product` is the legacy
+# `suites/` directory (kept in place so existing CI commands stay byte-
+# identical); `during_build` and `ongoing` start empty in S13 and are
+# populated by S14 (`gecko_pulse`) and S15 (ongoing). The dispatch table
+# is intentionally tiny — a dict, not a class — so adding a new phase
+# is a one-line edit when the next consumer lands.
+FIXTURES_DIR = EVAL_DIR / "fixtures"
+_PHASE_DIRS: dict[str, Path] = {
+    "pre_product": SUITES_DIR,
+    "during_build": FIXTURES_DIR / "during_build",
+    "ongoing": FIXTURES_DIR / "ongoing",
+}
+
+
+def _phase_dir(phase: str) -> Path:
+    """Return the fixture root for a `SessionPhase`. Raises on unknown phase.
+
+    `pre_product` resolves to `tests/eval/suites/` for back-compat with the
+    pre-S13 layout. The other two resolve to `tests/eval/fixtures/<phase>/`.
+    """
+    try:
+        return _PHASE_DIRS[phase]
+    except KeyError as exc:
+        raise SystemExit(f"unknown phase {phase!r}; expected one of {list(_PHASE_DIRS)}") from exc
+
+
 SUITE_NAMES = ("general", "crypto", "saas", "holdout", "holdout_live")
 
 # Suites that compose `--suite all`. The holdout suite is intentionally
@@ -98,26 +124,37 @@ class IdeaResult:
     # `expected_verdict_v2` is populated.
     expected_verdict_v2: str = ""
     actual_verdict_v2: str = ""
+    # S13-PHASE-03 — lifecycle phase the fixture belongs to. Nullable on
+    # the wire (defaults to `pre_product` so legacy result rows + baselines
+    # stay valid without a backfill); populated explicitly when the runner
+    # dispatches a non-pre_product phase.
+    phase: str = "pre_product"
 
 
-def _suite_path(suite: str) -> Path:
+def _suite_path(suite: str, phase: str = "pre_product") -> Path:
     # The holdout suite file is named `general_holdout_suite.json` to make
     # its archetypal lineage (isomorphic to the general suite) obvious in
     # the directory listing. The runner exposes it under the short name
     # `holdout` for ergonomics.
+    base = _phase_dir(phase)
     if suite == "holdout":
-        return SUITES_DIR / "general_holdout_suite.json"
+        return base / "general_holdout_suite.json"
     # The "holdout_live" suite is the S4 hold-out variant: same shape as
     # the general holdout, but with mock_precedents/rag_context stripped so
     # the runner is forced to dispatch real V1 sources via --live-rag.
     if suite == "holdout_live":
-        return SUITES_DIR / "general_holdout_live.json"
-    return SUITES_DIR / f"{suite}_suite.json"
+        return base / "general_holdout_live.json"
+    return base / f"{suite}_suite.json"
 
 
-def _load_suite(suite: str) -> list[dict[str, Any]]:
-    """Load a single suite's idea list from `tests/eval/suites/{suite}_suite.json`."""
-    path = _suite_path(suite)
+def _load_suite(suite: str, phase: str = "pre_product") -> list[dict[str, Any]]:
+    """Load a single suite's idea list from the phase-scoped fixture root.
+
+    `phase='pre_product'` (default) resolves to `tests/eval/suites/` —
+    legacy layout, unchanged behaviour. Other phases resolve under
+    `tests/eval/fixtures/<phase>/` per S13-PHASE-03.
+    """
+    path = _suite_path(suite, phase=phase)
     if not path.exists():
         raise SystemExit(f"suite file missing: {path}")
     with path.open("r", encoding="utf-8") as f:
@@ -127,7 +164,11 @@ def _load_suite(suite: str) -> list[dict[str, Any]]:
     return ideas
 
 
-def _load_ideas(filter_id: str | None = None, suite: str | None = None) -> list[dict[str, Any]]:
+def _load_ideas(
+    filter_id: str | None = None,
+    suite: str | None = None,
+    phase: str = "pre_product",
+) -> list[dict[str, Any]]:
     """Load ideas across one or all suites; preserves prior signature for tests.
 
     `suite=None` is treated as "all suites concatenated" so legacy test code
@@ -138,8 +179,10 @@ def _load_ideas(filter_id: str | None = None, suite: str | None = None) -> list[
     suites = [suite] if suite else list(_GATE_SUITES)
     ideas: list[dict[str, Any]] = []
     for s in suites:
-        for idea in _load_suite(s):
-            idea = {**idea, "_suite": s}
+        for idea in _load_suite(s, phase=phase):
+            # `_phase` rides alongside `_suite` so the runner can stamp
+            # IdeaResult.phase without re-deriving it downstream.
+            idea = {**idea, "_suite": s, "_phase": phase}
             ideas.append(idea)
     if filter_id:
         ideas = [i for i in ideas if i["id"] == filter_id]
