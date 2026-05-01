@@ -502,6 +502,84 @@ async def _rate_limit_handler(request: Request, exc: Exception) -> JSONResponse:
 
 app.add_exception_handler(RateLimitExceeded, _rate_limit_handler)
 
+
+# ---------------------------------------------------------------------------
+# S14-HARDEN-02 — Supabase / postgrest 5xx → structured BACKEND_STORE_UNAVAILABLE.
+#
+# Dogfood findings F-S14-1 + F-S14-2 surfaced repeated Supabase outages where
+# a Cloudflare 522 / 525 / 526 (or a postgrest 502/503) bubbled up to the
+# client as a generic 500. The frames.ag bridge maps 500s into a generic
+# UPSTREAM_ERROR — we want session-store outages to be distinguishable so
+# the bridge can apply the right retry SLO (60s) instead of the
+# upstream-failure default.
+#
+# Mapping policy:
+#   * code in {502, 503, 522, 525, 526}  → 503 with retry_after=60.
+#   * Anything else falls through to FastAPI's default 500 path so we
+#     don't accidentally mask a SQL-shape bug as a transient outage.
+# ---------------------------------------------------------------------------
+
+
+_BACKEND_STORE_5XX_CODES: frozenset[str] = frozenset({"502", "503", "522", "525", "526"})
+
+_BACKEND_STORE_RETRY_AFTER_SECONDS = 60
+
+
+def _is_backend_store_5xx(code: object) -> bool:
+    """Match the API-error code against the configured 5xx allowlist.
+
+    The postgrest ``APIError.code`` field can be a str (HTTP-shaped) or
+    occasionally a numeric str-coercible — coerce defensively before
+    comparing.
+    """
+    if code is None:
+        return False
+    return str(code).strip() in _BACKEND_STORE_5XX_CODES
+
+
+async def _supabase_5xx_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Map Supabase / postgrest backend-down errors to a structured 503.
+
+    The frames.ag bridge keys off the ``error`` code field —
+    ``BACKEND_STORE_UNAVAILABLE`` is distinct from the existing
+    ``UPSTREAM_ERROR`` so the bridge can apply a session-store-specific
+    retry policy (different SLOs).
+    """
+    code = getattr(exc, "code", None)
+    message = getattr(exc, "message", None) or "session store temporarily unavailable"
+    if not _is_backend_store_5xx(code):
+        # Re-raise so FastAPI's default 500 handler renders this; we do
+        # NOT want to mask SQL-shape bugs (e.g. PGRST106) as transient.
+        raise exc
+    logger.warning(
+        "supabase 5xx mapped to BACKEND_STORE_UNAVAILABLE: code=%s message=%s path=%s",
+        code,
+        message,
+        request.url.path,
+    )
+    return JSONResponse(
+        status_code=503,
+        content={
+            "error": "BACKEND_STORE_UNAVAILABLE",
+            "code": str(code) if code is not None else "unknown",
+            "message": "session store temporarily unavailable",
+            "retry_after": _BACKEND_STORE_RETRY_AFTER_SECONDS,
+            "detail": message,
+        },
+        headers={"Retry-After": str(_BACKEND_STORE_RETRY_AFTER_SECONDS)},
+    )
+
+
+# Register lazily — postgrest may not be importable in degraded test
+# environments. Failing-fast on import here would break the unrelated
+# stub-mode test surface.
+try:
+    from postgrest.exceptions import APIError as _PostgrestAPIError
+
+    app.add_exception_handler(_PostgrestAPIError, _supabase_5xx_handler)
+except ImportError:  # pragma: no cover — postgrest is a hard dep in production
+    logger.warning("postgrest not importable — Supabase 5xx mapping disabled")
+
 # CORS FIRST, then x402. Browsers need to be able to read the 402 headers.
 app.add_middleware(
     CORSMiddleware,
