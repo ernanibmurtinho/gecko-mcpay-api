@@ -596,10 +596,80 @@ class WorkflowProgress:
         self._progress.stop_task(self._task_id)
 
 
+# --- Pulse renderer (S14-PULSE-03) -----------------------------------------
+#
+# Pulse panel mirrors the Validation panel style — same yellow accent (the
+# pulse is an act of scrutiny against fresh evidence), same verdict + gap
+# headline. v14 is intentionally text-only: no delta diff against the
+# parent session yet (that's S15-PULSE-DELTA-01). The panel surfaces:
+#   * single-token verdict + gap_classification
+#   * 3-bullet "what the panel said this time" summary
+#   * fresh windowed citations (last 14 days)
+#   * the parent session_id in the footer for traceability
+
+
+_PULSE_STYLE = _VR_STYLE
+
+
+def render_pulse_result(result: object, console: Console | None = None) -> None:
+    """S14-PULSE-03 — render a PulseResult as a single Validation-styled panel.
+
+    Accepts the PulseResult model declared in
+    ``gecko_core.orchestration.advisor.models``; we type the parameter as
+    ``object`` here to avoid importing a sibling-package model at module
+    load (matches the rest of render.py's lightweight-import discipline).
+    """
+    from gecko_core.orchestration.advisor.models import PulseResult as _PR
+
+    if not isinstance(result, _PR):
+        raise TypeError("render_pulse_result expects a PulseResult instance")
+
+    c = _console(console)
+
+    header = Text(overflow="fold", no_wrap=False)
+    header.append("Pulse for: ", style=_HEADER_STYLE)
+    header.append(result.idea, style="bold")
+    c.print(Padding(header, (0, 0, 1, 0)))
+
+    parts: list[Text | Group] = [
+        _verdict_line(result.verdict),
+        _spacer(),
+    ]
+
+    gap_line = Text()
+    gap_line.append("Gap: ", style=f"bold {_PULSE_STYLE}")
+    gap_line.append(result.gap_classification, style="bold")
+    parts.append(gap_line)
+    parts.append(_spacer())
+
+    if result.summary_bullets:
+        parts.append(_bullets("What the panel said", result.summary_bullets, _PULSE_STYLE))
+        parts.append(_spacer())
+
+    cites = _citations_renderable(result.citations, _PULSE_STYLE)
+    if cites is not None:
+        parts.append(cites)
+        parts.append(_spacer())
+
+    footer = Text()
+    footer.append("parent session: ", style=_META_STYLE)
+    footer.append(result.parent_session_id, style="dim")
+    footer.append("   pulse session: ", style=_META_STYLE)
+    footer.append(result.pulse_session_id, style="dim")
+    if result.credits_remaining_after is not None:
+        footer.append("   credits left: ", style=_META_STYLE)
+        footer.append(str(result.credits_remaining_after), style="dim")
+    parts.append(footer)
+
+    body = Group(*parts)
+    c.print(_doc_panel("Pulse", body, _PULSE_STYLE))
+
+
 __all__ = [
     "WorkflowProgress",
     "progress_context",
     "render_ask_result",
+    "render_pulse_result",
     "render_research_result",
     "render_source_candidates",
     "render_sources_table",
