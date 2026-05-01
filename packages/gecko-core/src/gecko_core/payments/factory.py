@@ -20,9 +20,14 @@ The legacy callable ``resolve_client_for_network`` lives here too;
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from pydantic import SecretStr
 
 from gecko_core.payments.protocol import X402Client
+
+if TYPE_CHECKING:
+    from gecko_core.payments.models import PaymentIntent
 
 # ---------------------------------------------------------------------------
 # Reserved facilitator slot — S15 will fill this in.
@@ -144,8 +149,44 @@ def facilitator_id_for_network(network_id: str | None) -> str:
     return "unknown"
 
 
+def resolve_client(
+    intent: PaymentIntent | None = None,
+    *,
+    network_id: str | None = None,
+    mode: str | None = None,
+) -> X402Client:
+    """Intent-keyed factory — Sprint 14 S14-PAY-MIGRATE-01.
+
+    The single canonical entry point every consumer should use. Wraps
+    :func:`resolve_client_for_network` with an intent-aware signature so
+    callers don't have to dig the network out of the intent themselves
+    (and so future per-intent dispatch — e.g. routing on tier or amount —
+    has a stable seam to grow into).
+
+    ``intent`` is optional to support pre-intent introspection paths
+    (``bb doctor``, MCP tool surfacing, ``/.well-known/x402`` rendering)
+    where we want to know *which* client would settle without minting an
+    intent first. When both ``intent`` and ``network_id`` are passed the
+    explicit ``network_id`` wins — useful for the (rare) case where a
+    consumer routes one intent across multiple facilitators.
+    """
+    resolved_network: str | None
+    if network_id is not None:
+        resolved_network = network_id
+    elif intent is not None:
+        # PaymentIntent today doesn't carry network — it's resolved from
+        # ``X402_NETWORK`` in env via the settings cache. Pass None so the
+        # underlying factory reads the configured default; once intent
+        # carries a per-call network override, swap to ``intent.network``.
+        resolved_network = None
+    else:
+        resolved_network = None
+    return resolve_client_for_network(resolved_network, mode=mode)
+
+
 __all__ = [
     "CLOUDFLARE_NETWORK_ID",
     "facilitator_id_for_network",
+    "resolve_client",
     "resolve_client_for_network",
 ]

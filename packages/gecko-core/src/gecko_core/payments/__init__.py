@@ -23,6 +23,7 @@ from gecko_core.payments.cdp_x402_client import (
 )
 from gecko_core.payments.factory import (
     CLOUDFLARE_NETWORK_ID,
+    resolve_client,
 )
 from gecko_core.payments.gate import run_payment_gate
 from gecko_core.payments.models import (
@@ -101,6 +102,7 @@ __all__ = [
     "is_stub_signature",
     "is_unconfigured",
     "price_for",
+    "resolve_client",
     "resolve_client_for_network",
     "resolve_network",
     "resolve_rpc_url",
