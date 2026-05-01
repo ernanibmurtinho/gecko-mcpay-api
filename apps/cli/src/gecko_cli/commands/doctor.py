@@ -274,21 +274,31 @@ async def check_llm_ping(
 
 
 def check_x402(env: dict[str, str]) -> CheckRow:
-    """Surface X402_MODE + treasury + facilitator URL.
+    """Surface the resolved x402 client — facilitator + supported networks.
 
-    Sprint 12 S12-CDP-02 added ``mode=cdp`` (CDP Facilitator on Base) and
-    extends the row text with the per-network facilitator name resolved
-    via :func:`gecko_core.payments.facilitator_id_for_network`.
+    Sprint 14 S14-PAY-MIGRATE-02: doctor now instantiates the X402Client
+    via :func:`gecko_core.payments.resolve_client` and reads
+    ``client.facilitator_id`` from the Protocol surface itself, instead
+    of dispatching off ``X402_NETWORK`` env. The detail string stays
+    byte-stable post-migration so existing snapshot tests don't drift.
     """
     mode = (env.get("X402_MODE") or "stub").lower()
     treasury = env.get("GECKO_WALLET_ADDRESS")
     facilitator = env.get("X402_FACILITATOR_URL")
     network = env.get("X402_NETWORK") or "<unset>"
 
+    # Resolve through the Protocol seam. Missing CDP creds for mainnet
+    # surface as a construction-time ValueError; we still want a usable
+    # facilitator id for the row, so fall back to "unknown" on error.
     try:
-        from gecko_core.payments import facilitator_id_for_network
+        from gecko_core.payments import resolve_client
 
-        fac_id = facilitator_id_for_network(env.get("X402_NETWORK"))
+        client = resolve_client(network_id=env.get("X402_NETWORK"), mode=mode)
+        fac_id = client.facilitator_id
+    except NotImplementedError:
+        # S15 reserved slot (http-cloudflare) — surface as the facilitator
+        # id directly so doctor's row is still parse-friendly.
+        fac_id = "http-cloudflare"
     except Exception:
         fac_id = "unknown"
 
