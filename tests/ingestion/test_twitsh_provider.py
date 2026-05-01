@@ -19,7 +19,7 @@ from gecko_core.ingestion.providers import (
     SourceChunk,
     SourceProvider,
 )
-from gecko_core.ingestion.providers.router import build_provider_plan
+from gecko_core.ingestion.providers.router import build_provider_plan, fanout_fetch
 from gecko_core.ingestion.providers.twitsh_provider import (
     TWITSH_PER_CALL_USD,
     TwitshProvider,
@@ -323,3 +323,83 @@ def test_router_handles_none_category_safely() -> None:
     names = [p.name for p in plan]
     assert "twitsh" not in names
     assert "tavily" in names
+
+
+# ---------------------------------------------------------------------------
+# Parallel fan-out (S14-TWITSH-04)
+# ---------------------------------------------------------------------------
+
+
+class _DelayedProvider:
+    """Test double — sleeps ``delay_s`` then returns ``chunks``.
+
+    Conforms structurally to ``SourceProvider`` so ``fanout_fetch`` can
+    iterate it without a real Tavily/twit.sh instance. Captures the
+    fetch start/end timestamps on instance for assertion.
+    """
+
+    name: str
+    kind: str = "free"
+
+    def __init__(
+        self, name: str, *, delay_s: float, chunks: list[SourceChunk] | Exception | None = None
+    ) -> None:
+        self.name = name
+        self._delay_s = delay_s
+        self._chunks = chunks if chunks is not None else []
+
+    async def cost_estimate(self, query: str) -> float:
+        return 0.0
+
+    async def health(self) -> ProviderHealth:
+        return ProviderHealth(available=True)
+
+    async def fetch(self, query: str) -> list[SourceChunk]:
+        import asyncio
+
+        await asyncio.sleep(self._delay_s)
+        if isinstance(self._chunks, Exception):
+            raise self._chunks
+        return self._chunks
+
+
+@pytest.mark.asyncio
+async def test_fanout_fetch_runs_providers_in_parallel() -> None:
+    """Wall-clock must be max(delay), not sum(delay)."""
+    import asyncio
+    import time
+
+    p1 = _DelayedProvider("tavily", delay_s=0.30)
+    p2 = _DelayedProvider("twitsh", delay_s=0.30)
+    p3 = _DelayedProvider("paragraph", delay_s=0.30)
+
+    t0 = time.monotonic()
+    chunks, degraded = await fanout_fetch([p1, p2, p3], query="anything")
+    elapsed = time.monotonic() - t0
+
+    # Sequential would be ~0.9s; parallel ~0.3s. Allow generous slack.
+    assert elapsed < 0.6, f"fanout took {elapsed:.2f}s — appears sequential"
+    assert chunks == []
+    assert degraded == []
+    # Sanity: gather did the right thing across all 3.
+    _ = asyncio  # keep import linted
+
+
+@pytest.mark.asyncio
+async def test_fanout_fetch_marks_failed_provider_degraded() -> None:
+    """A raising provider must NOT halt the rest; surfaces in degraded list."""
+    p_ok = _DelayedProvider("tavily", delay_s=0.05)
+    p_bad = _DelayedProvider("twitsh", delay_s=0.05, chunks=RuntimeError("boom"))
+    chunks, degraded = await fanout_fetch([p_ok, p_bad], query="x")
+    assert degraded == ["twitsh"]
+    assert chunks == []  # both providers had no chunks; failure didn't crash
+
+
+@pytest.mark.asyncio
+async def test_fanout_fetch_per_provider_timeout() -> None:
+    """A provider exceeding the timeout is degraded, not awaited forever."""
+    p_slow = _DelayedProvider("twitsh", delay_s=2.0)
+    p_ok = _DelayedProvider("tavily", delay_s=0.01)
+    chunks, degraded = await fanout_fetch([p_ok, p_slow], query="x", timeout_s=0.1)
+    assert "twitsh" in degraded
+    assert chunks == []

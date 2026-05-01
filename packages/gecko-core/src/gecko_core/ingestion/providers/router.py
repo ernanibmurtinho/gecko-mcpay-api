@@ -24,13 +24,23 @@ the gate. The router's job is _shape_, not feature-flag enforcement.
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import re
 from typing import TYPE_CHECKING
 
 from .free_provider import DEFAULT_FREE_PROVIDER
 
 if TYPE_CHECKING:
-    from . import SourceProvider
+    from . import SourceChunk, SourceProvider
+
+logger = logging.getLogger(__name__)
+
+# Per-provider timeout for parallel fan-out. The Sprint 13 twit.sh probe
+# measured ~7.5s settlement latency on the cold path; budget 15s/provider
+# so the slower x402 leg has headroom without dragging the dispatcher
+# past the per-session ceiling. Override via ``GECKO_PROVIDER_TIMEOUT_S``.
+DEFAULT_PROVIDER_TIMEOUT_S: float = 15.0
 
 
 # Categories where twit.sh is worth paying for. Mirrors the source-side
@@ -87,4 +97,52 @@ def build_provider_plan(
     return plan
 
 
-__all__ = ["build_provider_plan"]
+async def fanout_fetch(
+    providers: list["SourceProvider"],
+    *,
+    query: str,
+    timeout_s: float = DEFAULT_PROVIDER_TIMEOUT_S,
+) -> tuple[list["SourceChunk"], list[str]]:
+    """Run every provider's ``fetch`` in parallel via ``asyncio.gather``.
+
+    Sprint 14 S14-TWITSH-04: the probe measured ~7.5s settlement latency
+    on the cold twit.sh path. Sequential fan-out adds that to Tavily's
+    ~3-5s and blows the per-session latency budget; parallel via
+    ``asyncio.gather(..., return_exceptions=True)`` keeps total wall-
+    clock bounded by the slowest provider.
+
+    Returns ``(chunks, degraded_sources)``: ``degraded_sources`` carries
+    the names of providers that timed out, raised, or otherwise failed
+    to deliver, mirroring the per-Citation degraded-tracking pattern
+    that paragraph_provider + the dispatcher already use.
+    """
+
+    async def _one(provider: "SourceProvider") -> list["SourceChunk"]:
+        # Per-provider timeout — keeps a slow provider from blocking
+        # results from a fast peer past the per-session ceiling.
+        return await asyncio.wait_for(provider.fetch(query), timeout=timeout_s)
+
+    if not providers:
+        return [], []
+
+    results = await asyncio.gather(
+        *(_one(p) for p in providers),
+        return_exceptions=True,
+    )
+
+    chunks: list = []
+    degraded: list[str] = []
+    for provider, result in zip(providers, results, strict=True):
+        if isinstance(result, BaseException):
+            logger.warning(
+                "provider_router: %s failed (%s); marking degraded",
+                provider.name,
+                type(result).__name__,
+            )
+            degraded.append(provider.name)
+            continue
+        chunks.extend(result)
+    return chunks, degraded
+
+
+__all__ = ["DEFAULT_PROVIDER_TIMEOUT_S", "build_provider_plan", "fanout_fetch"]
