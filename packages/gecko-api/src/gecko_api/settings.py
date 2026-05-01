@@ -26,7 +26,7 @@ from pydantic import BaseModel, SecretStr
 
 _TWITSH_SENTINELS = ("", "__unset__", "__dev_change_me__")
 
-X402Mode = Literal["stub", "live", "frames"]
+X402Mode = Literal["stub", "live", "frames", "cdp"]
 
 
 class Settings(BaseModel):
@@ -142,7 +142,7 @@ class Settings(BaseModel):
     @classmethod
     def from_env(cls) -> Settings:
         mode = os.environ.get("X402_MODE", "stub")
-        if mode not in ("stub", "live", "frames"):
+        if mode not in ("stub", "live", "frames", "cdp"):
             raise ValueError(f"unknown X402_MODE: {mode!r}")
 
         # Resolve network FIRST — `resolve_network` raises on unknown values
