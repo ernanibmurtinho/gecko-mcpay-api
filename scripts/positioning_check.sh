@@ -1,13 +1,21 @@
 #!/usr/bin/env bash
-# S10-POSITION-01 — 5-idea Gecko stress matrix.
+# Gecko stress matrix runner.
 #
-# Runs `bb research` + `bb plan` against five Gecko-flavored idea variants and
-# aggregates the verdict, gap classification, and 5-voice advisor closing
-# lines into docs/positioning/2026-04-30-gecko-self-research.md.
+# Originally S10-POSITION-01 (hardcoded 5-idea array); S14-DOGFOOD-02
+# parameterizes it to take an ideas file (one idea per line, blank/#
+# comment lines ignored) so an arbitrary set can be re-fired without
+# editing the script.
 #
 # Usage:
-#   scripts/positioning_check.sh              # stub mode (default)
-#   scripts/positioning_check.sh --live       # mainnet (Track B preflight required)
+#   scripts/positioning_check.sh                          # stub + default ideas file
+#   scripts/positioning_check.sh --live                   # mainnet (Track B preflight required)
+#   scripts/positioning_check.sh --ideas <file>           # custom ideas file
+#   scripts/positioning_check.sh --live --ideas <file>    # both flags compose
+#
+# Default ideas file resolution (in order):
+#   1. --ideas <file>                                    # explicit
+#   2. docs/positioning/ideas/<latest>.txt               # newest by mtime
+#   3. fallback to the original 5-idea array             # back-compat
 #
 # Defensive: if `bb plan` errors mid-run (e.g. F17 voice failures from
 # Sprint 9), we capture the failure and continue with the remaining ideas.
@@ -22,8 +30,29 @@ OUT_FILE="${OUT_DIR}/2026-04-30-gecko-self-research.md"
 mkdir -p "${RAW_DIR}"
 
 MODE="stub"
-if [[ "${1:-}" == "--live" ]]; then
-  MODE="live"
+IDEAS_FILE=""
+
+# Simple flag parser — long-form only, --flag value separated by space.
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --live) MODE="live"; shift ;;
+    --ideas)
+      shift
+      IDEAS_FILE="${1:-}"
+      if [[ -z "${IDEAS_FILE}" ]]; then
+        echo "[positioning] --ideas requires a file path" >&2
+        exit 2
+      fi
+      shift
+      ;;
+    *)
+      echo "[positioning] unknown flag: $1" >&2
+      exit 2
+      ;;
+  esac
+done
+
+if [[ "${MODE}" == "live" ]]; then
   echo "[positioning] LIVE mode — assumes Track B preflight (scripts/live_preflight.sh) passed."
   export X402_MODE="live"
 else
@@ -31,13 +60,40 @@ else
   export X402_MODE="stub"
 fi
 
-IDEAS=(
-  "AI co-founder for indie hackers, x402-paid via MCP inside Claude Code"
-  "Builder Bootstrap Platform that lives inside Claude Code"
-  "pay-per-use research agent for solo founders, USDC on Solana"
-  "adversarial 5-agent debate to kill bad startup ideas before you build them"
-  "upstream of Kiro: should-I-build before how-do-I-build"
-)
+# Resolve the ideas file: explicit > latest in docs/positioning/ideas/
+# > hardcoded fallback. The fallback preserves the S10 5-idea array so
+# pre-S14 invocations keep working without an ideas file present.
+if [[ -z "${IDEAS_FILE}" ]]; then
+  DEFAULT_IDEAS_DIR="${ROOT}/docs/positioning/ideas"
+  if [[ -d "${DEFAULT_IDEAS_DIR}" ]]; then
+    IDEAS_FILE="$(ls -1t "${DEFAULT_IDEAS_DIR}"/*.txt 2>/dev/null | head -n1 || true)"
+  fi
+fi
+
+IDEAS=()
+if [[ -n "${IDEAS_FILE}" && -f "${IDEAS_FILE}" ]]; then
+  echo "[positioning] reading ideas from ${IDEAS_FILE}"
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    # Skip blank lines + shell-style comments.
+    [[ -z "${line// }" ]] && continue
+    [[ "${line}" =~ ^[[:space:]]*# ]] && continue
+    IDEAS+=("${line}")
+  done < "${IDEAS_FILE}"
+fi
+
+if [[ ${#IDEAS[@]} -eq 0 ]]; then
+  echo "[positioning] no ideas file resolved — falling back to default 5-idea array"
+  IDEAS=(
+    "AI co-founder for indie hackers, x402-paid via MCP inside Claude Code"
+    "Builder Bootstrap Platform that lives inside Claude Code"
+    "pay-per-use research agent for solo founders, USDC on Solana"
+    "adversarial 5-agent debate to kill bad startup ideas before you build them"
+    "upstream of Kiro: should-I-build before how-do-I-build"
+  )
+fi
+
+TOTAL=${#IDEAS[@]}
+echo "[positioning] running ${TOTAL} ideas in ${MODE} mode"
 
 # Resolve the bb entrypoint. Prefer uv run from the repo root so we don't
 # depend on a global install.
@@ -129,7 +185,7 @@ extract_closing_lines() {
   echo "**Source script:** \`scripts/positioning_check.sh\`"
   echo "**Raw transcripts:** \`docs/positioning/raw/2026-04-30/\`"
   echo ""
-  echo "5 Gecko-flavored idea variants run through the full \`bb research\` +"
+  echo "${TOTAL} idea variants run through the full \`bb research\` +"
   echo "\`bb plan\` (5-voice advisor panel) pipeline. Each row records the"
   echo "verdict (inferred from gap_classification per Sprint 9 S9-VERDICT-01),"
   echo "the structured gap label, and a count of unique sources cited."
@@ -147,7 +203,7 @@ for i in "${!IDEAS[@]}"; do
   IDEA="${IDEAS[$i]}"
   N=$((i + 1))
   echo ""
-  echo "[positioning] (${N}/5) ${IDEA}"
+  echo "[positioning] (${N}/${TOTAL}) ${IDEA}"
 
   RES_LOG="${RAW_DIR}/idea-${N}-research.log"
   PLAN_LOG="${RAW_DIR}/idea-${N}-plan.log"

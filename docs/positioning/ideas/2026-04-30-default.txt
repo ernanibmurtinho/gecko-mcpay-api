@@ -1,0 +1,10 @@
+# Default ideas file for scripts/positioning_check.sh (S14-DOGFOOD-02).
+# Mirrors the original S10 5-idea array so back-compat invocations
+# (no --ideas flag, no other ideas/*.txt newer than this one) keep
+# producing the same matrix shape.
+
+AI co-founder for indie hackers, x402-paid via MCP inside Claude Code
+Builder Bootstrap Platform that lives inside Claude Code
+pay-per-use research agent for solo founders, USDC on Solana
+adversarial 5-agent debate to kill bad startup ideas before you build them
+upstream of Kiro: should-I-build before how-do-I-build
