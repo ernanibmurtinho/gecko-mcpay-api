@@ -93,6 +93,27 @@ _V2_VERDICT_RE = re.compile(
     r"(?im)^\s*(?:final\s+)?verdict\s*[:\-]\s*(PIVOT|REFINE|GO|KILL|BUILD)\b"
 )
 
+# S20-VERDICT-PARSE-REGRESSION-01 — last-ditch fallback when the judge's
+# prose drops the canonical `(Final )?Verdict:` line and ends instead with
+# Scoper-shaped `V1_FEASIBLE_IN_4_DAYS: yes|no`. Allows optional markdown
+# bolding (`**V1_FEASIBLE_IN_4_DAYS**: yes`) since the live judge wraps the
+# label inconsistently. Maps yes→ship/GO, no→kill/PIVOT. NOTE: this is a
+# RESCUE path. If the canonical verdict line is present, it must always
+# win; the helpers below check the canonical regex first and only consult
+# this one when the canonical match is None.
+_V1_FEASIBLE_RE = re.compile(
+    r"(?im)\*{0,2}V1[_\s]?FEASIBLE(?:[_\s]IN[_\s]?4[_\s]?DAYS)?\*{0,2}\s*[:\-]\s*\*{0,2}(yes|no)\b"
+)
+
+
+def _v1_feasible_token(judge_text: str) -> str | None:
+    """Return 'yes' / 'no' / None for the V1_FEASIBLE_IN_4_DAYS rescue path."""
+    m = _V1_FEASIBLE_RE.search(judge_text)
+    if m is None:
+        return None
+    return m.group(1).lower()
+
+
 # Map either-vocabulary-token → canonical S17 bucket.
 _V2_NORMALIZE: dict[str, VerdictV2] = {
     "PIVOT": "PIVOT",
@@ -125,6 +146,16 @@ def extract_verdict_v2(judge_text: str) -> VerdictV2:
     match = _V2_VERDICT_RE.search(judge_text)
     if match is not None:
         return _V2_NORMALIZE[match.group(1).upper()]
+    # S20-VERDICT-PARSE-REGRESSION-01 — Scoper-shaped fallback runs BEFORE
+    # the bare-token scan because V1_FEASIBLE_IN_4_DAYS: yes|no is a tight
+    # structural signal, while `\bREFINE\b` / `\bGO\b` over-fires on prose
+    # like "refine the algorithm" or "we'll go to market". Empirically this
+    # was the regression for `saas-ship-deposition-summarizer` in D3.
+    feas = _v1_feasible_token(judge_text)
+    if feas == "yes":
+        return "GO"
+    if feas == "no":
+        return "PIVOT"
     upper = judge_text.upper()
     for token in ("PIVOT", "REFINE", "GO", "KILL", "BUILD"):
         if re.search(rf"\b{token}\b", upper):
@@ -234,6 +265,14 @@ def extract_verdict(judge_text: str) -> Verdict:
         return "kill"
     if "ship" in text or "build it" in text:
         return "ship"
+    # S20-VERDICT-PARSE-REGRESSION-01 — Scoper-shaped fallback. Live judge
+    # post-S18-cutover sometimes ends with `V1_FEASIBLE_IN_4_DAYS: yes|no`
+    # and no canonical Verdict line. Map yes→ship, no→kill.
+    feas = _v1_feasible_token(judge_text)
+    if feas == "yes":
+        return "ship"
+    if feas == "no":
+        return "kill"
     return "unknown"
 
 

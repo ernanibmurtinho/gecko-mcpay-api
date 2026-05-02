@@ -303,7 +303,17 @@ def _detect_research_verdict(result: ResearchResult) -> str:
         # name predates S17 rename and remains the "don't build as-is"
         # signal in the journal+precedent stores), REFINE → pivot (the
         # "needs work / not greenlit" bucket).
-        _LEGACY = {Verdict.GO: "ship", Verdict.PIVOT: "kill", Verdict.REFINE: "pivot"}
+        # S20-COHERENCE-VERDICT-LABEL-01 — the new KILL (premise
+        # incoherence) maps to the legacy "kill" journal bucket too;
+        # both PIVOT and KILL are "don't build as-is" from the journal /
+        # flywheel consumer's perspective, the distinction lives in the
+        # founder-facing single-token surface.
+        _LEGACY = {
+            Verdict.GO: "ship",
+            Verdict.PIVOT: "kill",
+            Verdict.KILL: "kill",
+            Verdict.REFINE: "pivot",
+        }
         return _LEGACY[structured]
     summary = getattr(result, "pro_session_summary", None)
     transcript = getattr(result, "transcript", None)
@@ -481,6 +491,11 @@ async def _run_pro_debate(
     try:
         from gecko_core.orchestration.pro import BudgetGuard
 
+        # S20-FEATURE-NOT-PRODUCT-CRITIC-01 — forward the basic-tier gap
+        # classification so the critic's system message gets the conditional
+        # "is this a feature, or a defensible product" fragment when the
+        # idea sits in a crowded/mature space (Full or Partial:UX/pricing/
+        # integration). Pure-prompt change; no verdict-semantics impact.
         transcript = await pro_generate(
             idea=idea,
             rag_context=rag_context,
@@ -490,6 +505,7 @@ async def _run_pro_debate(
             model_matrix=agent_matrix,
             precedents=precedents,
             tier_preset=tier_preset,
+            gap_classification=base_result.validation_report.gap_classification,
         )
     except ImportError as exc:
         logger.warning("AG2 not installed; pro tier degraded to basic: %s", exc)
@@ -517,11 +533,29 @@ async def _run_pro_debate(
     final_gap = base_result.validation_report.gap_classification
     final_citations = base_result.validation_report.citations
     low_grounding = is_low_grounding(final_citations)
+    # S20-COHERENCE-VERDICT-LABEL-01 — count distinct voices that flagged
+    # ``incoherent_premise`` in their turn output. ≥2 → Verdict.KILL,
+    # overriding gap/grounding signals. The dog-emotional-AI-blockchain
+    # class of idea routes here, not through PIVOT/REFINE.
+    from gecko_core.orchestration.pro.coherence import (
+        count_incoherent_premise_flags,
+    )
+
+    incoherence_flags = count_incoherent_premise_flags(transcript.turns)
     final_verdict = derive_verdict(
         final_gap,
         advisor_consensus=None,
         citations=final_citations,
+        incoherence_flag_count=incoherence_flags,
     )
+
+    # S20-PROVIDER-MIX-FLOOR-01 — informational provider-mix audit. The
+    # citation set here is the post-debate finalisation set; we re-audit
+    # at the pro entry point so the flag tracks pro-specific reranks if
+    # they ever diverge from the basic path.
+    from gecko_core.orchestration.provider_mix_audit import audit_provider_mix
+
+    provider_mix_flag = audit_provider_mix(final_citations)
 
     return base_result.model_copy(
         update={
@@ -530,6 +564,7 @@ async def _run_pro_debate(
             "pro_session_summary": summary,
             "verdict": final_verdict,
             "low_grounding": low_grounding,
+            "provider_mix_flag": provider_mix_flag,
         }
     )
 

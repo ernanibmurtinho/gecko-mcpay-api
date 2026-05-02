@@ -224,45 +224,84 @@ Values:
 """
 
 
+ProviderMixFlag = Literal[
+    "balanced",
+    "single_provider_dominates",
+    "thin_diversity",
+]
+"""S20-PROVIDER-MIX-FLOOR-01 — soft, informational audit of the
+provider_kind distribution in a verdict's citation set.
+
+Values:
+  - ``balanced``: ≥3 distinct provider_kinds AND no kind > 50% of citations.
+  - ``single_provider_dominates``: one provider_kind exceeds 50% of citations.
+    More severe than ``thin_diversity`` because the verdict leans on one
+    source even if several technically appear.
+  - ``thin_diversity``: fewer than 3 distinct provider_kinds in the set.
+
+The flag is informational only — it never changes the verdict and is
+deliberately excluded from ``verdict_hash`` inputs so reruns under the
+same retrieval reproduce the digest.
+"""
+
+
 class Verdict(str, Enum):
-    """S11-VERDICT-01 / S17-TONE-01 — single-token go/no-go signal surfaced
-    to founders.
+    """S11-VERDICT-01 / S17-TONE-01 / S20-COHERENCE-VERDICT-LABEL-01 —
+    single-token go/no-go signal surfaced to founders.
 
     Derived from the structured ``gap_classification`` plus advisor
-    consensus (when available). The typed gap stays as evidence — Verdict
-    is the headline.
+    consensus (when available) plus the pro-tier coherence-flag count.
+    The typed gap stays as evidence — Verdict is the headline.
 
     Mapping rule (see ``derive_verdict``):
-      - ``Full`` or ``False``                      → ``PIVOT``
+      - ≥2 critic/voice flags of ``incoherent_premise``  → ``KILL``  (pro-tier only)
+      - ``Full`` or ``False``                            → ``PIVOT``
       - ``Partial:pricing`` / ``Partial:integration``
-          AND advisor_consensus ≥ 0.8             → ``GO``
-          else                                    → ``REFINE``
-      - ``Partial:segment | UX | geo``             → ``REFINE``
+          AND advisor_consensus ≥ 0.8                   → ``GO``
+          else                                          → ``REFINE``
+      - ``Partial:segment | UX | geo``                   → ``REFINE``
 
     S17-TONE-01 — vocabulary softened: ``KILL`` → ``PIVOT`` (same semantics,
     framed as a redirect rather than a kill); ``BUILD`` → ``GO`` (more
-    energizing, shorter). ``REFINE`` is unchanged. The ``_missing_`` hook
-    below maps legacy ``"KILL"`` / ``"BUILD"`` strings (still present in
-    older ``result_json`` rows + on-disk transcripts) to the new members so
-    deserialization stays backwards-compatible. The 20260502 migration
-    backfills the JSONB rows for clean read paths; the shim is defense in
-    depth for any row written by an older deploy mid-rollout or by an
-    external SDK consumer that pinned an older Verdict value.
+    energizing, shorter). ``REFINE`` is unchanged.
+
+    S20-COHERENCE-VERDICT-LABEL-01 — ``KILL`` is RE-INTRODUCED with refined
+    semantics distinct from the legacy v1 token. The legacy KILL meant
+    "weak idea, don't build as-is" and was renamed to PIVOT in S17. The
+    new KILL means "premise is INCOHERENT or unverifiable; no amount of
+    refinement saves it" — the dog-emotional-AI-blockchain class of idea
+    where the wedge can't be made real because the components don't
+    compose. Trigger condition is structural: ≥2 voices in the 5-agent
+    pro-tier debate flag ``incoherent_premise``. Basic tier never emits
+    KILL (no debate to count flags from). The ``_missing_`` hook below
+    maps the LEGACY ``"KILL"`` string still present in older
+    ``result_json`` rows / on-disk transcripts to ``PIVOT`` (their actual
+    semantic), NOT to the new KILL — the fresh KILL only ever comes from
+    the synthesizer's coherence-flag count, never from an upstream string.
+    The 20260502120000 migration backfills the JSONB rows for clean read
+    paths; the shim is defense in depth for any row written by an older
+    deploy mid-rollout or by an external SDK consumer that pinned an
+    older Verdict value.
     """
 
     PIVOT = "PIVOT"
     REFINE = "REFINE"
     GO = "GO"
+    KILL = "KILL"  # S20-COHERENCE-VERDICT-LABEL-01 — premise incoherence
 
     @classmethod
     def _missing_(cls, value: object) -> Verdict | None:
         # Backwards-read shim for legacy rows / external callers still
         # emitting the old vocabulary. Case-insensitive on the off chance a
-        # consumer lower-cased the token before persisting.
+        # consumer lower-cased the token before persisting. The legacy
+        # "KILL" string maps to PIVOT (S17 rename) — NOT to the new
+        # S20 KILL, which is only ever produced fresh by the synthesizer
+        # from a coherence-flag count, never deserialised from an
+        # upstream string. Exact-case "KILL" already resolves via the
+        # native enum lookup before _missing_ fires, so this shim is only
+        # reached for differently-cased / typoed legacy values.
         if isinstance(value, str):
             upper = value.upper()
-            if upper == "KILL":
-                return cls.PIVOT
             if upper == "BUILD":
                 return cls.GO
         return None
@@ -273,6 +312,14 @@ class Verdict(str, Enum):
 # 0.8 = 4-of-5 voices agree on the ship-shaped lever — leaves room for one
 # legitimate dissent without softening the headline.
 ADVISOR_CONSENSUS_BUILD_THRESHOLD: float = 0.8
+
+# S20-COHERENCE-VERDICT-LABEL-01 — minimum number of distinct voices in
+# the 5-agent pro debate that must flag ``incoherent_premise`` for the
+# headline to flip to KILL. ≥2 is the floor: a single dissenter could be
+# noise, two converging dissents on premise (not feasibility, not market)
+# is the structural signal. Bump only with fixture evidence.
+COHERENCE_KILL_MIN_FLAGS: int = 2
+
 
 # S17-VERDICT-01 — evidence-strength floor. Below either threshold the
 # verdict is forced to REFINE regardless of gap classification: Gecko's
@@ -304,8 +351,11 @@ def derive_verdict(
     gap: GapClassification,
     advisor_consensus: float | None = None,
     citations: list[Citation] | None = None,
+    *,
+    incoherence_flag_count: int = 0,
 ) -> Verdict:
-    """Map (gap_classification, advisor_consensus, citations) → single-token Verdict.
+    """Map (gap_classification, advisor_consensus, citations, coherence) →
+    single-token Verdict.
 
     ``advisor_consensus`` is the fraction of advisor-panel voices whose
     closing line aligns with a ship/go sentiment. ``None`` means we
@@ -320,7 +370,25 @@ def derive_verdict(
     Gecko's claim to a verdict rests on the chunks the model can point at.
     Pass ``None`` to skip the floor (legacy callers, or contexts where
     the floor is enforced upstream).
+
+    ``incoherence_flag_count`` (S20-COHERENCE-VERDICT-LABEL-01) is the
+    number of distinct voices in the 5-agent pro debate that flagged
+    ``incoherent_premise`` (the dog-emotional-AI-blockchain class — premise
+    can't compose, no refinement saves it). When the count is at or above
+    :data:`COHERENCE_KILL_MIN_FLAGS` (default 2), Verdict.KILL fires
+    regardless of gap classification, advisor consensus, or grounding —
+    incoherence overrides every other signal because the founder
+    surface lies if it says "refine" to a premise that doesn't compose.
+    Defaults to 0 so basic-tier callers (no debate) and legacy callers
+    keep their existing GO/REFINE/PIVOT mapping unchanged. KILL is
+    pro-tier-only at first; if a future basic-tier coherence check ships,
+    extend this kwarg through ``orchestration.basic.generate``.
     """
+    # S20: KILL on premise incoherence overrides every other signal —
+    # including the low-grounding floor. An incoherent premise with weak
+    # grounding is still incoherent; flooring to REFINE would mislead.
+    if incoherence_flag_count >= COHERENCE_KILL_MIN_FLAGS:
+        return Verdict.KILL
     if citations is not None and is_low_grounding(citations):
         return Verdict.REFINE
     if gap in ("Full", "False"):
@@ -416,6 +484,15 @@ class ResearchResult(BaseModel):
     # lets the renderer surface "low confidence — gather more sources"
     # instead of pretending certainty.
     low_grounding: bool = False
+    # S20-PROVIDER-MIX-FLOOR-01 — informational audit of the provider_kind
+    # mix in the citation set. Computed post-synthesis (see
+    # ``gecko_core.orchestration.provider_mix_audit.audit_provider_mix``).
+    # Does NOT change the verdict; the renderer surfaces a soft warning
+    # when provenance is too narrow. ``None`` for legacy code paths that
+    # haven't run the audit (kept Optional so existing serialised rows
+    # round-trip without backfill). Verdict-hash inputs deliberately
+    # exclude this field — see ``verdict_hash._verdict_payload``.
+    provider_mix_flag: ProviderMixFlag | None = None
 
 
 class AskResult(BaseModel):

@@ -11,20 +11,36 @@ from __future__ import annotations
 import copy
 from typing import TYPE_CHECKING, Any
 
-from gecko_core.orchestration.pro.prompts import REQUIRED_AGENTS, load_prompts
+from gecko_core.orchestration.pro.prompts import (
+    REQUIRED_AGENTS,
+    feature_not_product_fragment_for,
+    load_prompts,
+)
 
 if TYPE_CHECKING:  # pragma: no cover - typing-only
     from autogen import GroupChatManager
 
 
-def _agent_specs() -> tuple[tuple[str, str], ...]:
+def _agent_specs(*, gap_classification: str | None = None) -> tuple[tuple[str, str], ...]:
     """Resolve (agent_name, system_message) pairs in the canonical order.
 
     Reads from the prompts loader (default JSON or GECKO_PROMPTS_PATH override).
     Order matches REQUIRED_AGENTS so the GroupChat sees a deterministic sequence.
+
+    When ``gap_classification`` matches the feature-not-product trigger set
+    (S20-FEATURE-NOT-PRODUCT-CRITIC-01), the conditional fragment is appended
+    to the critic's system message. Pure-function append — same input ⇒ same
+    output, so the assembly stays deterministic for replay.
     """
     prompts = load_prompts()
-    return tuple((name, prompts[name]) for name in REQUIRED_AGENTS)
+    fragment = feature_not_product_fragment_for(gap_classification)
+    out: list[tuple[str, str]] = []
+    for name in REQUIRED_AGENTS:
+        sys_msg = prompts[name]
+        if fragment is not None and name == "critic":
+            sys_msg = f"{sys_msg}\n\n{fragment}"
+        out.append((name, sys_msg))
+    return tuple(out)
 
 
 def _override_agent_cfg(
@@ -68,6 +84,7 @@ def build_groupchat(
     *,
     model_matrix: dict[str, str] | None = None,
     temperature_matrix: dict[str, float] | None = None,
+    gap_classification: str | None = None,
 ) -> GroupChatManager:
     """Construct the 5-agent GroupChat for the Pro debate.
 
@@ -98,7 +115,7 @@ def build_groupchat(
     # Typed as list[Any] so mypy doesn't complain about list invariance
     # between ConversableAgent and the Agent supertype GroupChat expects.
     agents: list[Any] = []
-    for name, sys_msg in _agent_specs():
+    for name, sys_msg in _agent_specs(gap_classification=gap_classification):
         if name in m_matrix or name in t_matrix:
             agent_cfg = _override_agent_cfg(
                 llm_config,

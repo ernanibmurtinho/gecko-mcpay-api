@@ -83,18 +83,33 @@ def test_verdict_enum_string_values() -> None:
     assert Verdict.PIVOT.value == "PIVOT"
     assert Verdict.REFINE.value == "REFINE"
     assert Verdict.GO.value == "GO"
+    # S20-COHERENCE-VERDICT-LABEL-01 — KILL re-introduced with refined
+    # premise-incoherence semantics (distinct from the legacy v1 KILL,
+    # which meant "weak idea, don't build" and was renamed to PIVOT).
+    assert Verdict.KILL.value == "KILL"
 
 
 def test_verdict_enum_legacy_strings_round_trip() -> None:
-    """S17-TONE-01 — backwards-read shim for legacy ``result_json`` rows
-    and on-disk transcripts captured before the rename. ``Verdict("KILL")``
-    must yield ``Verdict.PIVOT``; ``Verdict("BUILD")`` must yield
-    ``Verdict.GO``. New tokens round-trip too."""
-    assert Verdict("KILL") is Verdict.PIVOT
+    """S17-TONE-01 / S20-COHERENCE-VERDICT-LABEL-01 — backwards-read shim
+    for legacy ``result_json`` rows and on-disk transcripts captured
+    before / between renames.
+
+    The legacy ``"BUILD"`` token still routes to ``Verdict.GO`` (S17 alias).
+
+    Exact-case ``"KILL"`` now resolves NATIVELY to ``Verdict.KILL`` (the
+    S20 premise-incoherence label) — NOT the legacy "weak idea" semantic.
+    The 20260502120000 migration already rewrote any pre-S17 ``"KILL"``
+    rows to ``"PIVOT"`` in ``sessions.result_json``, so no production
+    deserialise can hit the old semantic. External SDK consumers pinned
+    to the pre-S17 enum and reading post-S20 data will see KILL as the
+    new label, which is fine — both legacy and new KILL map to the
+    "kill" bucket in the journal/flywheel anyway (see
+    ``workflows._detect_research_verdict``).
+    """
     assert Verdict("BUILD") is Verdict.GO
     assert Verdict("PIVOT") is Verdict.PIVOT
     assert Verdict("GO") is Verdict.GO
     assert Verdict("REFINE") is Verdict.REFINE
-    # Case-insensitive on the off chance a consumer lower-cased the token.
-    assert Verdict("kill") is Verdict.PIVOT
+    assert Verdict("KILL") is Verdict.KILL  # S20 native lookup
+    # Case-insensitive shim for the legacy ``BUILD`` lower/mixed-case path.
     assert Verdict("build") is Verdict.GO

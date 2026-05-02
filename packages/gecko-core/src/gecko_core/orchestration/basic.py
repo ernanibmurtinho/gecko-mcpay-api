@@ -473,6 +473,11 @@ async def generate(
         out.validation_report.gap_classification,
         citations=citations,
     )
+    # S20-PROVIDER-MIX-FLOOR-01 — informational provider-mix audit on the
+    # final citation set. Does not affect verdict or verdict_hash.
+    from gecko_core.orchestration.provider_mix_audit import audit_provider_mix
+
+    provider_mix_flag = audit_provider_mix(citations)
 
     return ResearchResult(
         session_id=str(session_id),
@@ -483,6 +488,7 @@ async def generate(
         sources=sources,
         verdict=verdict,
         low_grounding=low_grounding,
+        provider_mix_flag=provider_mix_flag,
     )
 
 

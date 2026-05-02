@@ -196,6 +196,7 @@ async def generate(
     temperature_matrix: dict[str, float] | None = None,
     precedents: list[GeckoPrecedent] | None = None,
     tier_preset: str | None = None,
+    gap_classification: str | None = None,
 ) -> DebateTranscript:
     """Run the 5-agent debate.
 
@@ -236,6 +237,11 @@ async def generate(
         bg_kwargs["model_matrix"] = model_matrix
     if temperature_matrix is not None:
         bg_kwargs["temperature_matrix"] = temperature_matrix
+    # S20-FEATURE-NOT-PRODUCT-CRITIC-01: only forward gap_classification when
+    # supplied so legacy test fakes that monkeypatch build_groupchat with a
+    # narrower signature continue to work (same pattern as model_matrix).
+    if gap_classification is not None:
+        bg_kwargs["gap_classification"] = gap_classification
     manager = build_groupchat(llm_config, **bg_kwargs) if bg_kwargs else build_groupchat(llm_config)
     chat = manager.groupchat
     agents_by_name = {a.name: a for a in chat.agents}

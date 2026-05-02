@@ -92,6 +92,16 @@ def extract_verdict(judge_text: str) -> Verdict | Literal["unknown"]:
         return "kill"
     if "ship" in text or "build it" in text:
         return "ship"
+    # S20-VERDICT-PARSE-REGRESSION-01 — rescue from Scoper-shaped
+    # V1_FEASIBLE_IN_4_DAYS: yes|no when the canonical verdict line is
+    # missing. Mirrors `tests/eval/rubric._v1_feasible_token` so the
+    # write-path agrees with the eval-path on drifted prose.
+    m2 = re.search(
+        r"(?im)\*{0,2}V1[_\s]?FEASIBLE(?:[_\s]IN[_\s]?4[_\s]?DAYS)?\*{0,2}\s*[:\-]\s*\*{0,2}(yes|no)\b",
+        judge_text,
+    )
+    if m2 is not None:
+        return "ship" if m2.group(1).lower() == "yes" else "kill"
     return "unknown"
 
 

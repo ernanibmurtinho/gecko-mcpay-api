@@ -86,6 +86,19 @@ The thesis-research "Non-developer founders" dimension surfaces a real, underser
 | **`bb sources`** | Lists all indexed sources for a session | Returns source URL, type (youtube/web), chunk count, and indexed timestamp |
 | **Session persistence** | Every workflow is stored as a session in Supabase | Session ID, tier, status, timestamps, and linked sources/chunks persist across restarts |
 
+### Verdict vocabulary
+
+The structured single-token headline emitted alongside the three documents. Source of truth: ``gecko_core.models.Verdict``.
+
+| Token | Trigger | Meaning |
+|-------|---------|---------|
+| **GO** | ``Partial:pricing`` / ``Partial:integration`` gap + advisor consensus ≥ 0.8 | Greenlit — ship V1 to the named buyer |
+| **REFINE** | ``Partial:segment``, ``Partial:UX``, ``Partial:geo`` gaps; or any partial without clean consensus; or low-grounding floor | Sharpen the wedge before building |
+| **PIVOT** | ``Full`` or ``False`` gap | Idea as-stated should be redirected, not built |
+| **KILL** | ≥2 voices in the pro debate flag premise incoherence (S20-COHERENCE-VERDICT-LABEL-01) | Premise is incoherent or unverifiable; no amount of refinement saves it |
+
+`KILL` is pro-tier-only — basic-tier never has the multi-voice signal to fire it. The S20 KILL is structurally distinct from the legacy v1 ``KILL`` token (renamed to ``PIVOT`` in S17): the trigger is premise incoherence, not "weak idea."
+
 ### Pricing (V1)
 
 | Tier | Price | Mode |

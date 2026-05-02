@@ -168,6 +168,22 @@ def research_cmd(
 
     short_hash = verdict_hash_short(idea, result)
     console.print(f"[dim]session_id: {result.session_id}  ·  {short_hash}[/dim]")
+    # S20-PROVIDER-MIX-FLOOR-01 — soft warning when the citation set leans
+    # too heavily on one provider_kind or doesn't cross at least 3 kinds.
+    # Informational only; the verdict is unchanged.
+    _flag = getattr(result, "provider_mix_flag", None)
+    if _flag == "single_provider_dominates":
+        console.print("[dim yellow]⚠ citations dominated by one provider[/]")
+    elif _flag == "thin_diversity":
+        try:
+            _kinds = {
+                (c.provenance.provider_kind if c.provenance else None) or "unknown"
+                for c in result.validation_report.citations
+            }
+            _n = len(_kinds)
+        except Exception:
+            _n = 0
+        console.print(f"[dim yellow]⚠ only {_n} distinct provider kinds in citations[/]")
 
     if publish:
         # S14-PUB-01 — opt-in publish.new artifact upload. Runs AFTER the

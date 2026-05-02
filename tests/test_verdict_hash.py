@@ -111,6 +111,23 @@ class TestVerdictHash:
         r2 = _make_result(sources=["https://x.com"], verdict=Verdict.PIVOT)
         assert verdict_hash("idea", r1) != verdict_hash("idea", r2)
 
+    def test_kill_distinct_from_pivot_hash(self) -> None:
+        """S20-COHERENCE-VERDICT-LABEL-01 — KILL and PIVOT are STRUCTURALLY
+        different verdicts (premise-incoherence vs. weak-idea-redirect) and
+        must produce different verdict-hashes for the same idea + sources.
+
+        Without this, the tradeable-judgment surface (S19-S1) could collapse
+        a KILL and a PIVOT for the same idea into the same ``/v/<hash>``
+        URL — silently, and only catchable by a sha256 collision check."""
+        r1 = _make_result(sources=["https://x.com"], verdict=Verdict.KILL)
+        r2 = _make_result(sources=["https://x.com"], verdict=Verdict.PIVOT)
+        assert verdict_hash("idea", r1) != verdict_hash("idea", r2)
+        # Sanity — KILL also distinct from REFINE and GO
+        r3 = _make_result(sources=["https://x.com"], verdict=Verdict.REFINE)
+        r4 = _make_result(sources=["https://x.com"], verdict=Verdict.GO)
+        assert verdict_hash("idea", r1) != verdict_hash("idea", r3)
+        assert verdict_hash("idea", r1) != verdict_hash("idea", r4)
+
     def test_different_gap_classification_different_hash(self) -> None:
         r1 = _make_result(sources=["https://x.com"], gap="Partial:UX")
         r2 = _make_result(sources=["https://x.com"], gap="Partial:segment")

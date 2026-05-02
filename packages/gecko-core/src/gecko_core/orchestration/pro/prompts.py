@@ -136,4 +136,72 @@ def load_prompts() -> dict[str, str]:
     return _validate(data)
 
 
-__all__ = ["REQUIRED_AGENTS", "PromptsConfigError", "load_prompts"]
+# ---------------------------------------------------------------------------
+# Runtime-conditional prompt fragments (S20-FEATURE-NOT-PRODUCT-CRITIC-01)
+# ---------------------------------------------------------------------------
+# These fragments live in code (not the version-pinned JSON bundles) because
+# they are *conditional on runtime data* (the basic-tier gap_classification
+# label). A static JSON entry would be awkward — every prompt version would
+# need to ship a parallel "if mature, also say this" branch. Instead we keep
+# the JSON system messages clean and append a fragment at agent-build time
+# when the gating condition fires.
+#
+# Trigger mapping (see ticket §1):
+#   ticket label "crowded-but-differentiable" → ``Partial:UX``,
+#                                                ``Partial:pricing``,
+#                                                ``Partial:integration``
+#   ticket label "mature"                     → ``Full``
+#
+# The ticket's labels are aspirational; the canonical
+# :data:`gecko_core.models.GapClassification` Literal does not (yet) include
+# "crowded-but-differentiable" or "mature". We map onto the existing taxonomy
+# so the fragment fires whenever the basic-tier judge says a competitor
+# already covers the wedge in full or differs on a single facet — which is
+# exactly the "is this a feature or a product" risk surface.
+
+FEATURE_NOT_PRODUCT_FRAGMENT: str = (
+    "GAP CONTEXT: this idea sits in a crowded or mature space — the basic "
+    "tier already classified the competitive landscape as either Full coverage "
+    "or differentiation on a single facet (UX/pricing/integration). Before "
+    "concluding GO, answer one question explicitly in your turn: is this a "
+    "defensible product, or a feature that any incumbent could ship in a "
+    "quarter? If feature, name the specific incumbent and the time horizon. "
+    "If product, name the moat (data, distribution, switching cost, network "
+    "effect, regulatory) that prevents that copy."
+)
+
+# The gap_classification labels that should trigger the fragment. Kept as a
+# frozenset so the membership check is O(1) and the set is immutable across
+# the module's lifetime.
+FEATURE_NOT_PRODUCT_GAP_TRIGGERS: frozenset[str] = frozenset(
+    {
+        "Full",
+        "Partial:UX",
+        "Partial:pricing",
+        "Partial:integration",
+    }
+)
+
+
+def feature_not_product_fragment_for(gap_classification: str | None) -> str | None:
+    """Return the fragment string when the gap label triggers it, else None.
+
+    Pure function — no I/O, no caching needed. Called once per ``build_groupchat``
+    invocation. Returning ``None`` (not empty string) lets the caller cleanly
+    skip the append step when the fragment doesn't apply.
+    """
+    if gap_classification is None:
+        return None
+    if gap_classification in FEATURE_NOT_PRODUCT_GAP_TRIGGERS:
+        return FEATURE_NOT_PRODUCT_FRAGMENT
+    return None
+
+
+__all__ = [
+    "FEATURE_NOT_PRODUCT_FRAGMENT",
+    "FEATURE_NOT_PRODUCT_GAP_TRIGGERS",
+    "REQUIRED_AGENTS",
+    "PromptsConfigError",
+    "feature_not_product_fragment_for",
+    "load_prompts",
+]
