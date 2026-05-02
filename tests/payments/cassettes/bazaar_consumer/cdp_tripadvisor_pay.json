@@ -1,0 +1,31 @@
+{
+  "_meta": {
+    "ticket": "S16-BAZAAR-CONSUMER-04",
+    "target": "tripadvisor.x402.paysponge.com/api/v1/location/12345/details",
+    "network": "eip155:8453 (Base mainnet)",
+    "advertised_price_usd": "0.01",
+    "recorded_at": "PLACEHOLDER",
+    "recorded_tx_hash": "PLACEHOLDER",
+    "notes": "Replay-mode placeholder cassette. The X-PAYMENT-RESPONSE body is a synthesized success shape used until the operator records a real interaction with GECKO_BAZAAR_LIVE=1 and a funded buyer wallet. Replace _meta.recorded_tx_hash and the response body's `transaction` field with the real values after recording. The CONTRACT_TEST asserts the parser shape, not the specific tx hash, so this placeholder is sufficient for CI regression-guard. See test_bazaar_consumer_contract.py for assertions."
+  },
+  "interactions": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://tripadvisor.x402.paysponge.com/api/v1/location/12345/details",
+        "headers": {
+          "X-PAYMENT": "<signed-eip3009-payload-base64>",
+          "Accept": "application/json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "X-PAYMENT-RESPONSE": "eyJzdWNjZXNzIjogdHJ1ZSwgInRyYW5zYWN0aW9uIjogIjB4OWY0YTJjMWI4ZTdkNmY1YTNjMmIxZDBlOWY4YTdiNmM1ZDRlM2YyYTFiMGM5ZDhlN2Y2YTViNGMzZDJlMWYwYSIsICJuZXR3b3JrIjogImVpcDE1NTo4NDUzIiwgInBheWVyIjogIjB4YWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYiJ9"
+        },
+        "body": "{\"location_id\": 12345, \"name\": \"Pousada Lisboa Centro\", \"rating\": 4.6, \"review_count\": 1247, \"price_level\": \"$$\", \"address\": \"R. da Madalena, 1100-321 Lisboa, Portugal\", \"latitude\": 38.7115, \"longitude\": -9.1342}"
+      }
+    }
+  ]
+}

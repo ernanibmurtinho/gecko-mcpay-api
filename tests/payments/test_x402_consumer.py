@@ -73,33 +73,33 @@ def test_legacy_alias_is_same_class() -> None:
 
 
 @pytest.mark.asyncio
-async def test_cdp_consumer_pay_is_gated_on_contract_test_ticket() -> None:
-    """Intentional: the live wire stays NotImplementedError until the
-    recorded-fixture contract test (S16-BAZAAR-CONSUMER-04) lands.
+async def test_cdp_consumer_requires_buyer_key() -> None:
+    """S16-BAZAAR-CONSUMER-04 — live body is wired, but it raises a
+    typed ``CDPNotConfiguredError`` (not ``NotImplementedError``) when
+    ``GECKO_BAZAAR_BUYER_PRIVATE_KEY`` is missing. No stubbed-but-shipped
+    fallback — Pattern B."""
+    from gecko_core.payments.x402_consumer import CDPNotConfiguredError
 
-    Per CLAUDE.md Pattern B — no stubbed-but-shipped wire integrations.
-    Removing this guard requires the contract test to land first.
-    """
-    consumer = CDPX402Consumer()
-    with pytest.raises(NotImplementedError) as excinfo:
+    consumer = CDPX402Consumer(payer_private_key=None)
+    with pytest.raises(CDPNotConfiguredError) as excinfo:
         await consumer.pay(_req("0.01"), max_usd=Decimal("0.10"))
-    assert "S16-BAZAAR-CONSUMER-04" in str(excinfo.value)
+    assert "GECKO_BAZAAR_BUYER_PRIVATE_KEY" in str(excinfo.value)
 
 
 @pytest.mark.asyncio
-async def test_frames_consumer_pay_is_gated_on_contract_test_ticket() -> None:
+async def test_frames_consumer_pay_is_deferred_with_followup_ticket() -> None:
+    """Frames-buyer wiring is deferred — see S16-BAZAAR-CONSUMER-04-FRAMES.
+    No Solana $0.01-class endpoint candidate at S16 ship-time."""
     consumer = FramesX402Consumer()
     with pytest.raises(NotImplementedError) as excinfo:
         await consumer.pay(_req("0.01"), max_usd=Decimal("0.10"))
-    assert "S16-BAZAAR-CONSUMER-04" in str(excinfo.value)
+    assert "S16-BAZAAR-CONSUMER-04-FRAMES" in str(excinfo.value)
 
 
 @pytest.mark.asyncio
-async def test_live_conformers_enforce_budget_before_raising_notimpl() -> None:
-    """When the live body lands, error ordering must stay stable: budget
-    cap must reject before any network call. Test that today by asserting
-    BudgetExceeded wins over NotImplementedError on the scaffold."""
-    for consumer in (CDPX402Consumer(), FramesX402Consumer()):
+async def test_live_conformers_enforce_budget_before_anything_else() -> None:
+    """Budget cap rejects before any network call or config check."""
+    for consumer in (CDPX402Consumer(payer_private_key=None), FramesX402Consumer()):
         with pytest.raises(BudgetExceeded):
             await consumer.pay(_req("0.50"), max_usd=Decimal("0.10"))
 

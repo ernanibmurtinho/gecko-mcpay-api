@@ -44,6 +44,11 @@ markers = [
     # run /settle from a marker-gated test — that's reserved for the live
     # smoke runbook.
     "live_cdp: integration test against the real CDP facilitator (free /verify only)",
+    # S16-BAZAAR-CONSUMER-04: gated cassette test against a real $0.01-class
+    # x402 endpoint (TripAdvisor on Base) for the buyer-side flow. Replay
+    # mode runs in CI; live re-record requires GECKO_BAZAAR_LIVE=1 and a
+    # funded buyer wallet. See tests/payments/test_bazaar_consumer_contract.py.
+    "live_bazaar: gated buyer-side x402 contract test (cassette replay by default)",
 ]
 
 [dependency-groups]
