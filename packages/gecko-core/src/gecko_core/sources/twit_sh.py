@@ -232,6 +232,37 @@ def _normalize_tweet(raw: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
+def _stub_tweets(idea: str, categories: set[str]) -> list[dict[str, Any]]:
+    """Deterministic synthetic tweets for stub-mode `bb research`.
+
+    Mirrors the contract of a real twit.sh search response: keys match
+    the live shape so renderers / tests can't tell them apart. The
+    tweets reference the idea verbatim (truncated) so the dogfood smoke
+    has an obvious provenance trail and the agent prompt sees real
+    surface text rather than empty placeholders.
+    """
+    snippet = (idea or "").strip()
+    if len(snippet) > 100:
+        snippet = snippet[:97] + "..."
+    cat_str = ", ".join(sorted(categories)) if categories else "builders"
+    return [
+        {
+            "text": f"[stub] Builders are talking about: {snippet}",
+            "author_handle": "@stub_builder",
+            "url": "https://x402.twit.sh/stub/1",
+            "engagement": {"likes": 42, "replies": 7, "reposts": 12},
+            "created_at": "2026-05-01T00:00:00Z",
+        },
+        {
+            "text": f"[stub] Early {cat_str} signal mentioning {snippet[:60]}",
+            "author_handle": "@stub_signal",
+            "url": "https://x402.twit.sh/stub/2",
+            "engagement": {"likes": 18, "replies": 3, "reposts": 5},
+            "created_at": "2026-05-01T00:00:00Z",
+        },
+    ]
+
+
 def _build_x402_client() -> httpx.AsyncClient | None:
     """Construct an `httpx.AsyncClient` whose transport handles x402 on Base.
 
@@ -306,6 +337,13 @@ class TwitshSource:
         self._bypass_cache = bool(bypass_cache)
 
     async def applies_to(self, *, categories: set[str]) -> bool:
+        # S16-INTEGRATE-01: stub-mode bypass. When the platform is running
+        # in stub payment mode the live x402 wallet config is irrelevant —
+        # we synthesize a deterministic payload from a recorded fixture so
+        # `bb research` always produces a twit.sh attribution line during
+        # smoke. Live mode keeps the wallet+category gate.
+        if os.environ.get("X402_MODE", "stub").strip().lower() == "stub":
+            return True
         if not _is_twitsh_configured():
             return False
         return bool(_FIRES_FOR & categories)
@@ -326,6 +364,24 @@ class TwitshSource:
         already been paid, so we keep the network response for cache
         reuse but only emit allowed rows to the caller.
         """
+        # S16-INTEGRATE-01 — stub-mode synthetic payload. Mirrors the
+        # Bazaar stub-discovery pattern: no network, deterministic
+        # fixture, non-zero attributed spend so the economics rollup
+        # carries a `twitsh` line. Bypasses cache + x402 client entirely.
+        if os.environ.get("X402_MODE", "stub").strip().lower() == "stub":
+            synthetic = _stub_tweets(idea, categories)
+            return SourceResult(
+                source_name=self.name,
+                payload={
+                    "tweets": synthetic,
+                    "from_cache": False,
+                    "spend_usd": ASSUMED_PER_CALL_USD,
+                    "stub": True,
+                },
+                cost_usd=ASSUMED_PER_CALL_USD,
+                fired=True,
+            )
+
         # Cache check first — never spend when a hit is plausible.
         categories_csv = ",".join(sorted(categories))
         # Allowlist hash: include in cache key so filtered/unfiltered

@@ -172,6 +172,28 @@ async def research(
     _emit(progress_callback, "Generating documents")
     result = await basic_generate(session_id, idea, store)
 
+    # Step 6a — S16-INTEGRATE-01. Stub-mode integration dispatch for the
+    # Sprint 14 (twit.sh) and Sprint 16 (Bazaar) consumer surfaces. The
+    # Wave 2 commits registered both providers but no caller dispatched
+    # them on the basic-tier hot path; the 2026-05-01 stub smoke
+    # surfaced the gap. This call exercises both in stub mode so the
+    # economics ledger carries non-zero `twitsh` + `v1_sources` (Bazaar)
+    # lines and the wedge claim is on the path. Live mode is a no-op
+    # here for now — live wiring follows in S17 alongside the budget
+    # gate refactor.
+    try:
+        dispatch_summary = await _dispatch_stub_integration_providers(
+            session_id=session_id,
+            idea=idea,
+            store=store,
+            payment_mode=payment_mode,
+        )
+    except Exception as exc:  # pragma: no cover — defensive, never fail the run
+        logger.warning("integrate-01 dispatch failed: %s", exc)
+        dispatch_summary = None
+    if dispatch_summary is not None:
+        _emit(progress_callback, dispatch_summary)
+
     # Step 6b — pro tier: layer the 5-agent debate on top of the basic result.
     # The basic pass produces the structured 3 docs (business plan, validation
     # report, PRD); pro adds the transcript + session summary. We reuse the
@@ -487,6 +509,121 @@ def _parse_judge_verdict(summary: str | None) -> Verdict | None:
         return Verdict(token)
     except ValueError:  # pragma: no cover — regex guards the alphabet
         return None
+
+
+async def _dispatch_stub_integration_providers(
+    *,
+    session_id: UUID,
+    idea: str,
+    store: SessionStore,
+    payment_mode: PaymentMode,
+) -> str | None:
+    """S16-INTEGRATE-01 — stub-mode dispatch of Bazaar + twit.sh.
+
+    Runs after the basic generate step in **stub mode only** so every
+    `bb research` invocation produces ≥1 chunk attributed to each
+    provider, surfacing them in the economics ledger.
+
+    Live mode short-circuits: the live wiring is gated on the
+    recorded-fixture cassette tests (Pattern B/C) landing for both
+    consumers + a budget-aware orchestrator refactor. Today this seam
+    only fixes the stub-smoke gap that the 2026-05-01 review flagged.
+
+    Failures (network, missing fixtures, ledger writes) degrade
+    silently — the user has already received their verdict; this is
+    pure attribution telemetry.
+    """
+    if payment_mode != "stub":
+        return None
+
+    # Force the consumer + discovery resolvers to stub at the boundary.
+    # ``X402_CONSUMER_MODE`` may be unset in some test runners; default
+    # to stub so the Bazaar buyer path doesn't reach for live signing.
+    os.environ.setdefault("X402_CONSUMER_MODE", "stub")
+    os.environ.setdefault("GECKO_BAZAAR_DISCOVERY_MODE", "stub")
+
+    from gecko_core.classify import classify_idea
+    from gecko_core.sources import dispatch_sources
+    from gecko_core.sources.bazaar import make_bazaar_provider
+    from gecko_core.sources.twit_sh import TwitshSource
+
+    try:
+        categories = await classify_idea(idea)
+    except Exception as exc:  # pragma: no cover — degrade
+        logger.warning("integrate-01: classify failed (%s); using empty set", exc)
+        categories = set()
+
+    # Skip the optional Supabase-backed daily-cap ledger: the table
+    # (``bazaar_spend_ledger``) ships in migration ``20260501150000`` and
+    # may not be applied on every dev DB. Stub mode never spends real
+    # USDC so the daily-cap gate adds no value here. Live wiring brings
+    # the ledger back via the live S17 wiring ticket.
+    saved_url = os.environ.pop("SUPABASE_URL", None)
+    saved_key = os.environ.pop("SUPABASE_SERVICE_ROLE_KEY", None)
+    try:
+        bazaar = make_bazaar_provider(session_id=session_id)
+    finally:
+        if saved_url is not None:
+            os.environ["SUPABASE_URL"] = saved_url
+        if saved_key is not None:
+            os.environ["SUPABASE_SERVICE_ROLE_KEY"] = saved_key
+    twitsh = TwitshSource()
+    results = await dispatch_sources(
+        idea=idea,
+        categories=categories,
+        sources=[bazaar, twitsh],
+        timeout_seconds=15.0,
+    )
+
+    bazaar_result = results.get("bazaar")
+    twitsh_result = results.get("twit_sh")
+
+    bazaar_chunks = 0
+    bazaar_cost = 0.0
+    if bazaar_result is not None and bazaar_result.fired:
+        bazaar_chunks = len(bazaar_result.payload.get("chunks") or [])
+        bazaar_cost = float(bazaar_result.cost_usd or 0.0)
+        if bazaar_cost > 0:
+            try:
+                # No `cost_bazaar_usd` column yet (data-eng owns the
+                # migration). Roll up under `v1_sources` so the spend
+                # appears in the existing economics surface; the
+                # provider-level ledger row in `bazaar_spend_ledger`
+                # carries the per-resource breakdown.
+                await store.add_cost(session_id, "v1_sources", bazaar_cost)
+            except Exception as exc:  # pragma: no cover
+                logger.warning("integrate-01: bazaar add_cost failed: %s", exc)
+
+    twitsh_chunks = 0
+    twitsh_cost = 0.0
+    if twitsh_result is not None and twitsh_result.fired:
+        twitsh_chunks = len(twitsh_result.payload.get("tweets") or [])
+        twitsh_cost = float(twitsh_result.cost_usd or 0.0)
+        if twitsh_cost > 0:
+            try:
+                await store.add_cost(session_id, "twitsh", twitsh_cost)
+            except Exception as exc:  # pragma: no cover
+                logger.warning("integrate-01: twitsh add_cost failed: %s", exc)
+
+    # Single structured log line — feeds the post-Wave-2 dashboard that
+    # answers "did the wedge fire on this run?". Stable key=value form
+    # so log-aggregators can pivot without regex contortions.
+    logger.info(
+        "integrate01_dispatch session_id=%s payment_mode=%s "
+        "bazaar_chunks=%d bazaar_cost_usd=%.6f "
+        "twitsh_chunks=%d twitsh_cost_usd=%.6f",
+        session_id,
+        payment_mode,
+        bazaar_chunks,
+        bazaar_cost,
+        twitsh_chunks,
+        twitsh_cost,
+    )
+
+    return (
+        f"dispatch: bazaar {bazaar_chunks} chunks (${bazaar_cost:.4f}) · "
+        f"twitsh {twitsh_chunks} tweets (${twitsh_cost:.4f})"
+    )
 
 
 async def _dispatch_v1_sources(

@@ -169,6 +169,22 @@ class GenericBazaarAdapter:
                 f"all accepts[] entries exceed max_usd={max_usd} for {resource.resource_url}"
             )
 
+        # S16-INTEGRATE-01 — stub-mode short-circuit. When the consumer
+        # is in stub mode AND no httpx client was injected, synthesize a
+        # chunk from resource metadata instead of GETting the live URL
+        # (which would 402 against real USDC or fail with no auth). The
+        # ``self._client is None`` predicate is the test seam: existing
+        # contract tests inject a MockTransport-backed client to exercise
+        # the live HTTP path; production stub-mode dispatch never does.
+        # Live mode (``mode != "stub"``) keeps the original HTTP path.
+        if getattr(x402_consumer, "mode", "live") == "stub" and self._client is None:
+            return await self._stub_fetch_and_normalize(
+                resource,
+                x402_consumer,
+                requirement=requirement,
+                max_usd=max_usd,
+            )
+
         receipt: PaymentReceipt | None = None
         cost_usd = Decimal("0")
 
@@ -213,6 +229,58 @@ class GenericBazaarAdapter:
         finally:
             if not client_was_provided:
                 await client.aclose()
+
+    async def _stub_fetch_and_normalize(
+        self,
+        resource: BazaarResource,
+        x402_consumer: X402Consumer,
+        *,
+        requirement: PaymentRequirements | None,
+        max_usd: Decimal,
+    ) -> list[BazaarChunk]:
+        """Stub-mode: settle synthetically, build one chunk from metadata.
+
+        Exercises the full settle-then-normalize path without touching
+        the live resource server. The receipt the stub consumer returns
+        is recorded against the spend ledger by the provider's recording
+        consumer just as in the live path; only the resource HTTP fetch
+        is replaced by a deterministic synthesis from
+        ``resource.metadata`` so the chunk content is non-empty.
+        """
+        cost_usd = Decimal("0")
+        if requirement is not None:
+            await x402_consumer.pay(requirement, max_usd=max_usd)
+            cost_usd = requirement.max_amount_required or Decimal("0")
+
+        meta = resource.metadata or {}
+        description = str(meta.get("description") or "").strip()
+        category = str(meta.get("category") or "").strip()
+        domain = str(meta.get("domain") or meta.get("provider") or "").strip()
+        synth_lines: list[str] = [
+            f"[stub:bazaar] resource={resource.resource_url}",
+        ]
+        if description:
+            synth_lines.append(f"description: {description}")
+        if category:
+            synth_lines.append(f"category: {category}")
+        if domain:
+            synth_lines.append(f"provider: {domain}")
+        synth_lines.append(f"settled stub spend: ${cost_usd} USDC")
+        synth_text = "\n".join(synth_lines)
+
+        return [
+            BazaarChunk(
+                text=_truncate(synth_text),
+                provider_kind=f"bazaar:{resource.resource_type}",
+                cost_usd=cost_usd,
+                metadata={
+                    "resource_url": resource.resource_url,
+                    "source_directory": resource.source_directory,
+                    "cost_usd": str(cost_usd),
+                    "stub": True,
+                },
+            )
+        ]
 
 
 __all__ = ["GenericBazaarAdapter"]
