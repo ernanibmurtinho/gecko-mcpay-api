@@ -161,7 +161,13 @@ def research_cmd(
             )
 
     render_research_result(console, result)
-    console.print(f"[dim]session_id: {result.session_id}[/dim]")
+    # S18-VERDICT-HASH-01 — deterministic hash printed in CLI footer.
+    # Same idea + same retrieved citations + same verdict → same hash,
+    # regardless of which storage backend (Supabase or Mongo) served it.
+    from gecko_core.verdict_hash import verdict_hash_short
+
+    short_hash = verdict_hash_short(idea, result)
+    console.print(f"[dim]session_id: {result.session_id}  ·  {short_hash}[/dim]")
 
     if publish:
         # S14-PUB-01 — opt-in publish.new artifact upload. Runs AFTER the
