@@ -13,7 +13,6 @@ from uuid import UUID, uuid4
 
 import pytest
 from gecko_core.orchestration.scaffold import (
-    KillVerdictError,
     ScaffoldError,
     SessionNotFoundError,
     SessionNotReadyError,
