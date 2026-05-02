@@ -160,13 +160,13 @@ def resolve_publish_author_address(override: str | None = None) -> str:
 
 
 def _verdict_token(result: ResearchResult) -> str:
-    """Single-token verdict (KILL / REFINE / BUILD) for the title."""
+    """Single-token verdict (PIVOT / REFINE / GO) for the title."""
     verdict = getattr(result, "verdict", None)
     return getattr(verdict, "value", "REFINE") or "REFINE"
 
 
 def build_artifact_title(idea: str, result: ResearchResult) -> str:
-    """``Gecko verdict: <idea_summary> — <KILL|REFINE|BUILD>``.
+    """``Gecko verdict: <idea_summary> — <PIVOT|REFINE|GO>``.
 
     Matches the S14-PUB-01 acceptance copy. Idea is truncated to keep
     the title under publish.new's display limit.

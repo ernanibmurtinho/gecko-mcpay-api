@@ -22,6 +22,13 @@ dependencies = [
     "numpy>=1.26",
     "motor>=3.5",
     "pypdfium2>=4.30",
+    # S17-INGEST-FALLBACK-01 — multi-parser PDF fallback chain.
+    # pdfium fails on a non-trivial fraction of in-the-wild PDFs (PDFium
+    # data-format errors on lightly-malformed headers); pdfminer.six is
+    # pure-Python and more permissive but slower; pypdf has a different
+    # bug surface again. 3-of-3 failure ≈ genuinely unparseable.
+    "pdfminer.six>=20240706",
+    "pypdf>=4.3",
     # EIP-3009 buyer-side signer for the CDP/Base path (S12-CDP-01).
     # x402[svm] doesn't pull this; we need it explicitly for EVM signing.
     "eth-account>=0.13",

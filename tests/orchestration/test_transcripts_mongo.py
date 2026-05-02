@@ -58,8 +58,8 @@ def test_mongo_store_writes_record(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
         idea="a hotel guide for Brazil",
         result=_result(
             tier="pro",
-            verdict_token="BUILD",
-            judge_prose="Final verdict: BUILD\nThe wedge is real.",
+            verdict_token="GO",
+            judge_prose="Final verdict: GO\nThe wedge is real.",
         ),
     )
 
@@ -72,9 +72,9 @@ def test_mongo_store_writes_record(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     doc = docs[0]
     assert doc["session_id"] == str(sid)
     assert doc["idea_text"] == "a hotel guide for Brazil"
-    assert doc["actual_verdict_v2"] == "BUILD"
+    assert doc["actual_verdict_v2"] == "GO"
     assert doc["actual_verdict"] == "ship"
-    assert doc["parsed_verdict"] == "BUILD"
+    assert doc["parsed_verdict"] == "GO"
     assert doc["agent_turns"] is not None
     assert "judge" in doc["agent_turns"]
     # Mongo-side stores BSON Date, not ISO string.
@@ -102,14 +102,14 @@ def test_mongo_store_upserts_on_session_id(monkeypatch: pytest.MonkeyPatch, tmp_
     capture(
         session_id=sid,
         idea="second idea",
-        result=_result(verdict_token="BUILD", judge_prose="Final verdict: BUILD\nUpdated."),
+        result=_result(verdict_token="GO", judge_prose="Final verdict: GO\nUpdated."),
     )
 
     coll = fake["gecko_test"]["judge_transcripts"]
     docs = list(coll.find({"session_id": str(sid)}))
     assert len(docs) == 1
     assert docs[0]["idea_text"] == "second idea"
-    assert docs[0]["actual_verdict_v2"] == "BUILD"
+    assert docs[0]["actual_verdict_v2"] == "GO"
 
 
 def test_mongo_failure_falls_through_to_filesystem(
@@ -145,14 +145,14 @@ def test_mongo_failure_falls_through_to_filesystem(
 
     sid = uuid4()
     with caplog.at_level(logging.WARNING, logger="gecko_core.orchestration.transcripts"):
-        out = capture(session_id=sid, idea="fallback test", result=_result(verdict_token="KILL"))
+        out = capture(session_id=sid, idea="fallback test", result=_result(verdict_token="PIVOT"))
 
     # Filesystem store wrote the record.
     assert isinstance(out, Path)
     assert out == tmp_path / f"{sid}.json"
     payload = json.loads(out.read_text(encoding="utf-8"))
     assert payload["session_id"] == str(sid)
-    assert payload["actual_verdict_v2"] == "KILL"
+    assert payload["actual_verdict_v2"] == "PIVOT"
 
     # Mongo failure was logged.
     warnings = [r for r in caplog.records if r.levelno == logging.WARNING]

@@ -73,32 +73,50 @@ class RubricScores:
 
 
 Verdict = Literal["kill", "ship", "pivot", "unknown"]
-# S12-EVAL-02 — native KILL/REFINE/BUILD taxonomy. Distinct from the legacy
-# `Verdict` Literal above (`ship/kill/pivot/unknown`) so v1 callers keep
-# their type contract while v2 callers get the new bucket set.
-VerdictV2 = Literal["KILL", "REFINE", "BUILD", "UNKNOWN"]
+# S12-EVAL-02 / S17-TONE-01 — native single-token taxonomy. Distinct from
+# the legacy `Verdict` Literal above (`ship/kill/pivot/unknown`) so v1
+# callers keep their type contract while v2 callers get the new bucket
+# set. S17-TONE-01 renamed KILL→PIVOT and BUILD→GO; the type now uses the
+# new vocabulary as canonical, and the helpers below normalize legacy
+# tokens (KILL/BUILD) onto the new buckets so historical fixtures still
+# score correctly.
+VerdictV2 = Literal["PIVOT", "REFINE", "GO", "UNKNOWN"]
 
 
-# S12-EVAL-02 — extract the post-S11 `Final verdict: KILL|REFINE|BUILD` line.
-# Mirrors `gecko_core.workflows._JUDGE_VERDICT_RE` so we read the same
-# contract the renderer/MCP/journal already speak. Falls back to UNKNOWN
-# when the judge prose doesn't carry a v2 token (e.g. mock transcripts
-# pre-dating S11).
-_V2_VERDICT_RE = re.compile(r"(?im)^\s*(?:final\s+)?verdict\s*[:\-]\s*(KILL|REFINE|BUILD)\b")
+# S12-EVAL-02 / S17-TONE-01 — extract the post-S11 `Final verdict:
+# PIVOT|REFINE|GO` line. Mirrors `gecko_core.workflows._JUDGE_VERDICT_RE`
+# so we read the same contract the renderer/MCP/journal already speak.
+# Accepts the legacy KILL|BUILD tokens for transcripts captured before
+# the rename. Falls back to UNKNOWN when the judge prose doesn't carry a
+# v2 token (e.g. mock transcripts pre-dating S11).
+_V2_VERDICT_RE = re.compile(
+    r"(?im)^\s*(?:final\s+)?verdict\s*[:\-]\s*(PIVOT|REFINE|GO|KILL|BUILD)\b"
+)
+
+# Map either-vocabulary-token → canonical S17 bucket.
+_V2_NORMALIZE: dict[str, VerdictV2] = {
+    "PIVOT": "PIVOT",
+    "REFINE": "REFINE",
+    "GO": "GO",
+    "KILL": "PIVOT",  # legacy → S17 rename
+    "BUILD": "GO",  # legacy → S17 rename
+}
 
 
 def extract_verdict_v2(judge_text: str) -> VerdictV2:
-    """Parse the judge's `Final verdict: KILL|REFINE|BUILD` line.
+    """Parse the judge's `Final verdict: PIVOT|REFINE|GO` line.
 
     Returns "UNKNOWN" when no token can be inferred. Distinct from
-    `extract_verdict` because v1 collapses BUILD→ship and has no slot for
+    `extract_verdict` because v1 collapses GO→ship and has no slot for
     REFINE; v2 grading needs all three buckets distinguishable.
 
     Fallback ladder (in order):
-      1. Post-S11 contract: `Final verdict: KILL|REFINE|BUILD` line.
-      2. Inline v2 token mention (`\\bKILL\\b` / `\\bBUILD\\b` / `\\bREFINE\\b`).
-      3. Legacy v1 bridge: parse `extract_verdict` and map SHIP→BUILD,
-         KILL→KILL, PIVOT→REFINE. This keeps the deterministic mock-mode
+      1. Post-S11/S17 contract: `Final verdict: PIVOT|REFINE|GO` line
+         (legacy KILL/BUILD tokens accepted and normalized).
+      2. Inline v2 token mention (`\\bPIVOT\\b` / `\\bGO\\b` / `\\bREFINE\\b`,
+         plus legacy `\\bKILL\\b` / `\\bBUILD\\b`).
+      3. Legacy v1 bridge: parse `extract_verdict` and map SHIP→GO,
+         KILL→PIVOT, PIVOT→REFINE. This keeps the deterministic mock-mode
          scorer meaningful for the v2 axis without forcing a regen of all
          canned mock transcripts in `tests/eval/mocks.py`.
     """
@@ -106,21 +124,22 @@ def extract_verdict_v2(judge_text: str) -> VerdictV2:
         return "UNKNOWN"
     match = _V2_VERDICT_RE.search(judge_text)
     if match is not None:
-        return match.group(1).upper()  # type: ignore[return-value]
+        return _V2_NORMALIZE[match.group(1).upper()]
     upper = judge_text.upper()
-    for token in ("KILL", "REFINE", "BUILD"):
+    for token in ("PIVOT", "REFINE", "GO", "KILL", "BUILD"):
         if re.search(rf"\b{token}\b", upper):
-            return token
-    # Legacy bridge — map v1 token to its closest v2 bucket. SHIP→BUILD
-    # because the legacy v1 SHIP token maps to the new BUILD slot per the
-    # S11 verdict-surface migration; PIVOT→REFINE because PIVOT was
-    # historically the soft-kill / soft-ship bucket and REFINE inherits
-    # that role.
+            return _V2_NORMALIZE[token]
+    # Legacy bridge — map v1 token to its closest v2 bucket. SHIP→GO
+    # because the legacy v1 SHIP token maps to the new GO slot per the
+    # S11/S17 verdict-surface migration; PIVOT (legacy) → REFINE because
+    # PIVOT was historically the soft-kill / soft-ship bucket and REFINE
+    # inherits that role. NOTE: legacy v1 PIVOT differs in semantics from
+    # the post-S17 PIVOT (which means "don't build as-is" = old KILL).
     legacy = extract_verdict(judge_text)
     if legacy == "ship":
-        return "BUILD"
+        return "GO"
     if legacy == "kill":
-        return "KILL"
+        return "PIVOT"
     if legacy == "pivot":
         return "REFINE"
     return "UNKNOWN"
@@ -131,22 +150,25 @@ def compute_verdict_correctness_v2(actual: str, expected: str | None) -> float:
 
     Three-bucket scoring per `docs/diagnostics/2026-04-30-rubric-native-verdict-proposal.md`:
       - exact match → 10.0
-      - {KILL, REFINE} near-match → 5.0 (right intuition, softer framing)
-      - {BUILD, REFINE} near-match → 5.0 (right intuition, harder framing)
-      - {KILL, BUILD} mismatch → 0.0 (full disagreement)
+      - {PIVOT, REFINE} near-match → 5.0 (right intuition, softer framing)
+      - {GO, REFINE} near-match → 5.0 (right intuition, harder framing)
+      - {PIVOT, GO} mismatch → 0.0 (full disagreement)
       - UNKNOWN → 0.0
       - expected=None → 5.0 (neutral)
+
+    S17-TONE-01: legacy KILL/BUILD inputs are normalized to PIVOT/GO so
+    historical eval expectations grade against post-rename runs.
     """
     if expected is None:
         return 5.0
-    a = actual.strip().upper()
-    e = expected.strip().upper()
+    a = _V2_NORMALIZE.get(actual.strip().upper(), actual.strip().upper())
+    e = _V2_NORMALIZE.get(expected.strip().upper(), expected.strip().upper())
     if a == e:
         return 10.0
     if a == "UNKNOWN":
         return 0.0
     pair = {a, e}
-    if pair == {"KILL", "REFINE"} or pair == {"BUILD", "REFINE"}:
+    if pair == {"PIVOT", "REFINE"} or pair == {"GO", "REFINE"}:
         return 5.0
     return 0.0
 
@@ -184,6 +206,17 @@ def extract_verdict(judge_text: str) -> Verdict:
     Looks for "Verdict:" or a leading verb. Falls back to lexical markers.
     Order matters — `pivot` is checked first because the analyst sometimes
     says "kill" inside a pivot recommendation.
+
+    Returns the LEGACY v1 bucket (ship/kill/pivot/unknown). S17-TONE-01
+    renamed the v2 single-token surface to PIVOT/REFINE/GO; this helper
+    keeps speaking v1 for the rubric's mock-mode bridge. The mapping is:
+        SHIP/BUILD/GO  -> "ship"
+        KILL           -> "kill"  (post-S17 PIVOT also maps here, since
+                                   S17 PIVOT == legacy KILL semantically)
+        PIVOT (legacy soft-kill bucket) -> "pivot"
+    Disambiguation between legacy-PIVOT (soft-kill) and S17-PIVOT
+    (hard-redirect) happens at the v2 layer (`extract_verdict_v2`); v1
+    callers don't make that distinction.
     """
     text = judge_text.lower()
     m = re.search(r"verdict\s*:\s*(\w+)", text)
@@ -191,7 +224,7 @@ def extract_verdict(judge_text: str) -> Verdict:
         word = m.group(1)
         if word.startswith("kill"):
             return "kill"
-        if word.startswith("ship") or word.startswith("build"):
+        if word.startswith("ship") or word.startswith("build") or word == "go":
             return "ship"
         if word.startswith("pivot"):
             return "pivot"

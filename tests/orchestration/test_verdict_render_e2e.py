@@ -101,24 +101,29 @@ def _run(idea: str = "smoke test") -> Any:
     )
 
 
-def test_bb_research_renders_kill_verdict_line(_patch_research_with: Any) -> None:
-    _patch_research_with(_result_with_verdict(gap="Full", verdict_token="KILL"))
+def test_bb_research_renders_pivot_verdict_line(_patch_research_with: Any) -> None:
+    # S17-TONE-01: KILL → PIVOT (same semantics, softer founder-facing copy).
+    _patch_research_with(_result_with_verdict(gap="Full", verdict_token="PIVOT"))
 
     result = _run()
     assert result.exit_code == 0, result.output
     # Headline token surfaces — at least once in validation panel, once in PRD.
-    assert result.output.count("KILL") >= 2
+    assert result.output.count("PIVOT") >= 2
     # Typed gap stays as evidence under the verdict.
     assert "Gap: Full" in result.output
+    # Old vocabulary must be gone from the surface.
+    assert "KILL" not in result.output
 
 
-def test_bb_research_renders_build_verdict_line(_patch_research_with: Any) -> None:
-    _patch_research_with(_result_with_verdict(gap="Partial:pricing", verdict_token="BUILD"))
+def test_bb_research_renders_go_verdict_line(_patch_research_with: Any) -> None:
+    # S17-TONE-01: BUILD → GO.
+    _patch_research_with(_result_with_verdict(gap="Partial:pricing", verdict_token="GO"))
 
     result = _run()
     assert result.exit_code == 0, result.output
-    assert result.output.count("BUILD") >= 2
+    assert result.output.count("GO") >= 2
     assert "Gap: Partial:pricing" in result.output
+    assert "BUILD" not in result.output
 
 
 def test_bb_research_renders_refine_verdict_line(_patch_research_with: Any) -> None:

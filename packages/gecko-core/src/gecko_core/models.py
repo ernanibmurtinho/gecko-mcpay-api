@@ -176,54 +176,113 @@ Values:
 
 
 class Verdict(str, Enum):
-    """S11-VERDICT-01 — single-token go/no-go signal surfaced to founders.
+    """S11-VERDICT-01 / S17-TONE-01 — single-token go/no-go signal surfaced
+    to founders.
 
     Derived from the structured ``gap_classification`` plus advisor
     consensus (when available). The typed gap stays as evidence — Verdict
     is the headline.
 
     Mapping rule (see ``derive_verdict``):
-      - ``Full`` or ``False``                      → ``KILL``
+      - ``Full`` or ``False``                      → ``PIVOT``
       - ``Partial:pricing`` / ``Partial:integration``
-          AND advisor_consensus ≥ 0.8             → ``BUILD``
+          AND advisor_consensus ≥ 0.8             → ``GO``
           else                                    → ``REFINE``
       - ``Partial:segment | UX | geo``             → ``REFINE``
+
+    S17-TONE-01 — vocabulary softened: ``KILL`` → ``PIVOT`` (same semantics,
+    framed as a redirect rather than a kill); ``BUILD`` → ``GO`` (more
+    energizing, shorter). ``REFINE`` is unchanged. The ``_missing_`` hook
+    below maps legacy ``"KILL"`` / ``"BUILD"`` strings (still present in
+    older ``result_json`` rows + on-disk transcripts) to the new members so
+    deserialization stays backwards-compatible. The 20260502 migration
+    backfills the JSONB rows for clean read paths; the shim is defense in
+    depth for any row written by an older deploy mid-rollout or by an
+    external SDK consumer that pinned an older Verdict value.
     """
 
-    KILL = "KILL"
+    PIVOT = "PIVOT"
     REFINE = "REFINE"
-    BUILD = "BUILD"
+    GO = "GO"
+
+    @classmethod
+    def _missing_(cls, value: object) -> Verdict | None:
+        # Backwards-read shim for legacy rows / external callers still
+        # emitting the old vocabulary. Case-insensitive on the off chance a
+        # consumer lower-cased the token before persisting.
+        if isinstance(value, str):
+            upper = value.upper()
+            if upper == "KILL":
+                return cls.PIVOT
+            if upper == "BUILD":
+                return cls.GO
+        return None
 
 
 # Threshold above which advisor consensus on the panel's "ship" sentiment
-# flips a Partial:pricing / Partial:integration gap from REFINE to BUILD.
+# flips a Partial:pricing / Partial:integration gap from REFINE to GO.
 # 0.8 = 4-of-5 voices agree on the ship-shaped lever — leaves room for one
 # legitimate dissent without softening the headline.
 ADVISOR_CONSENSUS_BUILD_THRESHOLD: float = 0.8
+
+# S17-VERDICT-01 — evidence-strength floor. Below either threshold the
+# verdict is forced to REFINE regardless of gap classification: Gecko's
+# wedge is grounded provenance, and a verdict built on ≤2 chunks or sub-
+# 0.40 cosine similarity is the model bluffing. Tune downward only with
+# fixture evidence (≥2 baseline runs).
+SIGNAL_STRENGTH_MIN_CITATIONS: int = 3
+SIGNAL_STRENGTH_MIN_SIMILARITY: float = 0.40
+
+
+def is_low_grounding(citations: list[Citation] | None) -> bool:
+    """Return True when citation evidence is too weak to back a confident
+    PIVOT/GO verdict. The two failure modes are:
+
+      * fewer than ``SIGNAL_STRENGTH_MIN_CITATIONS`` chunks total
+      * no chunk above ``SIGNAL_STRENGTH_MIN_SIMILARITY`` cosine similarity
+
+    Either condition fires the floor. Empty/None citations are low-grounding.
+    """
+    if not citations:
+        return True
+    if len(citations) < SIGNAL_STRENGTH_MIN_CITATIONS:
+        return True
+    max_sim = max((c.similarity for c in citations), default=0.0)
+    return max_sim < SIGNAL_STRENGTH_MIN_SIMILARITY
 
 
 def derive_verdict(
     gap: GapClassification,
     advisor_consensus: float | None = None,
+    citations: list[Citation] | None = None,
 ) -> Verdict:
-    """Map (gap_classification, advisor_consensus) → single-token Verdict.
+    """Map (gap_classification, advisor_consensus, citations) → single-token Verdict.
 
     ``advisor_consensus`` is the fraction of advisor-panel voices whose
-    closing line aligns with a ship/build sentiment. ``None`` means we
+    closing line aligns with a ship/go sentiment. ``None`` means we
     have no advisor signal (basic tier, or pro debate that didn't emit
     explicit consensus): we treat that as 0.0 — i.e. lean REFINE for the
-    pricing / integration partials rather than promoting them to BUILD on
+    pricing / integration partials rather than promoting them to GO on
     silence.
+
+    ``citations`` enables the S17-VERDICT-01 evidence-strength floor: when
+    the grounding evidence is too thin (see :func:`is_low_grounding`), the
+    verdict floors to REFINE regardless of gap. The floor is the wedge —
+    Gecko's claim to a verdict rests on the chunks the model can point at.
+    Pass ``None`` to skip the floor (legacy callers, or contexts where
+    the floor is enforced upstream).
     """
+    if citations is not None and is_low_grounding(citations):
+        return Verdict.REFINE
     if gap in ("Full", "False"):
-        return Verdict.KILL
+        return Verdict.PIVOT
     consensus = advisor_consensus if advisor_consensus is not None else 0.0
     if gap in ("Partial:pricing", "Partial:integration"):
         if consensus >= ADVISOR_CONSENSUS_BUILD_THRESHOLD:
-            return Verdict.BUILD
+            return Verdict.GO
         return Verdict.REFINE
     # Partial:segment | Partial:UX | Partial:geo — always REFINE; the
-    # advisor panel can promote to BUILD once it weighs in via a separate
+    # advisor panel can promote to GO once it weighs in via a separate
     # downstream call (gecko_advise / gecko_plan). The research output
     # itself stays conservative.
     return Verdict.REFINE
@@ -295,13 +354,19 @@ class ResearchResult(BaseModel):
     # Pro tier only — the judge's final paragraph, surfaced as a quick
     # readout. None for basic tier and for pro runs that halted early.
     pro_session_summary: str | None = None
-    # S11-VERDICT-01 — single-token verdict (KILL | REFINE | BUILD) derived
+    # S11-VERDICT-01 / S17-TONE-01 — single-token verdict (PIVOT | REFINE | GO) derived
     # from the typed gap_classification + advisor consensus. The headline
     # the landing copy promises; the typed gap stays as evidence under it.
     # Defaults to REFINE so legacy callers that build a ResearchResult by
     # hand (tests, external SDK consumers on older versions) get a safe
     # value rather than a crash. Workflow code stamps the derived value.
     verdict: Verdict = Verdict.REFINE
+    # S17-VERDICT-01 — True when the citation evidence backing this
+    # verdict failed the signal-strength floor (see ``is_low_grounding``).
+    # The verdict is already floored to REFINE in that case; this flag
+    # lets the renderer surface "low confidence — gather more sources"
+    # instead of pretending certainty.
+    low_grounding: bool = False
 
 
 class AskResult(BaseModel):

@@ -142,13 +142,13 @@ def test_capture_basic_tier_no_transcript(tmp_path: Path, monkeypatch: pytest.Mo
     out = capture(
         session_id=uuid4(),
         idea="smoke",
-        result=_result(tier="basic", verdict_token="KILL"),
+        result=_result(tier="basic", verdict_token="PIVOT"),
     )
     assert out is not None
     payload = json.loads(out.read_text(encoding="utf-8"))
     assert payload["tier"] == "basic"
     assert payload["actual_verdict"] == "kill"
-    assert payload["actual_verdict_v2"] == "KILL"
+    assert payload["actual_verdict_v2"] == "PIVOT"
     # No transcript on basic tier — keys present, agent_turns is null.
     assert payload["agent_turns"] is None
     # No judge prose either; parsed_verdict falls back to UNKNOWN.

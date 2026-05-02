@@ -58,13 +58,13 @@ _PRD_STYLE = "bright_blue"
 _HEADER_STYLE = "dim"
 _META_STYLE = "dim"
 
-# S11-VERDICT-01 — palette for the single-token verdict headline. KILL is
-# the tightest call so it gets the highest-contrast warning hue; BUILD is
-# the green light; REFINE is amber (between the two).
+# S11-VERDICT-01 / S17-TONE-01 — palette for the single-token verdict
+# headline. PIVOT is the tightest call so it gets the highest-contrast
+# warning hue; GO is the green light; REFINE is amber (between the two).
 _VERDICT_STYLES: dict[Verdict, str] = {
-    Verdict.KILL: "bold red",
+    Verdict.PIVOT: "bold red",
     Verdict.REFINE: "bold yellow",
-    Verdict.BUILD: "bold green",
+    Verdict.GO: "bold green",
 }
 
 
@@ -224,7 +224,7 @@ def _business_plan_body(bp: BusinessPlan, accent: str) -> Group:
 def _verdict_line(verdict: Verdict, gap_summary: str = "") -> Text:
     """S11-VERDICT-01 — the single-token founder-facing headline.
 
-    Renders ``VERDICT ─────── KILL`` (or REFINE / BUILD) in the verdict's
+    Renders ``VERDICT ─────── PIVOT`` (or REFINE / GO) in the verdict's
     accent color. The typed gap_classification stays as a sub-line via
     ``_gap_line`` — verdict is the headline, gap is the evidence.
     """
@@ -255,7 +255,7 @@ def _validation_body(v: ValidationReport, accent: str, *, verdict: Verdict | Non
     parts: list[Text] = []
     if verdict is not None:
         # S11-VERDICT-01 — verdict headline first, then the typed gap as
-        # the immediate sub-line (KILL + Gap: Full reads as a single
+        # the immediate sub-line (PIVOT + Gap: Full reads as a single
         # block: token + evidence on consecutive lines).
         parts.append(_verdict_line(verdict))
         parts.append(_spacer())

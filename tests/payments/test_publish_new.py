@@ -36,7 +36,7 @@ from gecko_core.payments.publish_new import (
 )
 
 
-def _result(verdict: Verdict = Verdict.BUILD) -> ResearchResult:
+def _result(verdict: Verdict = Verdict.GO) -> ResearchResult:
     return ResearchResult(
         session_id=str(uuid4()),
         tier="basic",
@@ -156,10 +156,10 @@ def test_slugify_truncates() -> None:
 
 
 def test_build_title_includes_verdict() -> None:
-    r = _result(Verdict.KILL)
+    r = _result(Verdict.PIVOT)
     title = build_artifact_title("test idea about defi", r)
     assert title.startswith("Gecko verdict: ")
-    assert title.endswith("KILL")
+    assert title.endswith("PIVOT")
 
 
 def test_build_title_truncates_long_idea() -> None:
@@ -196,7 +196,7 @@ async def test_publish_stub_short_circuits(monkeypatch: pytest.MonkeyPatch) -> N
         artifact = await publish_artifact(
             session_id=sid,
             idea="autonomous defi vault for stable yields",
-            result=_result(Verdict.BUILD),
+            result=_result(Verdict.GO),
         )
     finally:
         _settings.cache_clear()
@@ -206,8 +206,8 @@ async def test_publish_stub_short_circuits(monkeypatch: pytest.MonkeyPatch) -> N
     assert artifact.tx_signature is None
     assert artifact.author_address == _VALID_BASE
     assert artifact.price_usd == DEFAULT_PUBLISH_PRICE_USD
-    # Slug should embed verdict + idea fragment
-    assert "build" in artifact.slug.lower()
+    # Slug should embed verdict + idea fragment (S17-TONE-01: BUILD → GO).
+    assert "go" in artifact.slug.lower()
 
 
 @pytest.mark.asyncio

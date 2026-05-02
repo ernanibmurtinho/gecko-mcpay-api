@@ -5,7 +5,7 @@ RAG context + windowed fresh chunks (last 14 days), creates a NEW session
 row with ``phase="during_build"`` and ``parent_session_id`` set, and
 returns a structured :class:`PulseResult` carrying:
 
-  * single-token ``verdict`` (KILL / REFINE / BUILD)
+  * single-token ``verdict`` (PIVOT / REFINE / GO)
   * structured ``gap_classification``
   * advisor closing lines (via ``panel.voices``)
   * fresh ``citations`` from the windowed chunk match
@@ -29,6 +29,7 @@ from gecko_core.models import (
     GapClassification,
     Verdict,
     derive_verdict,
+    is_low_grounding,
 )
 from gecko_core.orchestration.advisor.models import (
     AdvisorPanel,
@@ -82,7 +83,7 @@ def _consensus_from_panel(panel: AdvisorPanel) -> tuple[float, GapClassification
         gap: GapClassification = "Full"
     elif build_count >= 4:
         # Strong build consensus — suggest pricing/integration partial
-        # so derive_verdict can promote to BUILD.
+        # so derive_verdict can promote to GO.
         gap = "Partial:pricing"
     else:
         gap = GAP_CLASSIFICATION_FALLBACK
@@ -237,11 +238,9 @@ async def run_pulse_v14(
         journal=journal,
     )
 
-    # Synthesize verdict + gap from panel consensus.
-    consensus, gap = _consensus_from_panel(panel)
-    verdict: Verdict = derive_verdict(gap, advisor_consensus=consensus)
-
-    # Fresh windowed citations — best-effort.
+    # Fresh windowed citations — best-effort. Pulled BEFORE verdict
+    # synthesis so the S17-VERDICT-01 evidence-strength floor can read
+    # them and force REFINE when grounding is thin.
     citations: list[Citation] = []
     if not skip_citations:
         citations = await _fresh_citations(
@@ -251,9 +250,18 @@ async def run_pulse_v14(
             idea=parent_record.idea,
         )
 
+    # Synthesize verdict + gap from panel consensus + citation grounding.
+    consensus, gap = _consensus_from_panel(panel)
+    low_grounding = is_low_grounding(citations)
+    verdict: Verdict = derive_verdict(
+        gap,
+        advisor_consensus=consensus,
+        citations=citations,
+    )
+
     summary_bullets = _summary_bullets(panel)
 
-    return PulseResult(
+    pulse_result = PulseResult(
         parent_session_id=str(parent_uuid),
         pulse_session_id=str(pulse_session_id),
         idea=parent_record.idea,
@@ -262,7 +270,26 @@ async def run_pulse_v14(
         panel=panel,
         citations=citations,
         summary_bullets=summary_bullets,
+        low_grounding=low_grounding,
     )
+
+    # S17-PERSIST-01 — persist the pulse result JSON on the new pulse
+    # session row and mark it complete. Without this, the row stays at
+    # status='pending' / result_json=NULL forever and downstream readers
+    # (advisor context lookups, pulse-history walks, /sessions/{id}/result
+    # polling) fail with "not ready". Best-effort: a Supabase write failure
+    # here shouldn't kill the user's already-computed pulse. The API-side
+    # caller may also write — that's fine, set_result is idempotent.
+    try:
+        await store.set_result(pulse_session_id, pulse_result.model_dump(mode="json"))
+    except Exception as exc:  # pragma: no cover — defensive
+        logger.warning("pulse: set_result failed for %s: %s", pulse_session_id, exc)
+    try:
+        await store.update_status(pulse_session_id, "complete")
+    except Exception as exc:  # pragma: no cover — defensive
+        logger.warning("pulse: update_status(complete) failed for %s: %s", pulse_session_id, exc)
+
+    return pulse_result
 
 
 __all__ = [

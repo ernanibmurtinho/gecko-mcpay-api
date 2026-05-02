@@ -27,7 +27,7 @@ Mongo schema (collection `judge_transcripts`):
   - All eval-parity fields (idea_id, idea_text, judge_prose, parsed_verdict,
     agent_turns, actual_verdict, actual_verdict_v2, gap_classification,
     gap_summary, tier, advisor_voices, advisor_consensus, ...)
-  - `created_at`     BSON Date — for "show me every BUILD verdict in last 30d"
+  - `created_at`     BSON Date — for "show me every GO verdict in last 30d"
   Indexes:
     - unique(session_id)
     - compound(actual_verdict_v2, created_at desc)
@@ -61,8 +61,12 @@ logger = logging.getLogger(__name__)
 
 # Mirrors `gecko_core.workflows._JUDGE_VERDICT_RE` and
 # `tests/eval/rubric._V2_VERDICT_RE` — single contract for the post-S11
-# `Final verdict: KILL|REFINE|BUILD` line.
-_JUDGE_VERDICT_RE = re.compile(r"(?im)^\s*(?:final\s+)?verdict\s*[:\-]\s*(KILL|REFINE|BUILD)\b")
+# `Final verdict: PIVOT|REFINE|GO` line. Accepts the legacy KILL|BUILD
+# tokens for transcripts captured before the S17-TONE-01 rename so the eval
+# parity payload keeps working on historical fixtures.
+_JUDGE_VERDICT_RE = re.compile(
+    r"(?im)^\s*(?:final\s+)?verdict\s*[:\-]\s*(PIVOT|REFINE|GO|KILL|BUILD)\b"
+)
 
 
 _TRUE_VALUES = {"1", "true", "yes", "on"}
@@ -145,7 +149,7 @@ def _build_payload(*, session_id: UUID, idea: str, result: ResearchResult) -> di
 
     structured = getattr(result, "verdict", None)
     if isinstance(structured, Verdict):
-        v1_map = {Verdict.BUILD: "ship", Verdict.KILL: "kill", Verdict.REFINE: "pivot"}
+        v1_map = {Verdict.GO: "ship", Verdict.PIVOT: "kill", Verdict.REFINE: "pivot"}
         actual_verdict = v1_map[structured]
         actual_verdict_v2 = structured.value
     else:

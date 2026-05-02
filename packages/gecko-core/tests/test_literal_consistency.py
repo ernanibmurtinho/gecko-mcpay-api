@@ -24,7 +24,7 @@ Notes on scope:
     this one asserts every shared Literal that has a SQL mirror agrees
     with its CHECK constraint, so adding a new enum doesn't require also
     remembering to copy the older test's shape.
-  * The new ``models.Verdict`` enum (KILL/REFINE/BUILD per S11) does NOT
+  * The new ``models.Verdict`` enum (PIVOT/REFINE/GO per S11+S17) does NOT
     yet have a SQL mirror — it lives only in the orchestration layer's
     headline output. We only schema-drift-test the legacy
     ``sessions.store.Verdict`` (ship/kill/pivot) which is the one

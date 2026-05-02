@@ -427,6 +427,31 @@ async def _process_one(
             audit_error_kind = classify_exception(exc)
             audit_failed = batch_size_for_audit or 0
             audit_succeeded = 0
+            # S17-INGEST-FALLBACK-01 — when the PDF parser fallback chain
+            # exhausts (UnparseablePDFError), the source is genuinely
+            # broken (image-only scan, encrypted, corrupt header). That's
+            # a clean SKIP, not a failure: log at info level with a
+            # structured ErrorKind, mark the source as skipped, no chunks
+            # written. Audit row still emits so the histogram can count
+            # how often this happens in the wild.
+            if audit_error_kind == "unparseable_pdf":
+                logger.info(
+                    "ingest.skipped.unparseable_pdf url=%s exc=%s msg=%s",
+                    url,
+                    exc.__class__.__name__,
+                    str(exc)[:200],
+                    extra={
+                        "session_id": str(session_id),
+                        "source_id": (str(source_id_for_audit) if source_id_for_audit else None),
+                        "error_kind": audit_error_kind,
+                    },
+                )
+                return SourceOutcome(
+                    url=url,
+                    type=candidate.type,
+                    status="skipped",
+                    reason="unparseable_pdf",
+                )
             logger.warning(
                 "ingest.failed url=%s exc=%s msg=%s",
                 url,
@@ -480,6 +505,13 @@ async def ingest(
     continue to land on `outcomes` with status="failed" (per-source
     isolation is unchanged).
     """
+    # S17-INGEST-FALLBACK-01 — bind a per-session Tavily Extract fallback
+    # budget. Threaded through web.extract() via ContextVar so the public
+    # signature stays stable. Budget is consumed only on live (non-cache)
+    # Tavily Extract calls; the cap protects against a single bad session
+    # burning the credit budget on a wall of broken URLs.
+    web_extractor.bind_tavily_extract_budget()
+
     sem = asyncio.Semaphore(max_concurrent)
     outcomes = await asyncio.gather(
         *(_process_one(session_id, c, store, sem) for c in sources),

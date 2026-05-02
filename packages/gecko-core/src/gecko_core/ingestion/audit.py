@@ -32,6 +32,7 @@ ErrorKind = Literal[
     "embedding_null",
     "dim_mismatch",
     "supabase_5xx",
+    "unparseable_pdf",
     "unknown",
 ]
 """Canonical set of audit failure buckets. Mirrors the SQL CHECK in the
@@ -106,6 +107,15 @@ def classify_exception(exc: BaseException) -> ErrorKind:
     cls = type(exc).__name__
     msg = _msg(exc)
     status = _status_code(exc)
+
+    # --- UnparseablePDFError (S17-INGEST-FALLBACK-01) -------------------
+    # Raised when *every* parser in the PDF fallback chain (pdfium →
+    # pdfminer → pypdf) fails on the same payload. The pipeline catches
+    # this and records a clean info-level skip; the audit row gets
+    # `unparseable_pdf` so the histogram can separate "PDF is broken" from
+    # "we have a real bug".
+    if cls == "UnparseablePDFError":
+        return "unparseable_pdf"
 
     # --- ChunkValidationError (S16-INGEST-02 pre-flight) ----------------
     # Carries an explicit `kind` attr ('empty_text' | 'dim_mismatch') so

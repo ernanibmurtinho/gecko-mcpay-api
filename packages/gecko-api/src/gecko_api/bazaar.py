@@ -308,7 +308,7 @@ _PULSE_OUTPUT_SCHEMA: dict[str, Any] = {
     "properties": {
         "parent_session_id": {"type": "string", "format": "uuid"},
         "pulse_session_id": {"type": "string", "format": "uuid"},
-        "verdict": {"type": "string", "enum": ["KILL", "REFINE", "BUILD"]},
+        "verdict": {"type": "string", "enum": ["PIVOT", "REFINE", "GO"]},
         "gap_classification": {"type": "string"},
         "panel": {"type": "object"},
         "citations": {"type": "array"},
@@ -358,7 +358,7 @@ BAZAAR_EXTENSIONS: dict[str, BazaarExtension] = {
     "POST /research": BazaarExtension(
         description=(
             "Adversarial multi-agent product validation: emits a "
-            "KILL/REFINE/BUILD verdict + cited evidence + 5-voice advisor "
+            "PIVOT/REFINE/GO verdict + cited evidence + 5-voice advisor "
             "panel. Best for founders who want a structured second opinion "
             "on a startup hypothesis before committing build effort."
         ),
@@ -392,7 +392,7 @@ BAZAAR_EXTENSIONS: dict[str, BazaarExtension] = {
             "Pro-tier adversarial validation: 5-agent AutoGen GroupChat "
             "debate (researcher, critic, devil's advocate, synthesist, "
             "judge) streams turn-by-turn over SSE and emits the same "
-            "KILL/REFINE/BUILD verdict with deeper citations. Choose this "
+            "PIVOT/REFINE/GO verdict with deeper citations. Choose this "
             "over basic when the idea is high-stakes or contested."
         ),
         tags=[
@@ -594,7 +594,7 @@ BAZAAR_EXTENSIONS: dict[str, BazaarExtension] = {
             "against evolving evidence to surface verdict shifts as "
             "build progresses. Founders re-pulse weekly — each call "
             "creates a during-build session linked to the original "
-            "research and emits a fresh KILL/REFINE/BUILD verdict + "
+            "research and emits a fresh PIVOT/REFINE/GO verdict + "
             "structured gap_classification + advisor closing lines + "
             "citations from the last 14 days. 12-pack prepay available "
             "at a 10% bulk discount ($5.40 / 12 calls)."

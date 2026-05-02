@@ -162,8 +162,26 @@ _COVERED: set[ErrorKind] = {
     "embedding_null",
     "dim_mismatch",
     "supabase_5xx",
+    "unparseable_pdf",
     "unknown",
 }
+
+
+def test_classify_unparseable_pdf() -> None:
+    """S17-INGEST-FALLBACK-01 — UnparseablePDFError propagates through
+    the chunk-write path classifier as `unparseable_pdf` so the pipeline
+    can record a clean info-level skip with the right audit bucket."""
+    from gecko_core.sources.pdf import UnparseablePDFError
+
+    exc = UnparseablePDFError(
+        "https://example.com/broken.pdf",
+        [
+            ("pypdfium2", "PdfiumError"),
+            ("pdfminer", "PDFSyntaxError"),
+            ("pypdf", "PdfReadError"),
+        ],
+    )
+    assert classify_exception(exc) == "unparseable_pdf"
 
 
 def test_every_error_kind_has_a_test() -> None:

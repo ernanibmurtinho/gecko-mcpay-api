@@ -101,6 +101,9 @@ class PulseResult(BaseModel):
     # 12-pack credit accounting (S14-PULSE-02). When non-None, the call
     # decremented a prepaid credit instead of settling per-call.
     credits_remaining_after: int | None = None
+    # S17-VERDICT-01 — True when the fresh citations failed the
+    # signal-strength floor and the verdict was floored to REFINE.
+    low_grounding: bool = False
 
 
 class AdvisorError(Exception):

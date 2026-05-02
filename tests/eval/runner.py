@@ -118,7 +118,8 @@ class IdeaResult:
     # `idea_id` rather than `id`; surfacing it here means failures can be
     # filtered without rewriting the JSON layout consumers depend on.
     idea_id: str = ""
-    # S12-EVAL-02 — native KILL/REFINE/BUILD taxonomy. Empty string when the
+    # S12-EVAL-02 / S17-TONE-01 — native PIVOT/REFINE/GO taxonomy (legacy
+    # KILL/BUILD tokens are normalized at parse time). Empty string when the
     # fixture has no `expected_verdict_v2` field (legacy v1-only path). The
     # runner aggregates `verdict_accuracy_v2` only over results where
     # `expected_verdict_v2` is populated.

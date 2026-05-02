@@ -186,7 +186,7 @@ def extract_comparables(transcript: dict[str, Any] | None, *, limit: int = 8) ->
             if phrase in _STOPWORDS_PHRASE:
                 continue
             # Reject phrases whose first word is a debate-grammar stopword
-            # ("SHIP V1", "Verdict KILL", etc. — false positives for products).
+            # ("SHIP V1", "Verdict PIVOT", etc. — false positives for products).
             if words[0] in _STOPWORDS_PHRASE:
                 continue
             seen.setdefault(phrase, None)

@@ -28,6 +28,7 @@ from gecko_core.models import (
     Tier,
     ValidationReport,
     derive_verdict,
+    is_low_grounding,
 )
 from gecko_core.orchestration.settings import get_orchestration_settings
 from gecko_core.rag.query import RagChunk, rag_query
@@ -458,8 +459,18 @@ async def generate(
     # so we pass advisor_consensus=None — `derive_verdict` treats that as
     # 0.0 and leans REFINE for the pricing/integration partials. The
     # downstream advisor panel (gecko_advise / gecko_plan) can promote to
-    # BUILD on its own surface; the research output stays conservative.
-    verdict = derive_verdict(out.validation_report.gap_classification)
+    # GO on its own surface; the research output stays conservative.
+    #
+    # S17-VERDICT-01 — pass the citations so derive_verdict can apply the
+    # evidence-strength floor (≥3 chunks AND max similarity ≥ 0.40);
+    # below the floor, verdict is forced to REFINE and ``low_grounding``
+    # is True for the renderer.
+    citations = out.validation_report.citations
+    low_grounding = is_low_grounding(citations)
+    verdict = derive_verdict(
+        out.validation_report.gap_classification,
+        citations=citations,
+    )
 
     return ResearchResult(
         session_id=str(session_id),
@@ -469,6 +480,7 @@ async def generate(
         prd=out.prd,
         sources=sources,
         verdict=verdict,
+        low_grounding=low_grounding,
     )
 
 

@@ -65,6 +65,15 @@ _ENTRIES: tuple[SourceCatalogEntry, ...] = (
         gating="Always (per-query catalog discovery)",
         cost_per_call="≤ $0.50 per session (capped)",
     ),
+    # S17-DISCOVERY-01: free, structured paper-abstract provider. Fires
+    # for technical / research / web3-protocol / agentic-economy ideas
+    # via classifier categories OR idea-text signals.
+    SourceCatalogEntry(
+        name="arxiv",
+        description="Arxiv abstracts via the public export API (no key, no rate limit).",
+        gating="Technical / research / agentic-economy ideas",
+        cost_per_call="Free",
+    ),
 )
 
 for _entry in _ENTRIES:

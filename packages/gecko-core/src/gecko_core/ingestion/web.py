@@ -17,9 +17,12 @@ charged per-session via the cost-tracking layer.
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import hashlib
 import ipaddress
 import logging
+import os
+import random
 import socket
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
@@ -32,6 +35,88 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT = 30.0
 MAX_BYTES = 5_000_000  # 5 MB cap to avoid pathological pages
+
+# S17-INGEST-FALLBACK-01 — full-jitter exponential backoff for HTTP retries.
+# Mirrors the embedder retry shape (S16-INGEST-04). Three attempts total
+# (one initial + 2 retries), base 1s, ceiling 8s. Spread protects against
+# thundering-herd reconnects against the same host.
+_HTTP_RETRY_MAX_ATTEMPTS = 3
+_HTTP_RETRY_BASE_S = 1.0
+_HTTP_RETRY_CAP_S = 8.0
+
+# S17-INGEST-FALLBACK-01 — per-session cap on Tavily Extract fallback
+# invocations. One bad session shouldn't burn $1 of credits on a wall of
+# 200 broken URLs. Env-overridable for ops to tune without a deploy.
+MAX_TAVILY_EXTRACT_FALLBACKS_PER_SESSION = int(
+    os.environ.get("MAX_TAVILY_EXTRACT_FALLBACKS_PER_SESSION", "3")
+)
+
+
+class _TavilyBudget:
+    """Per-session Tavily Extract fallback counter.
+
+    Threaded through the call stack via a ContextVar so the public
+    ``extract()`` signature is unchanged. The pipeline binds the budget
+    once per session before fanning out across sources; each fallback
+    invocation atomically (within asyncio's single-thread model)
+    increments and checks against the cap.
+    """
+
+    __slots__ = ("cap", "used")
+
+    def __init__(self, cap: int) -> None:
+        self.used = 0
+        self.cap = cap
+
+    def try_consume(self) -> bool:
+        if self.used >= self.cap:
+            return False
+        self.used += 1
+        return True
+
+
+_tavily_budget_var: contextvars.ContextVar[_TavilyBudget | None] = contextvars.ContextVar(
+    "gecko_tavily_extract_budget", default=None
+)
+
+
+def bind_tavily_extract_budget(cap: int | None = None) -> _TavilyBudget:
+    """Install a fresh per-session Tavily Extract fallback budget.
+
+    Returns the budget so the caller can read ``used`` after the session
+    for telemetry. Pipeline calls this once per session before
+    ``ingest()`` fan-out; tests can call it directly to override the cap.
+    """
+    budget = _TavilyBudget(cap if cap is not None else MAX_TAVILY_EXTRACT_FALLBACKS_PER_SESSION)
+    _tavily_budget_var.set(budget)
+    return budget
+
+
+def _http_full_jitter_backoff(attempt: int) -> float:
+    """AWS-style full-jitter for the HTTP retry path.
+
+    `attempt` is 1-indexed (1st retry = attempt 1). Returns sleep drawn
+    uniformly from [0, min(_HTTP_RETRY_CAP_S, base * 2^(n-1))].
+    """
+    ceiling = min(_HTTP_RETRY_CAP_S, _HTTP_RETRY_BASE_S * (2 ** (attempt - 1)))
+    return random.uniform(0.0, ceiling)
+
+
+def _retry_after_seconds(resp: httpx.Response) -> float | None:
+    """Parse Retry-After (delta-seconds form). HTTP-date form is rare for
+    rate limits in practice and not honored here — we fall through to
+    jittered backoff for those.
+    """
+    raw = resp.headers.get("retry-after")
+    if not raw:
+        return None
+    try:
+        secs = float(raw.strip())
+    except ValueError:
+        return None
+    # Clamp at the retry cap so a misbehaving server can't park us forever.
+    return min(max(0.0, secs), _HTTP_RETRY_CAP_S * 2)
+
 
 # Tavily Extract list price is 1 credit per URL ≈ $0.004. Used by the
 # fallback path when direct fetch is bot-walled. Tracked separately on
@@ -245,22 +330,28 @@ async def extract(url: str, *, timeout: float = DEFAULT_TIMEOUT) -> tuple[str, f
     Tavily Extract fallback was actually invoked (whether or not it
     succeeded — Tavily charges per attempt).
 
-    Strategy:
+    Strategy (S17-INGEST-FALLBACK-01):
       1. Direct fetch with a realistic browser UA (handles 70%+ of sites).
-      2. Retry once on transient connection errors (RemoteProtocolError,
-         ReadTimeout, ConnectError) — covers flaky networks.
-      3. On 4xx (bot wall) or repeated transient failure, fall back to
-         Tavily Extract — same provider that found the URL, runs its own
-         scraper infra. Returns the Tavily text on success; raises the
-         original error if Tavily also can't reach the page.
+      2. Up to ``_HTTP_RETRY_MAX_ATTEMPTS`` (3) attempts with full-jitter
+         exponential backoff on transient errors:
+           * httpx.RemoteProtocolError (connection terminated mid-stream
+             — the HN/blas.com case)
+           * httpx.ReadTimeout / httpx.ConnectError (flaky networks)
+           * 5xx responses (server-side blip)
+           * 429 — honored via Retry-After header when present, else jitter
+      3. On 4xx (bot wall, except 429), skip retry and jump straight to
+         the Tavily Extract fallback (gated by the per-session budget cap).
+      4. After retry chain exhaustion → Tavily Extract fallback. Returns
+         Tavily text on success; raises the original error otherwise.
     """
     safe = validate_url(url)
-    transient = (httpx.RemoteProtocolError, httpx.ReadTimeout, httpx.ConnectError)
+    transient_excs = (httpx.RemoteProtocolError, httpx.ReadTimeout, httpx.ConnectError)
 
     body: bytes | None = None
     content_type: str = ""
     last_exc: Exception | None = None
-    for attempt in range(2):
+    skip_to_fallback = False  # true on 4xx (bot wall) — retry won't help
+    for attempt in range(1, _HTTP_RETRY_MAX_ATTEMPTS + 1):
         try:
             async with httpx.AsyncClient(
                 timeout=timeout,
@@ -269,31 +360,102 @@ async def extract(url: str, *, timeout: float = DEFAULT_TIMEOUT) -> tuple[str, f
                 headers=_BROWSER_HEADERS,
             ) as client:
                 resp = await client.get(safe)
+                # 429 / 5xx → retry path. 4xx (other than 429) → Tavily.
+                if resp.status_code == 429 or 500 <= resp.status_code < 600:
+                    last_exc = httpx.HTTPStatusError(
+                        f"server returned {resp.status_code}",
+                        request=resp.request,
+                        response=resp,
+                    )
+                    if attempt < _HTTP_RETRY_MAX_ATTEMPTS:
+                        retry_after = (
+                            _retry_after_seconds(resp) if resp.status_code == 429 else None
+                        )
+                        sleep_s = (
+                            retry_after
+                            if retry_after is not None
+                            else _http_full_jitter_backoff(attempt)
+                        )
+                        logger.info(
+                            "web.fetch.retry url=%s attempt=%d/%d status=%d sleep=%.2fs",
+                            safe,
+                            attempt,
+                            _HTTP_RETRY_MAX_ATTEMPTS,
+                            resp.status_code,
+                            sleep_s,
+                        )
+                        await asyncio.sleep(sleep_s)
+                        continue
+                    break
+                if 400 <= resp.status_code < 500:
+                    # Genuine 4xx (403/404/etc.) — bot wall or missing.
+                    # Don't retry; jump to Tavily fallback.
+                    last_exc = httpx.HTTPStatusError(
+                        f"client error {resp.status_code}",
+                        request=resp.request,
+                        response=resp,
+                    )
+                    skip_to_fallback = True
+                    break
                 resp.raise_for_status()
                 validate_url(str(resp.url))
                 body = resp.content[:MAX_BYTES]
                 content_type = resp.headers.get("content-type", "")
                 break
-        except httpx.HTTPStatusError as exc:
-            # 4xx — bot wall almost certainly. Skip retry, jump to Tavily.
+        except transient_excs as exc:
             last_exc = exc
+            if attempt < _HTTP_RETRY_MAX_ATTEMPTS:
+                sleep_s = _http_full_jitter_backoff(attempt)
+                logger.info(
+                    "web.fetch.retry url=%s attempt=%d/%d exc=%s sleep=%.2fs",
+                    safe,
+                    attempt,
+                    _HTTP_RETRY_MAX_ATTEMPTS,
+                    exc.__class__.__name__,
+                    sleep_s,
+                )
+                await asyncio.sleep(sleep_s)
+                continue
             break
-        except transient as exc:
-            last_exc = exc
-            if attempt == 1:
-                # Two transient failures in a row → Tavily fallback.
-                break
 
     if body is None:
-        # Direct fetch failed; try Tavily Extract (cache-aware).
+        # Direct fetch failed; try Tavily Extract (cache-aware) iff the
+        # per-session budget allows. Cache hits don't count against the
+        # budget — they're free — so we always check the cache first.
+        budget = _tavily_budget_var.get()
+        if budget is not None and budget.used >= budget.cap:
+            logger.warning(
+                "web.tavily_fallback.cap_reached url=%s used=%d cap=%d — skipping fallback",
+                safe,
+                budget.used,
+                budget.cap,
+            )
+            if last_exc is not None:
+                raise last_exc
+            raise RuntimeError(f"extract failed for {safe} (tavily fallback cap hit)")
+
         text, billed = await extract_via_tavily(safe)
+        if billed and budget is not None:
+            # Live Tavily call — count it against the per-session cap.
+            # We accept a one-call overshoot vs. the cap (we only
+            # checked >= cap above; a concurrent caller could race).
+            # That's fine: 3 vs 4 calls is not worth a global lock.
+            budget.try_consume()
         if text:
-            logger.info("tavily fallback succeeded for %s (cached=%s)", safe, not billed)
+            logger.info(
+                "web.tavily_fallback.succeeded url=%s cached=%s billed=%s",
+                safe,
+                not billed,
+                billed,
+            )
             return text, (TAVILY_EXTRACT_USD_PER_URL if billed else 0.0)
         if last_exc is not None:
             raise last_exc
         raise RuntimeError(f"extract failed for {safe}")
 
+    # Mark `skip_to_fallback` referenced so static analysis doesn't flag it
+    # — kept for log-trace readability above.
+    _ = skip_to_fallback
     soup = BeautifulSoup(body, _parser_for_content_type(content_type))
     for tag in soup(["script", "style", "noscript", "iframe", "svg"]):
         tag.decompose()
@@ -320,8 +482,10 @@ def _parser_for_content_type(content_type: str) -> str:
 
 
 __all__ = [
+    "MAX_TAVILY_EXTRACT_FALLBACKS_PER_SESSION",
     "TAVILY_EXTRACT_USD_PER_URL",
     "UnsafeURLError",
+    "bind_tavily_extract_budget",
     "extract",
     "extract_via_tavily",
     "validate_url",

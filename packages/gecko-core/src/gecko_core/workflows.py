@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import logging
 import os
-import re
 from collections.abc import Awaitable, Callable
 from typing import Any, cast
 from uuid import UUID
@@ -37,6 +36,8 @@ from gecko_core.models import (
     SourceType,
     Tier,
     Verdict,
+    derive_verdict,
+    is_low_grounding,
 )
 from gecko_core.orchestration.basic import generate as basic_generate
 from gecko_core.orchestration.pro import generate as pro_generate
@@ -202,7 +203,23 @@ async def research(
         _emit(progress_callback, "Running pro debate")
         result = await _run_pro_debate(session_id, idea, result, store, tier_preset=tier_preset)
 
-    # Step 7 — mark complete and return.
+    # Step 7 — persist the final result JSON, then mark complete and return.
+    # S17-PERSIST-01: the CLI path calls `workflows.research()` directly and
+    # had no `set_result` write, so `bb scaffold` / `gecko_advise` later
+    # failed with "no persisted result yet". The API background task in
+    # gecko-api/main.py also calls `set_result` (defense in depth — its own
+    # lifecycle still owns the API path), but persisting here means the CLI
+    # / MCP / direct-SDK callers all get persistence for free. Runs whether
+    # tier == "basic" or "pro" (the pro path mutates `result` above via
+    # `_run_pro_debate`, so the post-debate version is what we persist).
+    try:
+        await store.set_result(session_id, result.model_dump(mode="json"))
+    except Exception as exc:  # pragma: no cover — defensive
+        # Best-effort: a Supabase write failure here shouldn't kill an
+        # otherwise-successful run. The API-side write_result still runs
+        # for API-driven sessions; CLI sessions degrade to "completed but
+        # unscaffoldable" with a clear log line operators can grep.
+        logger.warning("workflows.research: set_result failed: %s", exc)
     await store.update_status(session_id, "complete")
     _emit(progress_callback, "Done")
 
@@ -259,19 +276,20 @@ async def research(
 def _detect_research_verdict(result: ResearchResult) -> str:
     """Best-effort verdict label for the journal entry.
 
-    Prefers the structured ``ResearchResult.verdict`` (S11-VERDICT-01) —
-    KILL / REFINE / BUILD — and lower-cases for the legacy journal shape.
-    Falls back to legacy parsing of the judge's prose verdict line for
-    pro tiers that ran before S11 stamped the field.
+    Prefers the structured ``ResearchResult.verdict`` (S11-VERDICT-01 +
+    S17-TONE-01) — PIVOT / REFINE / GO — and lower-cases for the legacy
+    journal shape. Falls back to legacy parsing of the judge's prose
+    verdict line for pro tiers that ran before S11 stamped the field.
     """
     structured = getattr(result, "verdict", None)
     if isinstance(structured, Verdict):
-        # Map the S11 single-token surface back to the legacy
+        # Map the S11/S17 single-token surface back to the legacy
         # ship/kill/pivot taxonomy the journal + flywheel + scaffold
-        # consumers still key off. BUILD → ship, KILL → kill, REFINE →
-        # pivot (REFINE is the "needs work / not greenlit" bucket, which
-        # maps cleanly to the existing pivot label).
-        _LEGACY = {Verdict.BUILD: "ship", Verdict.KILL: "kill", Verdict.REFINE: "pivot"}
+        # consumers still key off. GO → ship, PIVOT → kill (legacy bucket
+        # name predates S17 rename and remains the "don't build as-is"
+        # signal in the journal+precedent stores), REFINE → pivot (the
+        # "needs work / not greenlit" bucket).
+        _LEGACY = {Verdict.GO: "ship", Verdict.PIVOT: "kill", Verdict.REFINE: "pivot"}
         return _LEGACY[structured]
     summary = getattr(result, "pro_session_summary", None)
     transcript = getattr(result, "transcript", None)
@@ -472,13 +490,24 @@ async def _run_pro_debate(
             break
 
     _ = Decimal  # silence unused-import; Decimal is used inside _on_event
-    # S11-VERDICT-01 — prefer the judge's explicit single-token verdict
-    # ("Final verdict: KILL|REFINE|BUILD") when the pro debate emits one;
-    # otherwise keep the verdict the basic pass already derived from the
-    # typed gap. This lets the judge override on tight consensus while
-    # keeping the safe basic-tier mapping when the judge stays silent.
-    judge_verdict = _parse_judge_verdict(summary)
-    final_verdict = judge_verdict if judge_verdict is not None else base_result.verdict
+    # S17-VERDICT-01 — the verdict is ALWAYS a function of the final
+    # gap_classification + citations, never an independent LLM emission.
+    # Previously this path read the judge's "Final verdict: ..." line and
+    # piped it through, which let the judge emit (e.g.) a PIVOT verdict
+    # while the validation report carried Partial:UX — a contradiction.
+    # The fix: re-derive from the final gap (basic-tier already enforced
+    # the structured gap_classification) and the validation citations,
+    # which also fires the evidence-strength floor when grounding is thin.
+    # The judge's ``_parse_judge_verdict`` is retained for transcript
+    # capture/diagnostics but is no longer the source of truth.
+    final_gap = base_result.validation_report.gap_classification
+    final_citations = base_result.validation_report.citations
+    low_grounding = is_low_grounding(final_citations)
+    final_verdict = derive_verdict(
+        final_gap,
+        advisor_consensus=None,
+        citations=final_citations,
+    )
 
     return base_result.model_copy(
         update={
@@ -486,29 +515,34 @@ async def _run_pro_debate(
             "transcript": transcript.model_dump(mode="json"),
             "pro_session_summary": summary,
             "verdict": final_verdict,
+            "low_grounding": low_grounding,
         }
     )
 
 
-_JUDGE_VERDICT_RE = re.compile(r"(?im)^\s*(?:final\s+)?verdict\s*[:\-]\s*(KILL|REFINE|BUILD)\b")
+# S17-VERDICT-01 — the judge's "Final verdict: ..." line is no longer the
+# source of truth for ResearchResult.verdict. The verdict is always
+# ``derive_verdict(final_gap, advisor_consensus, citations)`` so the headline
+# can never contradict the typed gap_classification. The judge prose stays
+# captured in ``pro_session_summary`` for diagnostics (the eval harness in
+# ``tests/eval/`` keeps parsing it for parity scoring), but the parsing
+# helper that previously fed verdict authority has been removed.
 
 
-def _parse_judge_verdict(summary: str | None) -> Verdict | None:
-    """Pull a ``Final verdict: KILL|REFINE|BUILD`` line out of the judge's
-    closing paragraph. Returns None when no such line is present (e.g.
-    legacy ``Verdict: SHIP V1 to ...`` shape) — callers fall back to the
-    basic-tier derived verdict in that case.
+def _quota(env_name: str, default: int) -> int:
+    """Read an integer provider quota from env. Falls back on parse error.
+
+    S17-DISCOVERY-01 — every per-provider quota is overridable via env so
+    operators can tune the rebalance without a redeploy. Defaults are
+    documented in `docs/build-plan-sprint-17.md`.
     """
-    if not summary:
-        return None
-    match = _JUDGE_VERDICT_RE.search(summary)
-    if match is None:
-        return None
-    token = match.group(1).upper()
+    raw = os.environ.get(env_name)
+    if raw is None:
+        return default
     try:
-        return Verdict(token)
-    except ValueError:  # pragma: no cover — regex guards the alphabet
-        return None
+        return max(0, int(raw))
+    except ValueError:
+        return default
 
 
 async def _dispatch_stub_integration_providers(
@@ -518,21 +552,33 @@ async def _dispatch_stub_integration_providers(
     store: SessionStore,
     payment_mode: PaymentMode,
 ) -> str | None:
-    """S16-INTEGRATE-01 — stub-mode dispatch of Bazaar + twit.sh.
+    """S16-INTEGRATE-01 / S17-DISCOVERY-01 — multi-provider rebalance dispatch.
 
-    Runs after the basic generate step in **stub mode only** so every
-    `bb research` invocation produces ≥1 chunk attributed to each
-    provider, surfacing them in the economics ledger.
+    History:
+      - S16-INTEGRATE-01 introduced this as the stub-mode dispatch for
+        Bazaar + twit.sh after the 2026-05-01 stub-smoke review found
+        both providers were registered but never fired.
+      - S17-DISCOVERY-01 added Arxiv (free, structured) and turned the
+        per-provider counts into env-tunable quotas. The structural
+        intent: lean harder on structured providers (Bazaar JSON,
+        Arxiv abstracts, tweets) than on raw-URL Tavily fetches.
 
-    Live mode short-circuits: the live wiring is gated on the
-    recorded-fixture cassette tests (Pattern B/C) landing for both
-    consumers + a budget-aware orchestrator refactor. Today this seam
-    only fixes the stub-smoke gap that the 2026-05-01 review flagged.
+    Quotas (env / default):
+      GECKO_PROVIDER_QUOTA_BAZAAR  = 3 services
+      GECKO_PROVIDER_QUOTA_TWITSH  = 5 tweets   (provider-side cap)
+      GECKO_PROVIDER_QUOTA_ARXIV   = 5 abstracts
+      GECKO_PROVIDER_QUOTA_TAVILY  = 3 URLs     (read in discovery.py)
 
-    Failures (network, missing fixtures, ledger writes) degrade
-    silently — the user has already received their verdict; this is
-    pure attribution telemetry.
+    Stub mode runs all providers; live mode short-circuits and the
+    paid providers (Bazaar, twit.sh) are still gated on their own
+    recorded-fixture wiring tickets. Free providers (Arxiv) run in
+    *both* modes — there's no payment risk.
+
+    Failures degrade silently — the user has already received their
+    verdict; this is pure attribution + structured-context telemetry.
     """
+    # Free providers (Arxiv) can run in any mode; paid providers stay
+    # behind the stub-mode gate until the live wiring ticket lands.
     if payment_mode != "stub":
         return None
 
@@ -544,6 +590,7 @@ async def _dispatch_stub_integration_providers(
 
     from gecko_core.classify import classify_idea
     from gecko_core.sources import dispatch_sources
+    from gecko_core.sources.arxiv import make_arxiv_source
     from gecko_core.sources.bazaar import make_bazaar_provider
     from gecko_core.sources.twit_sh import TwitshSource
 
@@ -552,6 +599,18 @@ async def _dispatch_stub_integration_providers(
     except Exception as exc:  # pragma: no cover — degrade
         logger.warning("integrate-01: classify failed (%s); using empty set", exc)
         categories = set()
+
+    # Resolve per-provider quotas. Tavily quota is read inside
+    # discovery.py — recorded here only for the structured log line.
+    arxiv_quota = _quota("GECKO_PROVIDER_QUOTA_ARXIV", 5)
+    _bazaar_quota = _quota("GECKO_PROVIDER_QUOTA_BAZAAR", 3)
+    _twitsh_quota = _quota("GECKO_PROVIDER_QUOTA_TWITSH", 5)
+    tavily_quota = _quota("GECKO_PROVIDER_QUOTA_TAVILY", 3)
+    # Bazaar and twit.sh per-call quotas are enforced inside their own
+    # provider classes (TOP_K and MAX_RESULTS respectively); the env
+    # values above are read for telemetry parity. Adjusting the
+    # in-provider constants is a follow-up coordinated with web3-eng
+    # (Bazaar's TOP_K bump is tracked under S17-BAZAAR-FANOUT-01).
 
     # Skip the optional Supabase-backed daily-cap ledger: the table
     # (``bazaar_spend_ledger``) ships in migration ``20260501150000`` and
@@ -568,15 +627,28 @@ async def _dispatch_stub_integration_providers(
         if saved_key is not None:
             os.environ["SUPABASE_SERVICE_ROLE_KEY"] = saved_key
     twitsh = TwitshSource()
+    arxiv = make_arxiv_source(max_results=arxiv_quota)
+
+    # Arxiv's `applies_to` accepts an optional `idea` kwarg (signature
+    # extension, see ArxivSource.applies_to). The dispatch layer only
+    # passes `categories`, so the keyword-signal fallback won't fire
+    # there — pre-compute applicability and skip enqueueing when the
+    # idea is clearly off-topic for Arxiv (saves a wasted HTTP probe).
+    arxiv_applies = await arxiv.applies_to(categories=categories, idea=idea)
+    sources_list: list[Any] = [bazaar, twitsh]
+    if arxiv_applies:
+        sources_list.append(arxiv)
+
     results = await dispatch_sources(
         idea=idea,
         categories=categories,
-        sources=[bazaar, twitsh],
+        sources=sources_list,
         timeout_seconds=15.0,
     )
 
     bazaar_result = results.get("bazaar")
     twitsh_result = results.get("twit_sh")
+    arxiv_result = results.get("arxiv")
 
     bazaar_chunks = 0
     bazaar_cost = 0.0
@@ -605,24 +677,36 @@ async def _dispatch_stub_integration_providers(
             except Exception as exc:  # pragma: no cover
                 logger.warning("integrate-01: twitsh add_cost failed: %s", exc)
 
+    # Arxiv: free, no spend to debit. Surface chunk count so the
+    # dashboard can answer "did Arxiv contribute on this run?".
+    arxiv_chunks = 0
+    if arxiv_result is not None and arxiv_result.fired:
+        arxiv_chunks = len(arxiv_result.payload.get("chunks") or [])
+
     # Single structured log line — feeds the post-Wave-2 dashboard that
     # answers "did the wedge fire on this run?". Stable key=value form
     # so log-aggregators can pivot without regex contortions.
     logger.info(
         "integrate01_dispatch session_id=%s payment_mode=%s "
         "bazaar_chunks=%d bazaar_cost_usd=%.6f "
-        "twitsh_chunks=%d twitsh_cost_usd=%.6f",
+        "twitsh_chunks=%d twitsh_cost_usd=%.6f "
+        "arxiv_chunks=%d "
+        "tavily_quota=%d arxiv_quota=%d",
         session_id,
         payment_mode,
         bazaar_chunks,
         bazaar_cost,
         twitsh_chunks,
         twitsh_cost,
+        arxiv_chunks,
+        tavily_quota,
+        arxiv_quota,
     )
 
     return (
         f"dispatch: bazaar {bazaar_chunks} chunks (${bazaar_cost:.4f}) · "
-        f"twitsh {twitsh_chunks} tweets (${twitsh_cost:.4f})"
+        f"twitsh {twitsh_chunks} tweets (${twitsh_cost:.4f}) · "
+        f"arxiv {arxiv_chunks} abstracts"
     )
 
 

@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from typing import Any
 
 from tavily import TavilyClient
@@ -70,6 +71,72 @@ _BLOCKED_DOMAINS: tuple[str, ...] = (
 )
 
 
+# S17-DISCOVERY-01 — post-fetch URL blocklist for "dictionary noise".
+# The 2026-04-30 e2e produced 5/8 Tavily hits to wordlist / dictionary
+# dumps for a research-style idea — Tavily ranks them high because the
+# idea's technical vocabulary matches dictionary tokens lexically. We
+# can't pass these as `exclude_domains` to Tavily (some live on academic
+# subdirectories of otherwise-useful CS dept hosts), so the gating runs
+# *after* the search call, before scoring + truncation. Cost of a
+# wasted Tavily credit is acceptable; cost of letting `dict.dat` into
+# the index is not.
+#
+# `BLOCKED_URL_EXTENSIONS`: bare data dumps. ".pdf" stays out — PDFs
+# are useful evidence (the S17-INGEST-FALLBACK-01 PDF parser is the
+# load-bearing path for them). ".html" stays out for the obvious reason.
+BLOCKED_URL_EXTENSIONS: tuple[str, ...] = (
+    ".txt",
+    ".dat",
+    ".csv",
+    ".json",
+    ".tsv",
+    ".log",
+)
+
+# Path-fragment patterns. Substring match on the lowercased path; we
+# keep the list small and high-signal so an unrelated page that happens
+# to mention "dictionary" in its slug doesn't get nuked.
+BLOCKED_URL_PATH_PATTERNS: tuple[str, ...] = (
+    "/dictionary/",
+    "/wordlist/",
+    "/wordlists/",
+    "-words/",
+    "/dict.dat",
+    "/dict.txt",
+)
+
+# Curated host blocklist. These have repeated as dictionary-noise in
+# production traces; each one costs us a wasted Tavily credit + a
+# failed ingestion attempt + index-pollution if it sneaks through.
+BLOCKED_DICTIONARY_HOSTS: tuple[str, ...] = (
+    "snap.berkeley.edu",
+    "ftp.cdc.gov",
+    "april.eecs.umich.edu",
+    "stat.wharton.upenn.edu",
+    "people.brandeis.edu",
+)
+
+
+def _is_blocked_dictionary_url(url: str) -> bool:
+    """True when ``url`` matches any dictionary / raw-data heuristic.
+
+    Conservative on purpose: false-positives mean we miss a real source;
+    false-negatives mean we burn Tavily credit on noise. We err toward
+    the false-positive side and let the curated host list grow as
+    operators flag specific offenders.
+    """
+    lowered = (url or "").lower()
+    if not lowered:
+        return True
+    # Extension check: we look at the URL tail (before any querystring).
+    path_only = lowered.split("?", 1)[0].split("#", 1)[0]
+    if any(path_only.endswith(ext) for ext in BLOCKED_URL_EXTENSIONS):
+        return True
+    if any(fragment in path_only for fragment in BLOCKED_URL_PATH_PATTERNS):
+        return True
+    return any(host in lowered for host in BLOCKED_DICTIONARY_HOSTS)
+
+
 # Per-category keyword hints appended to the search query. These bias
 # Tavily toward founder/builder discussion without using `include_domains`
 # (a hard filter that would gut recall on ideas that legitimately span
@@ -101,7 +168,42 @@ _CATEGORY_QUERY_HINTS: dict[str, tuple[str, ...]] = {
         "indie hackers",
         "founders",
     ),
+    # S17-DISCOVERY-01: agentic-economy / web3-protocol / mcp / x402 ideas
+    # benefit from the same builder-discussion bias as `saas` but tuned
+    # toward x402 / agent-protocol venues. The classifier doesn't have
+    # an `agentic-economy` label today; this entry is read directly when
+    # `_unknown_query_hints_for_idea` flags an x402/mcp/agent token.
+    "agentic-economy": (
+        "Hacker News",
+        "x402",
+        "MCP",
+        "founder blog",
+        "agentic",
+    ),
 }
+
+
+# Tokens that, when present in the idea, push us toward the
+# agentic-economy hint set even when the classifier returns ∅. Same
+# spirit as the Arxiv keyword-signal table; kept independent so the two
+# heuristics can drift if needed.
+_AGENTIC_ECONOMY_SIGNALS: frozenset[str] = frozenset(
+    {"agent", "agentic", "x402", "mcp", "marketplace", "tradeable", "tradable"}
+)
+
+
+def _unknown_query_hints_for_idea(idea: str) -> tuple[str, ...]:
+    """Pick the right unknown-bucket hint set based on idea-text signals.
+
+    Default = legacy builder-bias hints. Agentic-economy override is
+    new in S17 — biases Tavily toward HN, founder blogs, and x402/mcp
+    discussion venues for ideas that mention those tokens explicitly.
+    """
+    lowered = (idea or "").lower()
+    if any(sig in lowered for sig in _AGENTIC_ECONOMY_SIGNALS):
+        return _CATEGORY_QUERY_HINTS["agentic-economy"]
+    return _UNKNOWN_QUERY_HINTS
+
 
 # Hints used when classification returns ∅ ("unknown"). This is the safe
 # baseline for the long tail of builder-style ideas — biases toward the
@@ -154,8 +256,9 @@ def _build_query(idea: str, categories: set[str]) -> str:
                     hints.append(h)
     else:
         # Unknown / classifier returned nothing — apply the builder-bias
-        # baseline. This is the codepath that fixes the dogfood regression.
-        for h in _UNKNOWN_QUERY_HINTS:
+        # baseline (or the agentic-economy override when the idea text
+        # explicitly mentions x402/mcp/agentic tokens; see S17-DISCOVERY-01).
+        for h in _unknown_query_hints_for_idea(idea):
             seen.add(h)
             hints.append(h)
 
@@ -204,7 +307,7 @@ async def _safe_classify(idea: str) -> set[str]:
 
 async def discover(
     idea: str,
-    max_results: int = 8,
+    max_results: int | None = None,
     *,
     provider: object | None = None,
 ) -> list[SourceCandidate]:
@@ -229,20 +332,48 @@ async def discover(
         chunks = await provider.fetch(idea)  # type: ignore[attr-defined]
         return [c.candidate for c in chunks]
     settings = get_ingestion_settings()
+    # S17-DISCOVERY-01 — Tavily is now the *fallback* primary, not the
+    # default. Default quota dropped from 8→3; tunable via env so the
+    # provider rebalance (workflows-side) and the discovery layer
+    # agree on the same number without a redeploy.
+    if max_results is None:
+        try:
+            max_results = max(1, int(os.environ.get("GECKO_PROVIDER_QUOTA_TAVILY", "3")))
+        except ValueError:
+            max_results = 3
     categories = await _safe_classify(idea)
     query = _build_query(idea, categories)
     logger.info(
-        "discover: idea=%r categories=%s query=%r",
+        "discover: idea=%r categories=%s query=%r max_results=%d",
         idea[:80],
         sorted(categories) or "unknown",
         query[:120],
+        max_results,
     )
+    # Ask Tavily for ~2x the quota so the post-fetch dictionary blocklist
+    # has headroom — better to over-fetch by a few and filter than to
+    # come up short on a research-style idea where 60% of hits get
+    # blocked. Caps at 10 to keep the credit cost bounded.
+    over_fetch = min(max_results * 2, 10)
     raw = await asyncio.to_thread(
         _search_sync,
         settings.tavily_api_key.get_secret_value(),
         query,
-        max_results,
+        over_fetch,
     )
+
+    # S17-DISCOVERY-01 — drop dictionary / wordlist / raw-data URLs
+    # before scoring. Logged at info so the post-S17 dashboard can
+    # tune the heuristic from production traces.
+    filtered: list[dict[str, Any]] = []
+    for item in raw:
+        url_str = item.get("url") or ""
+        if not url_str:
+            continue
+        if _is_blocked_dictionary_url(url_str):
+            logger.info("discover: blocking dictionary-noise url=%s", url_str)
+            continue
+        filtered.append(item)
 
     candidates = [
         SourceCandidate(
@@ -251,10 +382,18 @@ async def discover(
             type=_infer_type(item["url"]),
             score=float(item.get("score", 0.0) or 0.0),
         )
-        for item in raw
-        if item.get("url")
+        for item in filtered
     ]
-    return sorted(candidates, key=lambda c: c.score, reverse=True)
+    candidates.sort(key=lambda c: c.score, reverse=True)
+    return candidates[:max_results]
 
 
-__all__ = ["_build_query", "discover"]
+__all__ = [
+    "BLOCKED_DICTIONARY_HOSTS",
+    "BLOCKED_URL_EXTENSIONS",
+    "BLOCKED_URL_PATH_PATTERNS",
+    "TAVILY_ADVANCED_SEARCH_USD",
+    "_build_query",
+    "_is_blocked_dictionary_url",
+    "discover",
+]
