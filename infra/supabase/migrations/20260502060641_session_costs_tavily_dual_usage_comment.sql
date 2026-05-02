@@ -1,5 +1,5 @@
 -- 20260502060641_session_costs_tavily_dual_usage_comment.sql
--- Purpose: S17-INGEST-FALLBACK-01 — annotate `session_costs.cost_tavily_usd`
+-- Purpose: S17-INGEST-FALLBACK-01 — annotate `sessions.cost_tavily_usd`
 --          to document its dual-source usage. The column accumulates BOTH:
 --             1. Tavily Search/Discovery spend (the original wedge), and
 --             2. Tavily Extract spend used as the bot-wall fallback after
@@ -14,7 +14,7 @@
 -- Reversible: trivial (COMMENT only).
 -- Touches: session_costs (column comment only — no schema change).
 
-COMMENT ON COLUMN session_costs.cost_tavily_usd IS
+COMMENT ON COLUMN sessions.cost_tavily_usd IS
   'Cumulative USD spend with Tavily for the session. Includes both '
   'discovery (search) calls AND extract-fallback calls invoked when the '
   'in-process httpx retry chain in gecko_core.ingestion.web exhausts '
