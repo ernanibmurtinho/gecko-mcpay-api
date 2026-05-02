@@ -19,12 +19,15 @@ import logging
 import os
 from decimal import Decimal
 from typing import Any
+from uuid import UUID, uuid4
 
 from gecko_core.ingestion.web import UnsafeURLError, validate_url
 from gecko_core.payments.bazaar_discovery import (
     BazaarDiscoveryClient,
     BazaarResource,
 )
+from gecko_core.payments.modes import ConsumerMode
+from gecko_core.payments.spend_ledger import BazaarSpendLedger
 from gecko_core.payments.x402_consumer import (
     BudgetExceededError,
     X402Consumer,
@@ -81,12 +84,23 @@ class BazaarSourceProvider:
         session_cap_usd: Decimal = DEFAULT_SESSION_USD_CAP,
         daily_cap_usd: Decimal = DEFAULT_DAILY_USD_CAP,
         adapter_registry: list[BazaarAdapter] | None = None,
+        spend_ledger: BazaarSpendLedger | None = None,
+        session_id: UUID | None = None,
     ) -> None:
         self._discovery = discovery_client
         self._consumer = x402_consumer
         self._session_cap_usd = session_cap_usd
-        # Stored for S16-BAZAAR-CONSUMER-02 ledger wire-up; pass-through today.
+        # S16-BAZAAR-CONSUMER-02 — daily cap enforced via the ledger
+        # below. ``spend_ledger=None`` is the unit-test path: skip both
+        # the pre-flight gate and the post-pay record (still safe — the
+        # per-session ``session_cap_usd`` filter remains in place).
         self._daily_cap_usd = daily_cap_usd
+        self._ledger = spend_ledger
+        # Provider-level session id. Synthesized when not provided so
+        # ``record()`` always has a UUID to write — the gecko-core
+        # research pipeline injects the real session id; tests + adhoc
+        # ``bb research`` get a synthetic one for ledger forensics.
+        self._session_id = session_id or uuid4()
         # Adapters tried in order; first ``applies_to`` wins. The generic
         # adapter is registered last as the universal fallback (catalog-led
         # default).
@@ -140,10 +154,6 @@ class BazaarSourceProvider:
     async def fetch(self, *, idea: str, categories: set[str]) -> SourceResult:
         query = " ".join([idea, *sorted(categories)]).strip()
 
-        # TODO(S16-BAZAAR-CONSUMER-02): consult the daily-cap ledger before
-        # spending. For the scaffold this is pass-through; the cap-enforcement
-        # ticket lands the ledger and gates here.
-
         try:
             candidates = await self._discovery.search(
                 query,
@@ -177,10 +187,35 @@ class BazaarSourceProvider:
 
         for resource in picks:
             adapter = self._resolve_adapter(resource)
+            # S16-BAZAAR-CONSUMER-02 — daily-cap pre-flight. Use the
+            # cheapest advertised price as the upper bound on what the
+            # adapter is about to spend (the adapter picks the cheapest
+            # in-budget accepts[] entry; this matches that policy).
+            est_spend = _min_advertised_usd(resource) or Decimal("0")
+            if self._ledger is not None and await self._ledger.would_exceed_daily(
+                est_spend, daily_cap_usd=self._daily_cap_usd
+            ):
+                logger.info(
+                    "bazaar: daily cap $%s would be exceeded by $%s on %s — degrading source",
+                    self._daily_cap_usd,
+                    est_spend,
+                    resource.resource_url,
+                )
+                degraded.append("daily_cap_exceeded")
+                continue
+
+            # Wrap the consumer so we can record immediately after a
+            # successful settle without changing the adapter signature.
+            recording_consumer = _LedgerRecordingConsumer(
+                inner=self._consumer,
+                ledger=self._ledger,
+                session_id=self._session_id,
+                resource_url=resource.resource_url,
+            )
             try:
                 chunks = await adapter.fetch_and_normalize(
                     resource,
-                    self._consumer,
+                    recording_consumer,
                     max_usd=self._session_cap_usd,
                 )
             except BudgetExceededError as exc:
@@ -220,6 +255,49 @@ class BazaarSourceProvider:
         )
 
 
+class _LedgerRecordingConsumer:
+    """X402Consumer proxy: forwards ``pay()`` then records to the ledger.
+
+    Lives here (not in spend_ledger.py) because it's purely a
+    composition shim used by the provider — keeping it private to the
+    provider module avoids leaking ledger plumbing into the buyer
+    Protocol. ``ledger=None`` makes it transparent for the unit-test
+    path.
+    """
+
+    def __init__(
+        self,
+        *,
+        inner: X402Consumer,
+        ledger: BazaarSpendLedger | None,
+        session_id: UUID,
+        resource_url: str,
+    ) -> None:
+        self._inner = inner
+        self._ledger = ledger
+        self._session_id = session_id
+        self._resource_url = resource_url
+        # Settable attrs (not properties) so the Protocol shape on
+        # ``X402Consumer`` is satisfied — Protocol members declared with
+        # bare type annotations require settable attributes.
+        self.name: str = inner.name
+        self.mode: ConsumerMode = inner.mode
+
+    async def pay(self, requirements: Any, *, max_usd: Decimal) -> Any:
+        receipt = await self._inner.pay(requirements, max_usd=max_usd)
+        if self._ledger is not None:
+            amount = requirements.max_amount_required or Decimal("0")
+            # ``record`` swallows write errors — chain already settled.
+            await self._ledger.record(
+                session_id=self._session_id,
+                resource_url=self._resource_url,
+                amount_usd=amount,
+                receipt=receipt,
+                mode=self._inner.mode,
+            )
+        return receipt
+
+
 def _chunk_to_dict(chunk: BazaarChunk) -> dict[str, Any]:
     return {
         "text": chunk.text,
@@ -234,6 +312,8 @@ def make_bazaar_provider(
     *,
     discovery_client: BazaarDiscoveryClient | None = None,
     x402_consumer: X402Consumer | None = None,
+    spend_ledger: BazaarSpendLedger | None = None,
+    session_id: UUID | None = None,
 ) -> BazaarSourceProvider:
     """Factory: read env caps, resolve discovery + consumer, wire adapters.
 
@@ -262,12 +342,29 @@ def make_bazaar_provider(
         disc_mode = os.getenv("GECKO_BAZAAR_DISCOVERY_MODE", "stub")
         discovery_client = resolve_discovery_client(disc_mode)  # type: ignore[arg-type]
 
+    # S16-BAZAAR-CONSUMER-02 — when no ledger is injected, build one from
+    # env iff Supabase is configured. Stub-mode dev with no SUPABASE_URL
+    # set keeps the legacy pass-through (ledger=None) behaviour so
+    # local-only smoke tests don't require a database.
+    if (
+        spend_ledger is None
+        and os.getenv("SUPABASE_URL")
+        and os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    ):
+        try:
+            spend_ledger = BazaarSpendLedger.from_env()
+        except Exception as exc:
+            logger.warning("bazaar: ledger from_env failed (%s); proceeding without", exc)
+            spend_ledger = None
+
     return BazaarSourceProvider(
         discovery_client=discovery_client,
         x402_consumer=x402_consumer,
         session_cap_usd=session_cap,
         daily_cap_usd=daily_cap,
         adapter_registry=[GenericBazaarAdapter()],
+        spend_ledger=spend_ledger,
+        session_id=session_id,
     )
 
 

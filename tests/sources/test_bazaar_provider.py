@@ -359,6 +359,102 @@ def test_discovery_and_consumer_protocols_runtime_checkable() -> None:
     assert isinstance(StubX402Consumer(), X402Consumer)
 
 
+# ---------------------------------------------------------------------------
+# S16-BAZAAR-CONSUMER-02 — daily-cap ledger wiring
+# ---------------------------------------------------------------------------
+
+
+class _FakeLedger:
+    """Test stand-in for ``BazaarSpendLedger``.
+
+    ``would_exceed_daily`` is canned per-test; ``record`` captures calls
+    so the test can assert the right amount + receipt landed.
+    """
+
+    def __init__(self, *, exceed: bool = False) -> None:
+        self._exceed = exceed
+        self.records: list[dict[str, Any]] = []
+        self.would_exceed_calls: list[Decimal] = []
+
+    async def would_exceed_daily(self, amount_usd: Decimal, *, daily_cap_usd: Decimal) -> bool:
+        self.would_exceed_calls.append(amount_usd)
+        return self._exceed
+
+    async def record(self, **kwargs: Any) -> None:
+        self.records.append(kwargs)
+
+
+@pytest.mark.asyncio
+async def test_daily_cap_exceeded_skips_pay_and_marks_degraded() -> None:
+    """Pre-flight returns True → no pay() call, ``daily_cap_exceeded`` in degraded."""
+    resource = _resource(
+        url="https://example.com/api/v1/search",
+        rtype="hotel-search",
+        accepts=[_req("0.05")],
+        score=0.9,
+    )
+    discovery = FakeDiscovery({"hotel": [resource]})
+    consumer = CountingStubConsumer()
+    ledger = _FakeLedger(exceed=True)
+
+    provider = BazaarSourceProvider(
+        discovery_client=discovery,
+        x402_consumer=consumer,
+        spend_ledger=ledger,  # type: ignore[arg-type]
+    )
+    result = await provider.fetch(idea="hotel", categories={"travel"})
+
+    assert not result.fired
+    assert "daily_cap_exceeded" in result.payload.get("degraded_sources", [])
+    # Critical: pay() must NOT have been called.
+    assert consumer.calls == []
+    # And the pre-flight was actually consulted.
+    assert ledger.would_exceed_calls, "would_exceed_daily was never called"
+
+
+@pytest.mark.asyncio
+async def test_successful_pay_records_to_ledger_once() -> None:
+    """Ledger records exactly one row per successful settle, with the right amount."""
+    resource = _resource(
+        url="https://example.com/api/v1/search",
+        rtype="hotel-search",
+        accepts=[_req("0.07")],
+        score=0.9,
+    )
+    discovery = FakeDiscovery({"hotel": [resource]})
+    consumer = CountingStubConsumer()
+    ledger = _FakeLedger(exceed=False)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if "X-PAYMENT" not in request.headers:
+            return httpx.Response(402, json={"error": "payment required"})
+        return httpx.Response(
+            200,
+            json=[{"id": 1}, {"id": 2}, {"id": 3}],
+            headers={"content-type": "application/json"},
+        )
+
+    async with _mock_transport(handler) as http_client:
+        provider = BazaarSourceProvider(
+            discovery_client=discovery,
+            x402_consumer=consumer,
+            adapter_registry=[GenericBazaarAdapter(http_client=http_client)],
+            spend_ledger=ledger,  # type: ignore[arg-type]
+        )
+        result = await provider.fetch(idea="hotel", categories={"travel"})
+
+    assert result.fired, result.error
+    # Exactly one settle, one record. Amount matches the advertised price.
+    assert len(consumer.calls) == 1
+    assert len(ledger.records) == 1
+    rec = ledger.records[0]
+    assert rec["resource_url"] == resource.resource_url
+    assert rec["amount_usd"] == Decimal("0.07")
+    assert rec["mode"] == "stub"
+    # Receipt round-tripped — tx_signature present from StubX402Consumer.
+    assert rec["receipt"]["status"] == "success"
+
+
 def test_bazaar_chunk_is_immutable() -> None:
     # frozen=True dataclass raises FrozenInstanceError on attr assignment.
     from dataclasses import FrozenInstanceError
