@@ -187,11 +187,26 @@ def check_llm_router(environ: dict[str, str] | None = None) -> list[CheckResult]
 
 def check_clawrouter(environ: dict[str, str] | None = None) -> CheckResult:
     """Probe the local ClawRouter proxy. INFO if unreachable (the proxy is
-    user-managed and may not be running yet)."""
+    user-managed and may not be running yet).
+
+    The probe always targets ClawRouter's *own* URL — never the value of
+    ``GECKO_LLM_ENDPOINT``. The legacy plane lets an operator point
+    ``GECKO_LLM_ENDPOINT`` at OpenAI direct (or any OpenAI-compatible
+    endpoint); when that happens, the previous implementation rendered
+    ``llm:clawrouter unreachable at https://api.openai.com/v1`` which is
+    a misleading row — OpenAI is not clawrouter. Each LLM-router probe
+    must check its own configured base URL.
+    """
     import httpx
 
+    from gecko_mcp.llm import CLAWROUTER_DEFAULT_URL
+
     env = environ if environ is not None else dict(os.environ)
-    url = env.get("GECKO_LLM_ENDPOINT", "http://localhost:8402/v1")
+    # Honor an explicit ``CLAWROUTER_URL`` override (matches the resolver
+    # in ``gecko_core.orchestration.pro.router``). Fall back to the
+    # well-known clawrouter localhost. ``GECKO_LLM_ENDPOINT`` is the
+    # legacy plane and may point anywhere — never trust it here.
+    url = env.get("CLAWROUTER_URL", CLAWROUTER_DEFAULT_URL)
     try:
         response = httpx.get(f"{url}/models", timeout=3.0)
         response.raise_for_status()
