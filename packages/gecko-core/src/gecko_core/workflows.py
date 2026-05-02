@@ -217,6 +217,18 @@ async def research(
         _emit(progress_callback, "Running pro debate")
         result = await _run_pro_debate(session_id, idea, result, store, tier_preset=tier_preset)
 
+    # S20-VERDICT-URL-IMPL-01 — stamp the deterministic verdict_hash AFTER
+    # both ``provider_mix_flag`` and the pro debate (whose finaliser already
+    # stamps provider_mix_flag for the pro path). The hash inputs are locked
+    # by ``gecko_core.verdict_hash`` (idea + retrieved sources + structural
+    # verdict shape); reruns under the same retrieval reproduce the digest.
+    # provider_mix_flag is intentionally NOT a hash input (see the docstring
+    # in verdict_hash._verdict_payload) so the audit flag can flip without
+    # invalidating cached verdict-URLs.
+    from gecko_core.verdict_hash import verdict_hash as _compute_verdict_hash
+
+    result = result.model_copy(update={"verdict_hash": _compute_verdict_hash(idea, result)})
+
     # Step 7 — persist the final result JSON, then mark complete and return.
     # S17-PERSIST-01: the CLI path calls `workflows.research()` directly and
     # had no `set_result` write, so `bb scaffold` / `gecko_advise` later

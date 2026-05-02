@@ -160,6 +160,12 @@ def _build_payload(*, session_id: UUID, idea: str, result: ResearchResult) -> di
     gap_classification = getattr(validation_report, "gap_classification", None)
     gap_summary = getattr(validation_report, "gap_summary", None)
 
+    # S20-VERDICT-URL-IMPL-01 — persist the deterministic verdict_hash so
+    # the public ``/v1/verdict/{hash}`` route can look this transcript up.
+    # ``getattr`` keeps backwards compat with legacy ResearchResult shapes
+    # built by hand in tests that don't stamp the field.
+    verdict_hash_val = getattr(result, "verdict_hash", None)
+
     return {
         # Schema kept aligned with `tests/eval/runner.py::_archive_live_transcript`.
         "id": str(session_id),
@@ -174,6 +180,7 @@ def _build_payload(*, session_id: UUID, idea: str, result: ResearchResult) -> di
         "gap_classification": str(gap_classification) if gap_classification else None,
         "gap_summary": gap_summary if isinstance(gap_summary, str) else None,
         "agent_turns": agent_turns,
+        "verdict_hash": verdict_hash_val if isinstance(verdict_hash_val, str) else None,
         # Reserved keys mirror eval-side schema for jq/mongosh parity.
         "advisor_voices": None,
         "advisor_consensus": None,
@@ -266,6 +273,11 @@ def _ensure_mongo_indexes(coll_id: int) -> None:
     try:
         coll.create_index("session_id", unique=True)
         coll.create_index([("actual_verdict_v2", 1), ("created_at", -1)])
+        # S20-VERDICT-URL-IMPL-01 — index the verdict_hash for the public
+        # ``/v1/verdict/{hash}`` lookup. NOT unique: identical idea+verdict
+        # inputs across reruns can legitimately reproduce the same hash, and
+        # the API returns most-recent-by-created_at on a hit.
+        coll.create_index("verdict_hash")
     except Exception as exc:  # pragma: no cover — index creation is best-effort
         logger.warning("transcript capture: mongo index creation failed: %s", exc)
 

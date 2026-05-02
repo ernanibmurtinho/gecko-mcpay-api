@@ -386,9 +386,7 @@ async def _process_one(
             embeddings = [cached_lookup[i] for i in range(len(pieces))]
             rows = list(zip(range(len(pieces)), pieces, embeddings, strict=True))
             try:
-                inserted = await store.insert_chunks(
-                    session_id, source_id, rows, source_url=url
-                )
+                inserted = await store.insert_chunks(session_id, source_id, rows, source_url=url)
             except Exception as exc:
                 logger.warning(
                     "ingest.upsert.failed url=%s exc=%s msg=%s n_rows=%d vector_dim=%d",

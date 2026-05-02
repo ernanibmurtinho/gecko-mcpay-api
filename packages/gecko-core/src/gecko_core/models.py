@@ -493,6 +493,13 @@ class ResearchResult(BaseModel):
     # round-trip without backfill). Verdict-hash inputs deliberately
     # exclude this field — see ``verdict_hash._verdict_payload``.
     provider_mix_flag: ProviderMixFlag | None = None
+    # S20-VERDICT-URL-IMPL-01 — deterministic sha256 stamped at workflow
+    # finalisation (after ``provider_mix_flag``) via
+    # :func:`gecko_core.verdict_hash.verdict_hash`. Identifies the verdict on
+    # the public ``/v1/verdict/{hash}`` URL surface and joins to the
+    # persisted ``judge_transcripts`` row. Optional/None for legacy callers
+    # and for results built by hand in tests; the workflow always stamps it.
+    verdict_hash: str | None = None
 
 
 class AskResult(BaseModel):

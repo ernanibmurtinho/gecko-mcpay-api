@@ -39,9 +39,10 @@ from gecko_core.payments.constants import STUB_WALLET_ADDRESS_NOT_FOR_LIVE
 from gecko_core.payments.factory import resolve_facilitator_client
 from gecko_core.sessions.store import SessionStore
 from pydantic import BaseModel, Field
-from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
+from slowapi.util import (
+    get_remote_address,  # noqa: F401  (legacy import retained for downstream imports)
+)
 from starlette.responses import JSONResponse, StreamingResponse
 from x402 import x402ResourceServer
 from x402.http.facilitator_client_base import FacilitatorClient
@@ -474,16 +475,10 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 # Rate limiter: prefer Authorization header as the bucket key (so a single
 # user can't share rate by spoofing IPs); fall back to remote address for
 # unauthenticated paths. The limiter is exposed via app.state for slowapi's
-# decorator + handler.
-def _rate_limit_key(request: Request) -> str:
-    auth = request.headers.get("authorization")
-    if auth:
-        return auth
-    return get_remote_address(request)
-
-
-limiter = Limiter(key_func=_rate_limit_key)
-
+# decorator + handler. Lives in ``gecko_api.rate_limit`` so route packages
+# (e.g. ``gecko_api.routes.verdict``) can decorate handlers without pulling
+# this module into a circular import.
+from gecko_api.rate_limit import limiter  # noqa: E402
 
 app = FastAPI(
     title="Gecko API",
@@ -891,6 +886,17 @@ app.add_middleware(_BodySizeLimitMiddleware, max_bytes=_MAX_REQUEST_BODY_BYTES)
 # Mounted after middleware so x402 doesn't gate them; they're free and
 # read-only. Discovery: not advertised in /.well-known/x402.
 app.include_router(internal_router)
+
+
+# S20-VERDICT-URL-IMPL-01 — public verdict-URL surface. Imported lazily
+# (post-app-construction) so the route module can decorate handlers with
+# the shared limiter. CORS for this route is wide open (handled inside
+# the route via response headers — see routes/verdict.py module docstring)
+# because the public app-wide CORSMiddleware is restricted to the
+# geckovision.tech origins.
+from gecko_api.routes.verdict import router as _verdict_router  # noqa: E402
+
+app.include_router(_verdict_router)
 
 
 # ---------------------------------------------------------------------------
