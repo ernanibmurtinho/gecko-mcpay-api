@@ -21,8 +21,12 @@ def _clear_caches() -> None:
 
 class TestChunkStoreSelector:
     def test_default_is_supabase(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Test name asserts the default — must NOT be polluted by developer .env
+        # (pydantic-settings loads .env in addition to process env, so delenv
+        # alone is insufficient when a dev `.env` pins GECKO_CHUNK_STORE=mongo).
+        # Construct settings with _env_file=None to skip dotenv entirely.
         monkeypatch.delenv("GECKO_CHUNK_STORE", raising=False)
-        assert chunk_store_mod.get_chunk_store() == "supabase"
+        assert chunk_store_mod.ChunkStoreSettings(_env_file=None).kind == "supabase"  # type: ignore[call-arg]
 
     def test_explicit_mongo(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("GECKO_CHUNK_STORE", "mongo")

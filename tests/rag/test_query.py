@@ -12,6 +12,22 @@ from uuid import uuid4
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _pin_supabase_store(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin chunk store to supabase regardless of developer .env.
+
+    These tests mock the Supabase RPC seam (`_FakeStore`/`_FakeClient`); a
+    developer-set `GECKO_CHUNK_STORE=mongo` would route past the mock and
+    break test isolation. See R2 agent / commit 034f358 discussion.
+    """
+    monkeypatch.setenv("GECKO_CHUNK_STORE", "supabase")
+    from gecko_core.db import chunk_store as cs_mod
+
+    cs_mod.get_chunk_store.cache_clear()
+    yield
+    cs_mod.get_chunk_store.cache_clear()
+
+
 class _FakeRpcResp:
     def __init__(self, data: list[dict[str, Any]]) -> None:
         self.data = data

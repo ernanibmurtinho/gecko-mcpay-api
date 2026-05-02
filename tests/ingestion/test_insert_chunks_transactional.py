@@ -25,6 +25,23 @@ import pytest
 from gecko_core.ingestion.exceptions import ChunkValidationError
 from gecko_core.sessions.store import SessionStore
 
+
+@pytest.fixture(autouse=True)
+def _pin_supabase_store(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin chunk store to supabase regardless of developer .env.
+
+    These tests mock the Supabase chained-builder seam; a developer-set
+    ``GECKO_CHUNK_STORE=mongo`` would route past the mock and fail with
+    a kwarg-mismatch on the (unmocked) Mongo signature.
+    """
+    monkeypatch.setenv("GECKO_CHUNK_STORE", "supabase")
+    from gecko_core.db import chunk_store as cs_mod
+
+    cs_mod.get_chunk_store.cache_clear()
+    yield
+    cs_mod.get_chunk_store.cache_clear()
+
+
 # ---------------------------------------------------------------------------
 # Fake supabase-py client. Just enough surface to satisfy
 # `_client.table(name).upsert(rows, on_conflict=..., ignore_duplicates=True).execute()`
