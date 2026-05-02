@@ -1,0 +1,1061 @@
+{
+  "date": "2026-05-02",
+  "git_sha": "034f358",
+  "mode": "live",
+  "reruns": 1,
+  "suite": "all",
+  "aggregate": {
+    "kill_rate": 0.5,
+    "verdict_accuracy": 0.88,
+    "verdict_accuracy_v2": 0.12,
+    "n_v2": 50,
+    "median_score": 5.5,
+    "median_weighted_score": 6.583,
+    "median_cost_usd": 0.0017,
+    "n": 50
+  },
+  "suites": {
+    "general": {
+      "aggregate": {
+        "kill_rate": 0.5,
+        "verdict_accuracy": 0.95,
+        "verdict_accuracy_v2": 0.1,
+        "n_v2": 20,
+        "median_score": 5.5,
+        "median_weighted_score": 6.583,
+        "median_cost_usd": 0.0016,
+        "n": 20
+      },
+      "ideas": [
+        {
+          "id": "bad-uber-for-dogwalkers",
+          "expected_verdict": "kill",
+          "actual_verdict": "kill",
+          "scores": {
+            "agent_voice": 5.5,
+            "source_grounding": 6.0,
+            "verdict_justification": 6.5,
+            "cost_predictability": 3.5,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 18.105,
+          "tokens_total": 7670,
+          "cost_usd": 0.0016,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "bad-uber-for-dogwalkers",
+          "expected_verdict_v2": "KILL",
+          "actual_verdict_v2": "PIVOT",
+          "phase": "pre_product"
+        },
+        {
+          "id": "bad-another-todo-app",
+          "expected_verdict": "kill",
+          "actual_verdict": "kill",
+          "scores": {
+            "agent_voice": 4.5,
+            "source_grounding": 5.0,
+            "verdict_justification": 5.5,
+            "cost_predictability": 3.5,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 22.92,
+          "tokens_total": 8289,
+          "cost_usd": 0.0018,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "bad-another-todo-app",
+          "expected_verdict_v2": "KILL",
+          "actual_verdict_v2": "PIVOT",
+          "phase": "pre_product"
+        },
+        {
+          "id": "bad-tax-ai-no-lawyer",
+          "expected_verdict": "kill",
+          "actual_verdict": "kill",
+          "scores": {
+            "agent_voice": 4.5,
+            "source_grounding": 6.5,
+            "verdict_justification": 5.0,
+            "cost_predictability": 3.5,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 18.02,
+          "tokens_total": 7776,
+          "cost_usd": 0.0016,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "bad-tax-ai-no-lawyer",
+          "expected_verdict_v2": "KILL",
+          "actual_verdict_v2": "PIVOT",
+          "phase": "pre_product"
+        },
+        {
+          "id": "bad-gpt-wrapper-marketing",
+          "expected_verdict": "kill",
+          "actual_verdict": "kill",
+          "scores": {
+            "agent_voice": 5.5,
+            "source_grounding": 6.0,
+            "verdict_justification": 6.5,
+            "cost_predictability": 4.0,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 19.549,
+          "tokens_total": 8223,
+          "cost_usd": 0.0017,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "bad-gpt-wrapper-marketing",
+          "expected_verdict_v2": "KILL",
+          "actual_verdict_v2": "PIVOT",
+          "phase": "pre_product"
+        },
+        {
+          "id": "bad-crypto-social",
+          "expected_verdict": "kill",
+          "actual_verdict": "kill",
+          "scores": {
+            "agent_voice": 7.5,
+            "source_grounding": 6.5,
+            "verdict_justification": 6.0,
+            "cost_predictability": 7.0,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 20.793,
+          "tokens_total": 8411,
+          "cost_usd": 0.0018,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "bad-crypto-social",
+          "expected_verdict_v2": "KILL",
+          "actual_verdict_v2": "PIVOT",
+          "phase": "pre_product"
+        },
+        {
+          "id": "bad-ai-resume-builder",
+          "expected_verdict": "kill",
+          "actual_verdict": "kill",
+          "scores": {
+            "agent_voice": 5.5,
+            "source_grounding": 6.0,
+            "verdict_justification": 6.5,
+            "cost_predictability": 4.0,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 12.928,
+          "tokens_total": 7176,
+          "cost_usd": 0.0014,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "bad-ai-resume-builder",
+          "expected_verdict_v2": "KILL",
+          "actual_verdict_v2": "PIVOT",
+          "phase": "pre_product"
+        },
+        {
+          "id": "bad-ar-shopping-glasses",
+          "expected_verdict": "kill",
+          "actual_verdict": "kill",
+          "scores": {
+            "agent_voice": 4.5,
+            "source_grounding": 5.5,
+            "verdict_justification": 4.0,
+            "cost_predictability": 4.0,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 20.729,
+          "tokens_total": 8334,
+          "cost_usd": 0.0018,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "bad-ar-shopping-glasses",
+          "expected_verdict_v2": "KILL",
+          "actual_verdict_v2": "PIVOT",
+          "phase": "pre_product"
+        },
+        {
+          "id": "bad-gpt-therapy",
+          "expected_verdict": "kill",
+          "actual_verdict": "kill",
+          "scores": {
+            "agent_voice": 4.5,
+            "source_grounding": 6.5,
+            "verdict_justification": 5.5,
+            "cost_predictability": 3.5,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 16.897,
+          "tokens_total": 7782,
+          "cost_usd": 0.0016,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "bad-gpt-therapy",
+          "expected_verdict_v2": "KILL",
+          "actual_verdict_v2": "PIVOT",
+          "phase": "pre_product"
+        },
+        {
+          "id": "bad-nft-loyalty",
+          "expected_verdict": "kill",
+          "actual_verdict": "kill",
+          "scores": {
+            "agent_voice": 5.5,
+            "source_grounding": 6.5,
+            "verdict_justification": 7.0,
+            "cost_predictability": 3.5,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 24.546,
+          "tokens_total": 9076,
+          "cost_usd": 0.002,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "bad-nft-loyalty",
+          "expected_verdict_v2": "KILL",
+          "actual_verdict_v2": "PIVOT",
+          "phase": "pre_product"
+        },
+        {
+          "id": "bad-meeting-summarizer",
+          "expected_verdict": "kill",
+          "actual_verdict": "kill",
+          "scores": {
+            "agent_voice": 4.5,
+            "source_grounding": 6.0,
+            "verdict_justification": 6.5,
+            "cost_predictability": 3.5,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 14.164,
+          "tokens_total": 7414,
+          "cost_usd": 0.0015,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "bad-meeting-summarizer",
+          "expected_verdict_v2": "KILL",
+          "actual_verdict_v2": "PIVOT",
+          "phase": "pre_product"
+        },
+        {
+          "id": "good-devbrief",
+          "expected_verdict": "ship",
+          "actual_verdict": "ship",
+          "scores": {
+            "agent_voice": 5.5,
+            "source_grounding": 5.0,
+            "verdict_justification": 6.5,
+            "cost_predictability": 4.0,
+            "verdict_correctness": 5.0
+          },
+          "wall_seconds": 15.798,
+          "tokens_total": 7647,
+          "cost_usd": 0.0015,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "good-devbrief",
+          "expected_verdict_v2": "BUILD",
+          "actual_verdict_v2": "REFINE",
+          "phase": "pre_product"
+        },
+        {
+          "id": "good-mcp-postgres-explainer",
+          "expected_verdict": "ship",
+          "actual_verdict": "ship",
+          "scores": {
+            "agent_voice": 7.5,
+            "source_grounding": 6.0,
+            "verdict_justification": 7.0,
+            "cost_predictability": 7.5,
+            "verdict_correctness": 5.0
+          },
+          "wall_seconds": 22.04,
+          "tokens_total": 8791,
+          "cost_usd": 0.0019,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "good-mcp-postgres-explainer",
+          "expected_verdict_v2": "BUILD",
+          "actual_verdict_v2": "REFINE",
+          "phase": "pre_product"
+        },
+        {
+          "id": "good-vet-tele-rx",
+          "expected_verdict": "ship",
+          "actual_verdict": "ship",
+          "scores": {
+            "agent_voice": 8.5,
+            "source_grounding": 6.5,
+            "verdict_justification": 7.5,
+            "cost_predictability": 7.0,
+            "verdict_correctness": 5.0
+          },
+          "wall_seconds": 19.703,
+          "tokens_total": 8513,
+          "cost_usd": 0.0018,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "good-vet-tele-rx",
+          "expected_verdict_v2": "BUILD",
+          "actual_verdict_v2": "REFINE",
+          "phase": "pre_product"
+        },
+        {
+          "id": "good-repo-grounded-research",
+          "expected_verdict": "ship",
+          "actual_verdict": "ship",
+          "scores": {
+            "agent_voice": 5.5,
+            "source_grounding": 5.0,
+            "verdict_justification": 6.5,
+            "cost_predictability": 4.5,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 16.514,
+          "tokens_total": 7653,
+          "cost_usd": 0.0016,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "good-repo-grounded-research",
+          "expected_verdict_v2": "REFINE",
+          "actual_verdict_v2": "REFINE",
+          "phase": "pre_product"
+        },
+        {
+          "id": "good-clinical-trial-screener",
+          "expected_verdict": "ship",
+          "actual_verdict": "ship",
+          "scores": {
+            "agent_voice": 5.5,
+            "source_grounding": 6.5,
+            "verdict_justification": 7.0,
+            "cost_predictability": 4.0,
+            "verdict_correctness": 5.0
+          },
+          "wall_seconds": 17.866,
+          "tokens_total": 7756,
+          "cost_usd": 0.0016,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "good-clinical-trial-screener",
+          "expected_verdict_v2": "BUILD",
+          "actual_verdict_v2": "REFINE",
+          "phase": "pre_product"
+        },
+        {
+          "id": "good-cli-stripe-replay",
+          "expected_verdict": "ship",
+          "actual_verdict": "ship",
+          "scores": {
+            "agent_voice": 6.5,
+            "source_grounding": 6.0,
+            "verdict_justification": 7.0,
+            "cost_predictability": 4.5,
+            "verdict_correctness": 5.0
+          },
+          "wall_seconds": 13.771,
+          "tokens_total": 7300,
+          "cost_usd": 0.0015,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "good-cli-stripe-replay",
+          "expected_verdict_v2": "BUILD",
+          "actual_verdict_v2": "REFINE",
+          "phase": "pre_product"
+        },
+        {
+          "id": "good-mcp-airtable-typed",
+          "expected_verdict": "ship",
+          "actual_verdict": "unknown",
+          "scores": {
+            "agent_voice": 3.5,
+            "source_grounding": 4.0,
+            "verdict_justification": 3.5,
+            "cost_predictability": 3.0,
+            "verdict_correctness": 0.0
+          },
+          "wall_seconds": 19.454,
+          "tokens_total": 7809,
+          "cost_usd": 0.0016,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "good-mcp-airtable-typed",
+          "expected_verdict_v2": "REFINE",
+          "actual_verdict_v2": "UNKNOWN",
+          "phase": "pre_product"
+        },
+        {
+          "id": "good-cap-table-diff",
+          "expected_verdict": "ship",
+          "actual_verdict": "ship",
+          "scores": {
+            "agent_voice": 5.5,
+            "source_grounding": 4.5,
+            "verdict_justification": 6.5,
+            "cost_predictability": 4.0,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 18.992,
+          "tokens_total": 8148,
+          "cost_usd": 0.0017,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "good-cap-table-diff",
+          "expected_verdict_v2": "REFINE",
+          "actual_verdict_v2": "REFINE",
+          "phase": "pre_product"
+        },
+        {
+          "id": "good-faa-part107-checklist",
+          "expected_verdict": "ship",
+          "actual_verdict": "ship",
+          "scores": {
+            "agent_voice": 5.5,
+            "source_grounding": 4.5,
+            "verdict_justification": 6.5,
+            "cost_predictability": 4.0,
+            "verdict_correctness": 5.0
+          },
+          "wall_seconds": 15.187,
+          "tokens_total": 7513,
+          "cost_usd": 0.0015,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "good-faa-part107-checklist",
+          "expected_verdict_v2": "BUILD",
+          "actual_verdict_v2": "REFINE",
+          "phase": "pre_product"
+        },
+        {
+          "id": "good-grant-budget-rewriter",
+          "expected_verdict": "ship",
+          "actual_verdict": "ship",
+          "scores": {
+            "agent_voice": 5.5,
+            "source_grounding": 6.0,
+            "verdict_justification": 6.5,
+            "cost_predictability": 4.0,
+            "verdict_correctness": 5.0
+          },
+          "wall_seconds": 26.434,
+          "tokens_total": 9314,
+          "cost_usd": 0.0021,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "good-grant-budget-rewriter",
+          "expected_verdict_v2": "BUILD",
+          "actual_verdict_v2": "REFINE",
+          "phase": "pre_product"
+        }
+      ]
+    },
+    "crypto": {
+      "aggregate": {
+        "kill_rate": 0.467,
+        "verdict_accuracy": 0.867,
+        "verdict_accuracy_v2": 0.133,
+        "n_v2": 15,
+        "median_score": 5.0,
+        "median_weighted_score": 6.583,
+        "median_cost_usd": 0.0018,
+        "n": 15
+      },
+      "ideas": [
+        {
+          "id": "crypto-ship-mcp-validator-monitor",
+          "expected_verdict": "ship",
+          "actual_verdict": "ship",
+          "scores": {
+            "agent_voice": 5.5,
+            "source_grounding": 5.0,
+            "verdict_justification": 6.5,
+            "cost_predictability": 4.0,
+            "verdict_correctness": 5.0
+          },
+          "wall_seconds": 18.647,
+          "tokens_total": 8619,
+          "cost_usd": 0.0018,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "crypto-ship-mcp-validator-monitor",
+          "expected_verdict_v2": "BUILD",
+          "actual_verdict_v2": "REFINE",
+          "phase": "pre_product"
+        },
+        {
+          "id": "crypto-ship-cap-table-echo",
+          "expected_verdict": "ship",
+          "actual_verdict": "ship",
+          "scores": {
+            "agent_voice": 5.5,
+            "source_grounding": 5.0,
+            "verdict_justification": 6.5,
+            "cost_predictability": 4.0,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 15.577,
+          "tokens_total": 7636,
+          "cost_usd": 0.0016,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "crypto-ship-cap-table-echo",
+          "expected_verdict_v2": "REFINE",
+          "actual_verdict_v2": "REFINE",
+          "phase": "pre_product"
+        },
+        {
+          "id": "crypto-ship-defi-safe-harbor-checker",
+          "expected_verdict": "ship",
+          "actual_verdict": "ship",
+          "scores": {
+            "agent_voice": 5.5,
+            "source_grounding": 5.0,
+            "verdict_justification": 6.5,
+            "cost_predictability": 4.0,
+            "verdict_correctness": 5.0
+          },
+          "wall_seconds": 20.728,
+          "tokens_total": 8209,
+          "cost_usd": 0.0017,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "crypto-ship-defi-safe-harbor-checker",
+          "expected_verdict_v2": "BUILD",
+          "actual_verdict_v2": "REFINE",
+          "phase": "pre_product"
+        },
+        {
+          "id": "crypto-ship-x402-receipts",
+          "expected_verdict": "ship",
+          "actual_verdict": "ship",
+          "scores": {
+            "agent_voice": 7.5,
+            "source_grounding": 5.5,
+            "verdict_justification": 6.5,
+            "cost_predictability": 6.0,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 23.477,
+          "tokens_total": 9379,
+          "cost_usd": 0.0021,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "crypto-ship-x402-receipts",
+          "expected_verdict_v2": "REFINE",
+          "actual_verdict_v2": "REFINE",
+          "phase": "pre_product"
+        },
+        {
+          "id": "crypto-ship-helius-das-typed",
+          "expected_verdict": "ship",
+          "actual_verdict": "ship",
+          "scores": {
+            "agent_voice": 5.5,
+            "source_grounding": 4.5,
+            "verdict_justification": 6.5,
+            "cost_predictability": 4.0,
+            "verdict_correctness": 5.0
+          },
+          "wall_seconds": 13.824,
+          "tokens_total": 7813,
+          "cost_usd": 0.0016,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "crypto-ship-helius-das-typed",
+          "expected_verdict_v2": "BUILD",
+          "actual_verdict_v2": "REFINE",
+          "phase": "pre_product"
+        },
+        {
+          "id": "crypto-ship-validator-slashing-postmortem",
+          "expected_verdict": "ship",
+          "actual_verdict": "ship",
+          "scores": {
+            "agent_voice": 5.5,
+            "source_grounding": 4.5,
+            "verdict_justification": 6.5,
+            "cost_predictability": 4.0,
+            "verdict_correctness": 5.0
+          },
+          "wall_seconds": 19.298,
+          "tokens_total": 8807,
+          "cost_usd": 0.0019,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "crypto-ship-validator-slashing-postmortem",
+          "expected_verdict_v2": "BUILD",
+          "actual_verdict_v2": "REFINE",
+          "phase": "pre_product"
+        },
+        {
+          "id": "crypto-ship-defi-vault-rebalance",
+          "expected_verdict": "ship",
+          "actual_verdict": "unknown",
+          "scores": {
+            "agent_voice": 4.5,
+            "source_grounding": 4.0,
+            "verdict_justification": 3.5,
+            "cost_predictability": 3.0,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 20.486,
+          "tokens_total": 8206,
+          "cost_usd": 0.0018,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "crypto-ship-defi-vault-rebalance",
+          "expected_verdict_v2": "BUILD",
+          "actual_verdict_v2": "GO",
+          "phase": "pre_product"
+        },
+        {
+          "id": "crypto-kill-eth-dex-aggregator",
+          "expected_verdict": "kill",
+          "actual_verdict": "unknown",
+          "scores": {
+            "agent_voice": 4.5,
+            "source_grounding": 6.0,
+            "verdict_justification": 5.5,
+            "cost_predictability": 3.5,
+            "verdict_correctness": 0.0
+          },
+          "wall_seconds": 16.867,
+          "tokens_total": 7799,
+          "cost_usd": 0.0016,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "crypto-kill-eth-dex-aggregator",
+          "expected_verdict_v2": "KILL",
+          "actual_verdict_v2": "UNKNOWN",
+          "phase": "pre_product"
+        },
+        {
+          "id": "crypto-kill-nft-smb-loyalty",
+          "expected_verdict": "kill",
+          "actual_verdict": "kill",
+          "scores": {
+            "agent_voice": 4.5,
+            "source_grounding": 6.5,
+            "verdict_justification": 5.0,
+            "cost_predictability": 3.5,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 22.888,
+          "tokens_total": 8391,
+          "cost_usd": 0.0018,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "crypto-kill-nft-smb-loyalty",
+          "expected_verdict_v2": "KILL",
+          "actual_verdict_v2": "PIVOT",
+          "phase": "pre_product"
+        },
+        {
+          "id": "crypto-kill-l1-social",
+          "expected_verdict": "kill",
+          "actual_verdict": "kill",
+          "scores": {
+            "agent_voice": 5.5,
+            "source_grounding": 7.0,
+            "verdict_justification": 6.0,
+            "cost_predictability": 3.5,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 15.574,
+          "tokens_total": 7740,
+          "cost_usd": 0.0016,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "crypto-kill-l1-social",
+          "expected_verdict_v2": "KILL",
+          "actual_verdict_v2": "PIVOT",
+          "phase": "pre_product"
+        },
+        {
+          "id": "crypto-kill-gpt-trading-bot",
+          "expected_verdict": "kill",
+          "actual_verdict": "kill",
+          "scores": {
+            "agent_voice": 7.5,
+            "source_grounding": 6.5,
+            "verdict_justification": 7.0,
+            "cost_predictability": 6.0,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 21.657,
+          "tokens_total": 8904,
+          "cost_usd": 0.0019,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "crypto-kill-gpt-trading-bot",
+          "expected_verdict_v2": "KILL",
+          "actual_verdict_v2": "PIVOT",
+          "phase": "pre_product"
+        },
+        {
+          "id": "crypto-kill-gpt-tokenomics",
+          "expected_verdict": "kill",
+          "actual_verdict": "kill",
+          "scores": {
+            "agent_voice": 4.5,
+            "source_grounding": 5.5,
+            "verdict_justification": 5.0,
+            "cost_predictability": 4.0,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 25.043,
+          "tokens_total": 7599,
+          "cost_usd": 0.0016,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "crypto-kill-gpt-tokenomics",
+          "expected_verdict_v2": "KILL",
+          "actual_verdict_v2": "PIVOT",
+          "phase": "pre_product"
+        },
+        {
+          "id": "crypto-kill-uber-gpu",
+          "expected_verdict": "kill",
+          "actual_verdict": "kill",
+          "scores": {
+            "agent_voice": 5.5,
+            "source_grounding": 6.5,
+            "verdict_justification": 6.0,
+            "cost_predictability": 4.0,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 22.978,
+          "tokens_total": 8488,
+          "cost_usd": 0.0018,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "crypto-kill-uber-gpu",
+          "expected_verdict_v2": "KILL",
+          "actual_verdict_v2": "PIVOT",
+          "phase": "pre_product"
+        },
+        {
+          "id": "crypto-kill-defi-yield-aggregator",
+          "expected_verdict": "kill",
+          "actual_verdict": "kill",
+          "scores": {
+            "agent_voice": 7.5,
+            "source_grounding": 5.5,
+            "verdict_justification": 6.5,
+            "cost_predictability": 7.0,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 20.221,
+          "tokens_total": 8796,
+          "cost_usd": 0.0019,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "crypto-kill-defi-yield-aggregator",
+          "expected_verdict_v2": "KILL",
+          "actual_verdict_v2": "PIVOT",
+          "phase": "pre_product"
+        },
+        {
+          "id": "crypto-kill-ai-rugpull-detector",
+          "expected_verdict": "kill",
+          "actual_verdict": "kill",
+          "scores": {
+            "agent_voice": 5.5,
+            "source_grounding": 5.0,
+            "verdict_justification": 6.0,
+            "cost_predictability": 4.0,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 13.729,
+          "tokens_total": 7550,
+          "cost_usd": 0.0015,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "crypto-kill-ai-rugpull-detector",
+          "expected_verdict_v2": "KILL",
+          "actual_verdict_v2": "PIVOT",
+          "phase": "pre_product"
+        }
+      ]
+    },
+    "saas": {
+      "aggregate": {
+        "kill_rate": 0.533,
+        "verdict_accuracy": 0.8,
+        "verdict_accuracy_v2": 0.133,
+        "n_v2": 15,
+        "median_score": 5.5,
+        "median_weighted_score": 6.583,
+        "median_cost_usd": 0.0017,
+        "n": 15
+      },
+      "ideas": [
+        {
+          "id": "saas-ship-stripe-webhook-replay",
+          "expected_verdict": "ship",
+          "actual_verdict": "ship",
+          "scores": {
+            "agent_voice": 4.5,
+            "source_grounding": 5.0,
+            "verdict_justification": 5.5,
+            "cost_predictability": 4.0,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 20.889,
+          "tokens_total": 8181,
+          "cost_usd": 0.0017,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "saas-ship-stripe-webhook-replay",
+          "expected_verdict_v2": "BUILD",
+          "actual_verdict_v2": "GO",
+          "phase": "pre_product"
+        },
+        {
+          "id": "saas-ship-grant-budget-nih-r01",
+          "expected_verdict": "ship",
+          "actual_verdict": "ship",
+          "scores": {
+            "agent_voice": 5.5,
+            "source_grounding": 6.0,
+            "verdict_justification": 7.0,
+            "cost_predictability": 4.0,
+            "verdict_correctness": 5.0
+          },
+          "wall_seconds": 15.883,
+          "tokens_total": 7624,
+          "cost_usd": 0.0016,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "saas-ship-grant-budget-nih-r01",
+          "expected_verdict_v2": "BUILD",
+          "actual_verdict_v2": "REFINE",
+          "phase": "pre_product"
+        },
+        {
+          "id": "saas-ship-mcp-postgres-rls-tester",
+          "expected_verdict": "ship",
+          "actual_verdict": "unknown",
+          "scores": {
+            "agent_voice": 4.5,
+            "source_grounding": 5.5,
+            "verdict_justification": 5.0,
+            "cost_predictability": 4.0,
+            "verdict_correctness": 0.0
+          },
+          "wall_seconds": 17.318,
+          "tokens_total": 8327,
+          "cost_usd": 0.0018,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "saas-ship-mcp-postgres-rls-tester",
+          "expected_verdict_v2": "BUILD",
+          "actual_verdict_v2": "UNKNOWN",
+          "phase": "pre_product"
+        },
+        {
+          "id": "saas-ship-deposition-summarizer",
+          "expected_verdict": "ship",
+          "actual_verdict": "unknown",
+          "scores": {
+            "agent_voice": 4.5,
+            "source_grounding": 5.5,
+            "verdict_justification": 4.0,
+            "cost_predictability": 3.5,
+            "verdict_correctness": 5.0
+          },
+          "wall_seconds": 22.414,
+          "tokens_total": 8801,
+          "cost_usd": 0.0019,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "saas-ship-deposition-summarizer",
+          "expected_verdict_v2": "BUILD",
+          "actual_verdict_v2": "REFINE",
+          "phase": "pre_product"
+        },
+        {
+          "id": "saas-ship-cli-feature-flag-diff",
+          "expected_verdict": "ship",
+          "actual_verdict": "ship",
+          "scores": {
+            "agent_voice": 5.5,
+            "source_grounding": 5.0,
+            "verdict_justification": 6.5,
+            "cost_predictability": 4.0,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 20.049,
+          "tokens_total": 8684,
+          "cost_usd": 0.0019,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "saas-ship-cli-feature-flag-diff",
+          "expected_verdict_v2": "REFINE",
+          "actual_verdict_v2": "REFINE",
+          "phase": "pre_product"
+        },
+        {
+          "id": "saas-ship-vertical-hvac-permit",
+          "expected_verdict": "ship",
+          "actual_verdict": "ship",
+          "scores": {
+            "agent_voice": 8.5,
+            "source_grounding": 6.0,
+            "verdict_justification": 7.5,
+            "cost_predictability": 7.5,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 20.898,
+          "tokens_total": 8855,
+          "cost_usd": 0.0019,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "saas-ship-vertical-hvac-permit",
+          "expected_verdict_v2": "REFINE",
+          "actual_verdict_v2": "REFINE",
+          "phase": "pre_product"
+        },
+        {
+          "id": "saas-ship-mcp-datadog-explainer",
+          "expected_verdict": "ship",
+          "actual_verdict": "unknown",
+          "scores": {
+            "agent_voice": 4.5,
+            "source_grounding": 4.0,
+            "verdict_justification": 3.0,
+            "cost_predictability": 3.5,
+            "verdict_correctness": 0.0
+          },
+          "wall_seconds": 19.754,
+          "tokens_total": 8489,
+          "cost_usd": 0.0018,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "saas-ship-mcp-datadog-explainer",
+          "expected_verdict_v2": "BUILD",
+          "actual_verdict_v2": "UNKNOWN",
+          "phase": "pre_product"
+        },
+        {
+          "id": "saas-kill-meeting-summarizer-ai",
+          "expected_verdict": "kill",
+          "actual_verdict": "kill",
+          "scores": {
+            "agent_voice": 4.5,
+            "source_grounding": 5.5,
+            "verdict_justification": 6.0,
+            "cost_predictability": 3.5,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 17.381,
+          "tokens_total": 8193,
+          "cost_usd": 0.0017,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "saas-kill-meeting-summarizer-ai",
+          "expected_verdict_v2": "KILL",
+          "actual_verdict_v2": "PIVOT",
+          "phase": "pre_product"
+        },
+        {
+          "id": "saas-kill-ai-resume-builder",
+          "expected_verdict": "kill",
+          "actual_verdict": "kill",
+          "scores": {
+            "agent_voice": 5.5,
+            "source_grounding": 5.0,
+            "verdict_justification": 6.5,
+            "cost_predictability": 3.5,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 14.178,
+          "tokens_total": 7268,
+          "cost_usd": 0.0015,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "saas-kill-ai-resume-builder",
+          "expected_verdict_v2": "KILL",
+          "actual_verdict_v2": "PIVOT",
+          "phase": "pre_product"
+        },
+        {
+          "id": "saas-kill-gpt-email-assistant",
+          "expected_verdict": "kill",
+          "actual_verdict": "kill",
+          "scores": {
+            "agent_voice": 5.5,
+            "source_grounding": 4.0,
+            "verdict_justification": 6.5,
+            "cost_predictability": 4.0,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 16.236,
+          "tokens_total": 7667,
+          "cost_usd": 0.0016,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "saas-kill-gpt-email-assistant",
+          "expected_verdict_v2": "KILL",
+          "actual_verdict_v2": "PIVOT",
+          "phase": "pre_product"
+        },
+        {
+          "id": "saas-kill-ai-blog-generator",
+          "expected_verdict": "kill",
+          "actual_verdict": "kill",
+          "scores": {
+            "agent_voice": 5.5,
+            "source_grounding": 4.5,
+            "verdict_justification": 6.0,
+            "cost_predictability": 4.0,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 23.573,
+          "tokens_total": 8617,
+          "cost_usd": 0.0019,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "saas-kill-ai-blog-generator",
+          "expected_verdict_v2": "KILL",
+          "actual_verdict_v2": "PIVOT",
+          "phase": "pre_product"
+        },
+        {
+          "id": "saas-kill-no-code-app-builder",
+          "expected_verdict": "kill",
+          "actual_verdict": "kill",
+          "scores": {
+            "agent_voice": 5.5,
+            "source_grounding": 5.0,
+            "verdict_justification": 6.0,
+            "cost_predictability": 4.0,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 18.224,
+          "tokens_total": 8264,
+          "cost_usd": 0.0017,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "saas-kill-no-code-app-builder",
+          "expected_verdict_v2": "KILL",
+          "actual_verdict_v2": "PIVOT",
+          "phase": "pre_product"
+        },
+        {
+          "id": "saas-kill-ai-customer-support",
+          "expected_verdict": "kill",
+          "actual_verdict": "kill",
+          "scores": {
+            "agent_voice": 4.5,
+            "source_grounding": 4.0,
+            "verdict_justification": 5.0,
+            "cost_predictability": 4.0,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 20.377,
+          "tokens_total": 7986,
+          "cost_usd": 0.0017,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "saas-kill-ai-customer-support",
+          "expected_verdict_v2": "KILL",
+          "actual_verdict_v2": "PIVOT",
+          "phase": "pre_product"
+        },
+        {
+          "id": "saas-kill-team-standup-bot",
+          "expected_verdict": "kill",
+          "actual_verdict": "kill",
+          "scores": {
+            "agent_voice": 5.5,
+            "source_grounding": 6.0,
+            "verdict_justification": 5.0,
+            "cost_predictability": 3.5,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 16.279,
+          "tokens_total": 7596,
+          "cost_usd": 0.0015,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "saas-kill-team-standup-bot",
+          "expected_verdict_v2": "KILL",
+          "actual_verdict_v2": "PIVOT",
+          "phase": "pre_product"
+        },
+        {
+          "id": "saas-kill-ai-social-scheduler",
+          "expected_verdict": "kill",
+          "actual_verdict": "kill",
+          "scores": {
+            "agent_voice": 4.5,
+            "source_grounding": 3.5,
+            "verdict_justification": 5.0,
+            "cost_predictability": 4.0,
+            "verdict_correctness": 10.0
+          },
+          "wall_seconds": 18.767,
+          "tokens_total": 8108,
+          "cost_usd": 0.0017,
+          "v1_sources_cost_usd": 0.0,
+          "idea_id": "saas-kill-ai-social-scheduler",
+          "expected_verdict_v2": "KILL",
+          "actual_verdict_v2": "PIVOT",
+          "phase": "pre_product"
+        }
+      ]
+    }
+  }
+}
