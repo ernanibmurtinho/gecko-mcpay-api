@@ -26,6 +26,19 @@ from gecko_core.sources.twit_sh import (
 # ---------------------------------------------------------------------------
 
 
+# S16-INTEGRATE-01-FIX: every test in this file exercises the live x402
+# gating + cache + spend-cap behaviour of `TwitshSource`. The S16
+# bypass (commit 7ce1c55) short-circuits all of that under
+# `X402_MODE=stub` (the default for `bb research`). To preserve the
+# original test intent — "live path gating is correct" — we force
+# `X402_MODE=live` for the whole module via an autouse fixture. The
+# stub-bypass path is covered separately in
+# `tests/sources/test_research_dispatch.py`.
+@pytest.fixture(autouse=True)
+def _force_live_x402_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("X402_MODE", "live")
+
+
 @pytest.fixture
 def configured_env(monkeypatch: pytest.MonkeyPatch) -> None:
     """Make `_is_twitsh_configured()` return True."""

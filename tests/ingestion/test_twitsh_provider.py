@@ -28,6 +28,15 @@ from gecko_core.ingestion.providers.twitsh_provider import (
 from gecko_core.sources.twit_sh import TwitshSource
 
 
+# S16-INTEGRATE-01-FIX: pin live x402 mode so the stub bypass added in
+# 7ce1c55 doesn't short-circuit the live wire-path tests below. The
+# stub-mode dispatch path has its own coverage in
+# tests/sources/test_research_dispatch.py.
+@pytest.fixture(autouse=True)
+def _force_live_x402_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("X402_MODE", "live")
+
+
 @pytest.fixture
 def configured_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Make `_is_twitsh_configured()` return True + research flag on."""
