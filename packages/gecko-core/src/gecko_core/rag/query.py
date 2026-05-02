@@ -77,7 +77,32 @@ def _resolve_provider_weights() -> dict[str, float]:
     return weights
 
 
-def _rerank_by_provider(chunks: list[RagChunk], top_k: int) -> list[RagChunk]:
+def _resolve_per_kind_quota() -> int:
+    """Resolve the per-provider-kind quota for the hybrid retrieval RPC.
+
+    The SQL function takes a ``per_kind_quota`` argument naming the minimum
+    number of best-cosine rows to surface for *each* provider_kind present
+    in the session. Defaults to 2 — enough for the LLM to see structured
+    provenance without crowding out the global top-N. Operators can tune
+    via ``GECKO_RETRIEVAL_PER_KIND_QUOTA`` for dogfood experiments.
+    """
+    raw = os.environ.get("GECKO_RETRIEVAL_PER_KIND_QUOTA")
+    if raw is None:
+        return 2
+    try:
+        v = int(raw)
+        return max(1, v)
+    except ValueError:
+        logger.warning(
+            "rag.per_kind_quota.invalid_env value=%r (using default 2)",
+            raw,
+        )
+        return 2
+
+
+def _rerank_by_provider(
+    chunks: list[RagChunk], top_k: int, *, reserve_quota: int | None = None
+) -> list[RagChunk]:
     """Apply per-provider boosts to similarity, re-sort, return top_k.
 
     Pure function — leaves the input list alone. Mutates each chunk's
@@ -86,6 +111,14 @@ def _rerank_by_provider(chunks: list[RagChunk], top_k: int) -> list[RagChunk]:
     design memo §3.2 we keep the existing `[N] <uri>` citation shape; the
     URI scheme already encodes provider, so no new field is needed for
     the renderer to surface provenance.
+
+    ``reserve_quota`` (S17-WEDGE-CITE-04): when set, guarantees that up to
+    ``reserve_quota`` chunks of each *non-web* provider_kind present in the
+    input survive into the returned top_k, even if their boosted similarity
+    would otherwise lose to a flood of web chunks. The boost alone isn't
+    enough — bazaar 1.15 * 0.55 < web 1.0 * 0.85 in realistic data, so a
+    reordering-only rerank silently drops the wedge providers. The quota
+    is the structural fix the demo claim 'Bazaar shapes the verdict' needs.
     """
     if not chunks:
         return chunks
@@ -99,7 +132,39 @@ def _rerank_by_provider(chunks: list[RagChunk], top_k: int) -> list[RagChunk]:
         new_sim = max(0.0, min(1.0, c.similarity * w))
         boosted.append(c.model_copy(update={"similarity": new_sim}))
     boosted.sort(key=lambda c: c.similarity, reverse=True)
-    return boosted[:top_k]
+
+    if reserve_quota is None or reserve_quota <= 0:
+        return boosted[:top_k]
+
+    # Quota pass: pick the best ``reserve_quota`` non-web chunks per kind
+    # first, then fill remaining slots with the global top of the boosted
+    # list. Dedup by RagChunk identity (object id) — two RagChunks for
+    # the same DB row are not produced upstream so id() suffices and
+    # avoids leaning on chunk.source_id+chunk_index hashing semantics.
+    selected: list[RagChunk] = []
+    seen: set[int] = set()
+    per_kind: dict[str, int] = {}
+    for c in boosted:
+        if c.provider_kind == "web":
+            continue
+        n = per_kind.get(c.provider_kind, 0)
+        if n >= reserve_quota:
+            continue
+        per_kind[c.provider_kind] = n + 1
+        selected.append(c)
+        seen.add(id(c))
+        if len(selected) >= top_k:
+            break
+    # Fill the rest from global boosted ordering.
+    for c in boosted:
+        if len(selected) >= top_k:
+            break
+        if id(c) in seen:
+            continue
+        selected.append(c)
+        seen.add(id(c))
+    selected.sort(key=lambda c: c.similarity, reverse=True)
+    return selected[:top_k]
 
 
 class RagChunk(BaseModel):
@@ -163,10 +228,43 @@ async def rag_query(
     # extra wire cost is small (12→24 rows max for the pro tier default).
     fetch_k = top_k * 2
 
+    # S17-WEDGE-CITE-04 — hybrid retrieval. Per-provider quota UNION global
+    # top-N at the SQL layer guarantees Bazaar/twit.sh/Arxiv chunks reach the
+    # LLM even when 99 web chunks vs 1-3 provider chunks would otherwise
+    # starve the structured providers out of the top-k. The boost rerank
+    # below still applies — it now operates on a slate that *contains* the
+    # provider chunks, instead of re-ordering an already-biased web-only set.
+    # Toggle via GECKO_RETRIEVAL_HYBRID (default true). Falls back to the
+    # legacy match_chunks RPC when disabled or when the hybrid RPC errors
+    # (e.g. migration not yet applied on a remote DB).
+    use_hybrid = os.environ.get("GECKO_RETRIEVAL_HYBRID", "true").lower() not in (
+        "0",
+        "false",
+        "no",
+    )
+    per_kind_quota = _resolve_per_kind_quota()
+
     def _rpc() -> list[dict[str, Any]]:
         # Underscore name to reach the inner Client; we keep the seam thin to
         # avoid leaking supabase types into gecko-core's public surface.
         client = store._client
+        if use_hybrid:
+            try:
+                res = client.rpc(
+                    "match_chunks_hybrid",
+                    {
+                        "p_session_id": str(session_id),
+                        "query_embedding": query_embedding,
+                        "match_count": fetch_k,
+                        "per_kind_quota": per_kind_quota,
+                    },
+                ).execute()
+                return cast(list[dict[str, Any]], res.data or [])
+            except Exception as exc:
+                logger.warning(
+                    "rag.hybrid.fallback err=%s (falling back to match_chunks)",
+                    exc,
+                )
         res = client.rpc(
             "match_chunks",
             {
@@ -180,7 +278,10 @@ async def rag_query(
     rows = await asyncio.to_thread(_rpc)
     chunks = [RagChunk.model_validate(row) for row in rows]
     # Apply per-provider boost + re-sort + truncate to caller's top_k.
-    return _rerank_by_provider(chunks, top_k)
+    # When hybrid retrieval is on, reserve a quota of slots for non-web
+    # provider chunks so the wedge providers survive the truncate stage.
+    reserve = per_kind_quota if use_hybrid else 0
+    return _rerank_by_provider(chunks, top_k, reserve_quota=reserve)
 
 
 __all__ = ["RagChunk", "_rerank_by_provider", "rag_query"]
