@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
+import time
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, Literal, cast
@@ -602,13 +604,35 @@ class SessionStore:
     # the matching pgvector column type moves in lockstep via a migration.
     EMBED_DIM = 1536
 
-    # S16-INGEST-02 — outermost batch size, then halved on retryable
-    # errors (`toast_limit` / `supabase_5xx`). The ticket says retry with
-    # `batch_size // 2` twice — capped at 2 halvings means the smallest
-    # batch we ever attempt is ~125 rows, which is well below the TOAST
-    # ceiling for 1536-float vectors (~9 KB / row).
-    _INSERT_INITIAL_BATCH_SIZE = 500
+    # S17-INGEST-SHED-01 — outermost batch size, then halved on retryable
+    # errors (`toast_limit` / `supabase_5xx`). Lowered from 500 to 16 after
+    # field observation: at 1536-dim float embeddings each row is ~30 KB
+    # serialized JSON; a 25-43 row first attempt produced ~1-1.6 MB
+    # payloads which consistently tripped supabase-py's transport on the
+    # remote host (`RemoteProtocolError` → classifier bucket
+    # `supabase_5xx` → halve + retry). Halving worked but cost double
+    # latency per source. 16 rows × ~30 KB ≈ 500 KB which lands cleanly on
+    # the first attempt; halvings stay as the safety net for unusually
+    # large rows. Override with `GECKO_CHUNKS_UPSERT_BATCH_SIZE`.
+    _INSERT_INITIAL_BATCH_SIZE_DEFAULT = 16
     _INSERT_MAX_HALVINGS = 2
+
+    @classmethod
+    def _initial_batch_size(cls) -> int:
+        raw = os.getenv("GECKO_CHUNKS_UPSERT_BATCH_SIZE")
+        if not raw:
+            return cls._INSERT_INITIAL_BATCH_SIZE_DEFAULT
+        try:
+            n = int(raw)
+        except ValueError:
+            return cls._INSERT_INITIAL_BATCH_SIZE_DEFAULT
+        return max(1, n)
+
+    # Backwards-compat surface — older tests referenced the constant
+    # directly. Resolved on access so env overrides take effect.
+    @property
+    def _INSERT_INITIAL_BATCH_SIZE(self) -> int:
+        return self._initial_batch_size()
 
     async def insert_chunks(
         self,
@@ -695,8 +719,23 @@ class SessionStore:
             )
             return cast(list[dict[str, Any]], res.data or [])
 
-        async def _insert_with_shedding(batch: list[dict[str, Any]], halvings_left: int) -> int:
+        # S17-INGEST-SHED-01 — cheap payload-size estimate for observation
+        # logging. `text` dominates row weight; embeddings are 1536 floats
+        # rendered as ~10-12 chars each in JSON ≈ 18 KB. Sum once per
+        # batch on the first call and reuse via the closure.
+        def _estimate_bytes(batch: list[dict[str, Any]]) -> int:
+            # Avoid `json.dumps` on the full payload — that allocates a
+            # second copy of an already large object. Approximate: sum of
+            # text + 18 KB per embedding.
+            n = len(batch)
+            text_bytes = sum(len(r.get("text") or "") for r in batch)
+            return text_bytes + n * 18_432
+
+        async def _insert_with_shedding(
+            batch: list[dict[str, Any]], halvings_left: int, *, top_level: bool = False
+        ) -> int:
             """Run one batch transactionally; halve + retry on retryable kinds."""
+            t0 = time.monotonic()
             try:
                 # Result list discarded: ON CONFLICT DO NOTHING omits
                 # conflicts from `data`, but our durability count comes
@@ -705,9 +744,17 @@ class SessionStore:
                 # upsert (re-runs report all rows durable, not 0).
                 await asyncio.to_thread(_upsert_batch, batch)
             except Exception as exc:
+                elapsed_ms = int((time.monotonic() - t0) * 1000)
                 kind = classify_exception(exc)
                 if kind in {"toast_limit", "supabase_5xx"} and halvings_left > 0 and len(batch) > 1:
                     half = max(1, len(batch) // 2)
+                    # S17-INGEST-SHED-01 — surface the real exception
+                    # class + a truncated message so a noisy run gives us
+                    # signal instead of "RemoteProtocolError? something
+                    # else?". Keeps the warning shape backwards-compatible.
+                    exc_msg = str(exc)
+                    if len(exc_msg) > 240:
+                        exc_msg = exc_msg[:237] + "..."
                     logger.warning(
                         "store.insert_chunks.shed_and_retry",
                         extra={
@@ -718,6 +765,9 @@ class SessionStore:
                             "halvings_left": halvings_left,
                             "error_kind": kind,
                             "exc": exc.__class__.__name__,
+                            "exc_msg": exc_msg,
+                            "first_attempt_ms": elapsed_ms,
+                            "payload_bytes_estimate": _estimate_bytes(batch),
                         },
                     )
                     left = batch[:half]
@@ -743,10 +793,30 @@ class SessionStore:
         # transactional + idempotent + retry-on-shed. No accumulator of
         # "partial wins" — either every batch resolves cleanly or the
         # exception bubbles up.
+        initial_batch_size = self._initial_batch_size()
+        # S17-INGEST-SHED-01 — observation log at upsert entry. `n_rows`
+        # is the total inbound, `payload_bytes_estimate` is the size of
+        # the FIRST batch (since that's the one whose first-attempt
+        # latency we care about). If shed_and_retry stops firing after
+        # this change, this row plus the success path is the only signal
+        # we keep.
+        first_batch_preview = rows[:initial_batch_size]
+        logger.info(
+            "store.insert_chunks.start",
+            extra={
+                "session_id": str(session_id),
+                "source_id": str(source_id),
+                "n_rows": len(rows),
+                "initial_batch_size": initial_batch_size,
+                "first_batch_payload_bytes_estimate": _estimate_bytes(first_batch_preview),
+            },
+        )
         total_inserted = 0
-        for i in range(0, len(rows), self._INSERT_INITIAL_BATCH_SIZE):
-            batch = rows[i : i + self._INSERT_INITIAL_BATCH_SIZE]
-            total_inserted += await _insert_with_shedding(batch, self._INSERT_MAX_HALVINGS)
+        for i in range(0, len(rows), initial_batch_size):
+            batch = rows[i : i + initial_batch_size]
+            total_inserted += await _insert_with_shedding(
+                batch, self._INSERT_MAX_HALVINGS, top_level=True
+            )
 
         logger.info(
             "store.insert_chunks.done",
