@@ -17,7 +17,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 import openai
@@ -111,6 +111,41 @@ def _openai_error_detail(exc: BaseException) -> str:
     if not parts:
         parts.append(str(exc))
     return " ".join(parts)
+
+
+async def _call_cache_get(
+    cache_get: Any,
+    url_hash: str,
+    indices: list[int],
+    embed_model: str | None,
+) -> dict[int, list[float]]:
+    """Call `store.get_chunk_cache` with `embed_model` when supported.
+
+    S16-INGEST-03 — older stores / fakes in tests may not yet accept
+    the kwarg. Try the new signature first, fall back to the legacy one
+    on a TypeError. Avoids a hard breakage for FakeStore implementations
+    in the test suite that haven't been updated.
+    """
+    try:
+        return cast(
+            dict[int, list[float]],
+            await cache_get(url_hash, indices, embed_model=embed_model),
+        )
+    except TypeError:
+        return cast(dict[int, list[float]], await cache_get(url_hash, indices))
+
+
+async def _call_cache_put(
+    cache_put: Any,
+    url_hash: str,
+    rows: list[tuple[int, str, list[float]]],
+    embed_model: str | None,
+) -> None:
+    """Mirror of `_call_cache_get` for the put path. Same legacy fallback."""
+    try:
+        await cache_put(url_hash, rows, embed_model=embed_model)
+    except TypeError:
+        await cache_put(url_hash, rows)
 
 
 async def _emit_audit(
@@ -243,11 +278,32 @@ async def _process_one(
             # this url_hash + chunk_index has been embedded before, reuse it
             # and skip the OpenAI round-trip entirely. Cache miss → call
             # embed() only on the missing indices.
+            #
+            # S16-INGEST-03 — resolve the active embed model BEFORE the
+            # cache lookup so we filter on the matching PK fingerprint
+            # (cache rows for a stale model don't shadow a fresh embed).
+            try:
+                from .settings import get_ingestion_settings as _get_ingest
+
+                active_embed_model: str | None = _get_ingest().embed_model
+            except Exception:
+                # Settings may not resolve in tests / stub mode. Falling
+                # back to None means "no model filter on the cache" —
+                # legacy behaviour, accepted only when settings are
+                # genuinely unavailable.
+                active_embed_model = None
+            embed_model_for_audit = active_embed_model
+
             cached_lookup: dict[int, list[float]] = {}
             cache_get = getattr(store, "get_chunk_cache", None)
             if cache_get is not None:
                 try:
-                    cached_lookup = await cache_get(uhash, list(range(len(pieces))))
+                    cached_lookup = await _call_cache_get(
+                        cache_get,
+                        uhash,
+                        list(range(len(pieces))),
+                        active_embed_model,
+                    )
                 except Exception as exc:  # cache is best-effort
                     logger.info(
                         "ingest.cache_lookup_failed url=%s err=%s",
@@ -294,9 +350,11 @@ async def _process_one(
                 cache_put = getattr(store, "put_chunk_cache", None)
                 if cache_put is not None:
                     try:
-                        await cache_put(
+                        await _call_cache_put(
+                            cache_put,
                             uhash,
                             [(i, pieces[i], cached_lookup[i]) for i in missing_idxs],
+                            active_embed_model,
                         )
                     except Exception as exc:  # cache write is best-effort
                         logger.info(
@@ -311,19 +369,9 @@ async def _process_one(
                     len(pieces),
                 )
 
-            # Resolve the active embed model once — used both for cost
-            # attribution AND for the audit row's `embed_model` column so
-            # operators can see whether a failure correlates with a model
-            # change (FM-2 cache dim drift).
-            try:
-                from .settings import get_ingestion_settings as _get_ingest
-
-                embed_model_for_audit = _get_ingest().embed_model
-            except Exception:
-                # Settings can fail to resolve in tests / stub mode; that
-                # must not block the real pipeline. Audit just records None.
-                embed_model_for_audit = None
-
+            # `embed_model_for_audit` is already populated above (resolved
+            # alongside the cache filter so a single source of truth flows
+            # through both the lookup and the audit emission). S16-INGEST-03.
             embeddings = [cached_lookup[i] for i in range(len(pieces))]
             rows = list(zip(range(len(pieces)), pieces, embeddings, strict=True))
             try:
@@ -354,9 +402,12 @@ async def _process_one(
             await store.set_source_chunk_count(source_id, inserted)
             if embed_tokens > 0:
                 from .embedder import estimate_embed_cost_usd
-                from .settings import get_ingestion_settings as _get_ingest
 
-                embed_cost = estimate_embed_cost_usd(_get_ingest().embed_model, embed_tokens)
+                # Reuse the model name resolved alongside the cache filter
+                # — single source of truth per S16-INGEST-03. Falls back
+                # to "" if settings were unavailable; the cost lookup
+                # treats unknown models as $0/M tokens (defensive on dev).
+                embed_cost = estimate_embed_cost_usd(active_embed_model or "", embed_tokens)
                 await store.add_cost(session_id, "embed", embed_cost)
 
             logger.info(

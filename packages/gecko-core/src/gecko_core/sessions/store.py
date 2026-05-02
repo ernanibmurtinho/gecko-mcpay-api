@@ -1020,24 +1020,35 @@ class SessionStore:
         self,
         url_hash: str,
         indices: list[int],
+        *,
+        embed_model: str | None = None,
     ) -> dict[int, list[float]]:
         """Return {chunk_index: embedding} for the given (url_hash, idx) pairs.
 
         Empty dict on miss / unavailable cache table. Best-effort: a
         Supabase failure here must not crash ingestion (the caller catches
         and falls through to a live embed).
+
+        S16-INGEST-03 — `embed_model` filters on the cache PK fingerprint.
+        When None (legacy callers), no model filter is applied — the
+        lookup behaves like pre-S16 and may return any cached row. New
+        callers (the pipeline) should always pass the active model from
+        `IngestionSettings().embed_model` so a model swap forces a
+        re-embed instead of returning a poisoned vector.
         """
         if not indices:
             return {}
 
         def _select() -> list[dict[str, Any]]:
-            res = (
+            q = (
                 self._client.table(self.CHUNK_EMBEDDING_CACHE_TABLE)
-                .select("chunk_index,embedding")
+                .select("chunk_index,embedding,embed_model")
                 .eq("url_hash", url_hash)
                 .in_("chunk_index", indices)
-                .execute()
             )
+            if embed_model is not None:
+                q = q.eq("embed_model", embed_model)
+            res = q.execute()
             return cast(list[dict[str, Any]], res.data or [])
 
         rows = await asyncio.to_thread(_select)
@@ -1116,13 +1127,20 @@ class SessionStore:
         self,
         url_hash: str,
         rows: list[tuple[int, str, list[float]]],
+        *,
+        embed_model: str | None = None,
     ) -> None:
-        """Upsert (url_hash, chunk_index) → (text, embedding) rows.
+        """Upsert (url_hash, chunk_index, embed_model) → (text, embedding) rows.
 
         ON CONFLICT DO NOTHING semantics via supabase-py upsert with
         ignore_duplicates=True — first writer wins, concurrent ingests of
         the same URL don't fight. Best-effort: errors are logged by the
         caller, never raised.
+
+        S16-INGEST-03 — `embed_model` writes the model fingerprint into
+        the new PK column. When None, the column DEFAULT
+        ('text-embedding-3-small') applies — preserves pre-S16 behavior
+        for any legacy caller that hasn't been updated.
         """
         if not rows:
             return
@@ -1132,6 +1150,7 @@ class SessionStore:
                 "chunk_index": idx,
                 "text": text,
                 "embedding": embedding,
+                **({"embed_model": embed_model} if embed_model is not None else {}),
             }
             for idx, text, embedding in rows
         ]
@@ -1141,7 +1160,7 @@ class SessionStore:
                 self._client.table(self.CHUNK_EMBEDDING_CACHE_TABLE)
                 .upsert(
                     payload,
-                    on_conflict="url_hash,chunk_index",
+                    on_conflict="url_hash,chunk_index,embed_model",
                     ignore_duplicates=True,
                 )
                 .execute()
