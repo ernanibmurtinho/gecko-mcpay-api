@@ -35,7 +35,7 @@ files = ["packages", "apps"]
 [tool.pytest.ini_options]
 testpaths = ["tests", "packages", "apps"]
 python_files = "test_*.py"
-addopts = "-q --strict-markers"
+addopts = "-q --strict-markers --import-mode=importlib"
 asyncio_mode = "auto"
 markers = [
     # S12.5-TEST-04: gated integration tests that hit the real CDP
