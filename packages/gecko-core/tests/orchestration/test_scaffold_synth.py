@@ -305,10 +305,16 @@ async def test_generate_scaffold_passes_named_entities_in_prompt(
     assert "Verdict: SHIP" in user_text
 
 
-async def test_generate_scaffold_refuses_kill_verdict(
+async def test_generate_scaffold_accepts_legacy_kill_verdict(
     tmp_path: Path,
     session_uuid: UUID,
 ) -> None:
+    """S17-TONE-01: legacy KILL transcripts are scaffold-eligible.
+
+    The old behavior raised ``KillVerdictError``; the new vocabulary maps
+    KILL → PIVOT and scaffolds documents that describe the redirected idea.
+    The synthesizer prompt is responsible for not echoing KILL in its output.
+    """
     kill_summary = "Verdict: KILL — saturated category with no named ICP."
     kill_transcript = {
         **_CANNED_TRANSCRIPT,
@@ -321,18 +327,24 @@ async def test_generate_scaffold_refuses_kill_verdict(
         record=_StubSessionRecord("yet another todo app"),
         result=_make_result(kill_transcript, kill_summary),
     )
-    fake = _FakeOpenAI("", _FakeUsage(0, 0))
+    canned_json = json.dumps(
+        {
+            "prd_md": "# PRD: Pivoted idea\n\n## Problem statement\nPivot redirect.",
+            "business_plan_md": "# Business plan\n\n## TAM\n(none named)",
+            "building_md": "# Build plan\n\n## Stack\nNext.js",
+        }
+    )
+    fake = _FakeOpenAI(canned_json, _FakeUsage(10, 10))
 
-    with pytest.raises(KillVerdictError):
-        await generate_scaffold(
-            session_uuid,
-            tmp_path,
-            store=store,  # type: ignore[arg-type]
-            openai_client=fake,  # type: ignore[arg-type]
-        )
+    result = await generate_scaffold(
+        session_uuid,
+        tmp_path,
+        store=store,  # type: ignore[arg-type]
+        openai_client=fake,  # type: ignore[arg-type]
+    )
 
-    # No files should have been written.
-    assert not (tmp_path / ".gecko").exists()
+    assert result.session_id == session_uuid
+    assert (tmp_path / ".gecko").exists()
 
 
 async def test_generate_scaffold_session_not_found(

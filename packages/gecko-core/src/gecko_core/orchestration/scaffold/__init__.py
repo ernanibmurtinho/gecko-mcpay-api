@@ -78,7 +78,7 @@ def _detect_verdict(transcript: dict[str, Any] | None, summary: str | None) -> s
     if not candidate:
         return "unknown"
     match = re.search(
-        r"verdict\s*[:\-—–]?\s*\**\s*(go|ship|build|pivot|refine|kill)",
+        r"verdict\s*[:\-]?\s*\**\s*(go|ship|build|pivot|refine|kill)",
         candidate,
         re.IGNORECASE,
     )
