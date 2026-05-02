@@ -30,6 +30,7 @@ from gecko_core.sources.gecko_precedent import GeckoPrecedentSource
 from gecko_core.sources.hn import HackerNewsSource
 from gecko_core.sources.reddit import RedditSource
 from gecko_core.sources.twit_sh import TwitshSource
+from gecko_core.sources.v1_source_ids import V1_SOURCE_IDS, V1SourceId
 
 logger = logging.getLogger(__name__)
 
@@ -161,20 +162,29 @@ def render_block(results: dict[str, SourceResult]) -> str:
     empty source gets its heading + "No data found." so absence of signal
     is visible to the agents.
     """
+    # Source ids referenced here are the canonical V1SourceId values from
+    # `gecko_core.sources.v1_source_ids`. The dict-key strings stay
+    # literal because the four renderers are heterogeneous, but the
+    # consistency test in tests/test_v1_source_ids_consistency.py asserts
+    # every id used in any prompt JSON is in V1_SOURCE_IDS.
+    twit_sh_id: V1SourceId = "twit_sh"
+    hn_id: V1SourceId = "hn"
+    reddit_id: V1SourceId = "reddit"
+    gecko_precedent_id: V1SourceId = "gecko_precedent"
     parts = [
         "## V1 Source Signal",
         "",
         "### Twitter / X (twit.sh)",
-        _render_twitsh(results.get("twit_sh")),
+        _render_twitsh(results.get(twit_sh_id)),
         "",
         "### Hacker News",
-        _render_hn(results.get("hn")),
+        _render_hn(results.get(hn_id)),
         "",
         "### Reddit",
-        _render_reddit(results.get("reddit")),
+        _render_reddit(results.get(reddit_id)),
         "",
         "### Prior Gecko Verdicts (gecko_precedent)",
-        _render_precedents(results.get("gecko_precedent")),
+        _render_precedents(results.get(gecko_precedent_id)),
     ]
     return "\n".join(parts)
 
@@ -230,7 +240,9 @@ async def dispatch_and_render(
 
 __all__ = [
     "V1_SOURCES_SPEND_CAP_USD",
+    "V1_SOURCE_IDS",
     "V1Block",
+    "V1SourceId",
     "build_default_sources",
     "dispatch_and_render",
     "render_block",
