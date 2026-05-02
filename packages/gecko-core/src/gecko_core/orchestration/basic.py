@@ -90,6 +90,8 @@ Rules:
 - Every document MUST include at least one citation.
 - Every citation's source_url MUST be one of the URLs that appears in the
   context block. Never invent URLs.
+- Citations may use https://, bazaar://, twitsh:// or arxiv URIs. All are
+  valid evidence — do not skip a chunk because its URI is not https.
 - Ground every concrete claim in the context. If the context is thin, say so
   in the relevant field rather than fabricating market data.
 - Output JSON only. No prose around the JSON. No markdown fences."""

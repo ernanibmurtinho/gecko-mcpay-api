@@ -154,7 +154,7 @@ async def _fresh_citations(
 
     return [
         Citation(
-            source_url=r.source_url,  # type: ignore[arg-type]
+            source_url=r.source_url,
             chunk_index=r.chunk_index,
             similarity=float(r.similarity),
         )

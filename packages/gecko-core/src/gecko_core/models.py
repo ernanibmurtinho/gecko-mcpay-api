@@ -50,17 +50,53 @@ class PaymentReceipt(TypedDict, total=False):
     error: str | None
 
 
-SourceType = Literal["youtube", "web"]
+SourceType = Literal["youtube", "web", "provider"]
+# S17-WEDGE-CITE-03 — accepted URI schemes for Citation.source_url and
+# SourceInfo.url. "https" is the legacy web/youtube/arxiv path; "bazaar"
+# and "twitsh" are synthetic URIs minted in workflows._dispatch_stub_integration_providers
+# (see design memo §3.2). Order matters for the prefix check — "https://"
+# must precede shorter schemes to avoid false positives. Drift between
+# this tuple and the citation validator below is caught by
+# tests/orchestration/test_basic.py.
+_ALLOWED_CITATION_SCHEMES: tuple[str, ...] = (
+    "https://",
+    "http://",
+    "bazaar://",
+    "twitsh://",
+)
+
+
+def _validate_citation_uri(value: str) -> str:
+    s = str(value).strip()
+    for scheme in _ALLOWED_CITATION_SCHEMES:
+        if s.startswith(scheme):
+            return s
+    raise ValueError(
+        f"citation/source URI must use one of {_ALLOWED_CITATION_SCHEMES}; got {value!r}"
+    )
+
+
 SessionStatus = Literal["pending", "indexing", "generating", "complete", "failed"]
 
 
 class SourceInfo(BaseModel):
-    """A source indexed into a session's knowledge base."""
+    """A source indexed into a session's knowledge base.
 
-    url: HttpUrl
+    S17-WEDGE-CITE-03 — `url` was previously `HttpUrl`; relaxed to a string
+    with scheme validation so synthetic URIs from non-web providers
+    (`bazaar://`, `twitsh://`) round-trip cleanly through `list_sources`.
+    Validator ensures we still reject garbage.
+    """
+
+    url: str
     type: SourceType
     chunk_count: int = Field(ge=0)
     indexed_at: datetime
+
+    @field_validator("url")
+    @classmethod
+    def _check_url(cls, v: str) -> str:
+        return _validate_citation_uri(v)
 
 
 class SourceCandidate(BaseModel):
@@ -107,11 +143,24 @@ class Provenance(BaseModel):
 
 
 class Citation(BaseModel):
-    """A citation pointing back to a source chunk."""
+    """A citation pointing back to a source chunk.
 
-    source_url: HttpUrl
+    S17-WEDGE-CITE-03 — `source_url` was previously `HttpUrl`; relaxed to a
+    string with scheme validation so non-web providers can cite via
+    `bazaar://<service>/<resource>` and `twitsh://<id>` URIs (design memo
+    §3.2). The validator still rejects schemeless garbage, so hallucinated
+    URLs fail loudly.
+    """
+
+    source_url: str
     chunk_index: int
     similarity: float = Field(ge=0.0, le=1.0)
+
+    @field_validator("source_url")
+    @classmethod
+    def _check_source_url(cls, v: str) -> str:
+        return _validate_citation_uri(v)
+
     # S12-PROVIDER-01 — defaults to free/tavily so legacy call sites
     # (LLM-emitted JSON, hand-built test citations) get a sensible
     # provenance without changes. Paid providers (S13+) override.

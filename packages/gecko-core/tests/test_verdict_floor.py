@@ -23,7 +23,7 @@ from gecko_core.models import (
 
 def _cite(sim: float, idx: int = 0) -> Citation:
     return Citation(
-        source_url="https://example.com/x",  # type: ignore[arg-type]
+        source_url="https://example.com/x",
         chunk_index=idx,
         similarity=sim,
     )

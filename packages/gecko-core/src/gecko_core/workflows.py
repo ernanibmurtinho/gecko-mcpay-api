@@ -1111,7 +1111,7 @@ async def degraded_research(
         try:
             citations.append(
                 Citation(
-                    source_url=url_str,  # type: ignore[arg-type]
+                    source_url=url_str,
                     chunk_index=int(c.get("chunk_index") or idx),
                     similarity=0.5,
                     provenance=Provenance(
@@ -1161,7 +1161,7 @@ async def degraded_research(
         try:
             sources_out.append(
                 SourceInfo(
-                    url=u,  # type: ignore[arg-type]
+                    url=u,
                     type="web",
                     chunk_count=sum(1 for c in chunks if c.get("source_url") == u),
                     indexed_at=__import__("datetime").datetime.now(

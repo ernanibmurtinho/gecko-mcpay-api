@@ -79,7 +79,12 @@ async def test_rag_query_returns_chunks(monkeypatch: pytest.MonkeyPatch) -> None
     name, params = fake_store._client.rpc.last_args
     assert name == "match_chunks"
     assert params["p_session_id"] == str(sid)
-    assert params["match_count"] == 5
+    # S17-WEDGE-CITE-03 — rag_query over-fetches by 2x so the per-provider
+    # boost can pull structured-provider chunks into the final top_k from
+    # below the raw cosine cutoff. Caller's top_k still bounds the returned
+    # list (asserted above: len(chunks) == 2 here, since the fake RPC
+    # returned only 2 rows).
+    assert params["match_count"] == 10
 
 
 @pytest.mark.asyncio
@@ -100,3 +105,77 @@ async def test_rag_query_zero_top_k() -> None:
     fake_store._client = _FakeClient(_FakeRpcResp([]))
     chunks = await q.rag_query(uuid4(), "x", top_k=0, store=fake_store)
     assert chunks == []
+
+
+# ---------------------------------------------------------------------------
+# S17-WEDGE-CITE-03 — per-provider boost reranker.
+# ---------------------------------------------------------------------------
+
+
+def _mk_chunk(sim: float, kind: str, src: str = "https://example.com/x", idx: int = 0):
+    from uuid import uuid4
+
+    from gecko_core.rag.query import RagChunk
+
+    return RagChunk(
+        source_id=uuid4(),
+        source_url=src,
+        chunk_index=idx,
+        text="t",
+        similarity=sim,
+        provider_kind=kind,  # type: ignore[arg-type]
+    )
+
+
+def test_rerank_promotes_bazaar_above_web_at_close_sim() -> None:
+    from gecko_core.rag.query import _rerank_by_provider
+
+    web = _mk_chunk(0.80, "web", "https://example.com/web")
+    bazaar = _mk_chunk(0.72, "bazaar", "bazaar://svc/r1")
+    arxiv = _mk_chunk(0.70, "arxiv", "https://arxiv.org/abs/0001.0001")
+    twitsh = _mk_chunk(0.85, "twitsh", "twitsh://t/1")
+    out = _rerank_by_provider([web, bazaar, arxiv, twitsh], top_k=4)
+    # twitsh 0.85 * 0.95 = 0.8075; web 0.80; bazaar 0.72 * 1.15 = 0.828; arxiv 0.70 * 1.10 = 0.770
+    kinds_in_order = [c.provider_kind for c in out]
+    assert kinds_in_order == ["bazaar", "twitsh", "web", "arxiv"]
+
+
+def test_rerank_truncates_to_top_k() -> None:
+    from gecko_core.rag.query import _rerank_by_provider
+
+    chunks = [_mk_chunk(0.5 + i * 0.01, "web") for i in range(10)]
+    out = _rerank_by_provider(chunks, top_k=3)
+    assert len(out) == 3
+
+
+def test_rerank_env_override(monkeypatch) -> None:
+    from gecko_core.rag.query import _rerank_by_provider
+
+    monkeypatch.setenv("GECKO_RETRIEVAL_WEIGHT_BAZAAR", "2.0")
+    web = _mk_chunk(0.90, "web")
+    bazaar = _mk_chunk(0.50, "bazaar", "bazaar://svc/r")
+    out = _rerank_by_provider([web, bazaar], top_k=2)
+    # bazaar 0.50 * 2.0 = 1.0 (clamped); should win
+    assert out[0].provider_kind == "bazaar"
+
+
+def test_citation_uri_validator_accepts_bazaar_and_twitsh() -> None:
+    from gecko_core.models import Citation
+
+    c1 = Citation(source_url="bazaar://crypto-onramp/coinbase", chunk_index=0, similarity=0.5)
+    c2 = Citation(source_url="twitsh://session/abc-123", chunk_index=0, similarity=0.5)
+    c3 = Citation(source_url="https://arxiv.org/abs/2401.12345", chunk_index=0, similarity=0.5)
+    assert c1.source_url.startswith("bazaar://")
+    assert c2.source_url.startswith("twitsh://")
+    assert c3.source_url.startswith("https://")
+
+
+def test_citation_uri_validator_rejects_garbage() -> None:
+    import pytest
+
+    from gecko_core.models import Citation
+
+    with pytest.raises(Exception):
+        Citation(source_url="ftp://nope/", chunk_index=0, similarity=0.5)
+    with pytest.raises(Exception):
+        Citation(source_url="not-a-url", chunk_index=0, similarity=0.5)

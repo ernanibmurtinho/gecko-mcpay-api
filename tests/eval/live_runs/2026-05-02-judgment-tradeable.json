@@ -1,0 +1,43 @@
+{
+  "date": "2026-05-02",
+  "git_sha": "pending-cite-03",
+  "mode": "stub",
+  "reruns": 1,
+  "suite": "judgment-tradeable-wedge",
+  "_comment": "S17-WEDGE-CITE-03 regression-coverage row. Captures the post-WEDGE expected verdict shape for the judgment-tradeable idea so a future change cannot silently re-isolate the wedge. Locked-in expectations: (a) verdict in {refine, go} (basic tier conservative on un-shipped agentic-economy idea); (b) >= 2 citations; (c) >= 1 non-web citation drawn from chunks with provider_kind in {bazaar, arxiv, twitsh}; (d) citation diversity >= 2 distinct provider_kind values. The 'aggregate' block stays empty until the migration lands and a live run can populate scores. Do not delete this fixture without a follow-up that re-locks the same regression on the new shape.",
+  "aggregate": {
+    "kill_rate": null,
+    "verdict_accuracy": null,
+    "median_score": null,
+    "median_weighted_score": null,
+    "median_cost_usd": null,
+    "n": 1
+  },
+  "ideas": [
+    {
+      "id": "wedge-judgment-tradeable",
+      "idea_text": "Gecko: makes judgment tradeable. Use judgmentes as a commodity, use on your pre-idea or on your sprint review refinement. Moviment the agentic economy.",
+      "expected_verdict": "refine",
+      "expected_verdict_alternatives": ["refine", "go"],
+      "expected_citation_floor": 2,
+      "expected_non_web_citation_floor": 1,
+      "expected_provider_kinds_min_distinct": 2,
+      "actual_verdict": null,
+      "actual_citation_count": null,
+      "actual_non_web_citation_count": null,
+      "actual_provider_kinds": [],
+      "scores": {
+        "agent_voice": null,
+        "source_grounding": null,
+        "verdict_justification": null,
+        "cost_predictability": null,
+        "verdict_correctness": null
+      },
+      "wall_seconds": null,
+      "tokens_total": null,
+      "cost_usd": null,
+      "v1_sources_cost_usd": null,
+      "blocked_on": "supabase migration 20260502000000_provider_kind.sql not applied to remote instance — schema cache rejects writes to chunks/sources.provider_kind. Once data-eng applies the migration, rerun: X402_MODE=stub uv run bb research --idea \"<above idea_text>\" --tier pro --yes; populate the actuals + scores fields"
+    }
+  ]
+}

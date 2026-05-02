@@ -141,7 +141,7 @@ async def test_workflows_pro_branch_emits_events_and_costs(
         },
         sources=[
             SourceInfo(
-                url="https://example.com/a",  # type: ignore[arg-type]
+                url="https://example.com/a",
                 type="web",
                 chunk_count=1,
                 indexed_at=datetime.now(UTC),

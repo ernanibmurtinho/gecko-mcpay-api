@@ -260,7 +260,7 @@ async def test_run_pro_debate_retrieves_and_injects_precedents(
         },
         sources=[
             SourceInfo(
-                url="https://example.com/a",  # type: ignore[arg-type]
+                url="https://example.com/a",
                 type="web",
                 chunk_count=1,
                 indexed_at=datetime.now(UTC),
