@@ -75,6 +75,14 @@ ALTER TABLE sources
 -- Only change: add c.provider_kind to RETURNS TABLE and SELECT. Pre-filter
 -- on session_id is unchanged. ai-ml-engineer's per-provider score boosts
 -- run on the Python side post-RPC (design memo §1.5).
+--
+-- Postgres rule: CREATE OR REPLACE FUNCTION cannot change the RETURNS TABLE
+-- shape — adding `provider_kind` is a shape change. DROP first, then create.
+
+DROP FUNCTION IF EXISTS match_chunks(uuid, vector, integer);
+DROP FUNCTION IF EXISTS match_chunks(vector, integer, uuid);
+DROP FUNCTION IF EXISTS match_chunks_windowed(uuid, vector, integer, integer);
+DROP FUNCTION IF EXISTS match_chunks_windowed(vector, integer, uuid, integer);
 
 CREATE OR REPLACE FUNCTION match_chunks(
   p_session_id    UUID,
