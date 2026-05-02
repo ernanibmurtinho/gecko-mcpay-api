@@ -34,4 +34,29 @@ schema-drift test verifies they match (typing.get_args(PaymentMode))."""
 # Historical name. Both refer to the exact same Literal type.
 X402Mode = PaymentMode
 
-__all__ = ["PAYMENT_MODES", "PaymentMode", "X402Mode"]
+# ---------------------------------------------------------------------------
+# Buyer-side (S16 Track B) — outbound x402 consumer modes.
+#
+# Sibling Literal to PaymentMode. Shapes differ:
+#   * No "frames" yet on the buyer path (Solana outbound lands later).
+#   * Otherwise mirrors the seller-side modes 1:1.
+#
+# Per Pattern A: declared once, here. Consumers import from this module —
+# never redeclare. ``X402_CONSUMER_MODE`` env var defaults to ``X402_MODE``
+# but is logged separately so buyer vs seller failures stay decoupled.
+# ---------------------------------------------------------------------------
+
+CONSUMER_MODES: Final[tuple[str, ...]] = ("stub", "live", "cdp")
+"""Runtime tuple — used by env validation."""
+
+ConsumerMode = Literal["stub", "live", "cdp"]
+"""Static type alias for the buyer-side X402Consumer mode. Keep in sync
+with CONSUMER_MODES manually."""
+
+__all__ = [
+    "CONSUMER_MODES",
+    "PAYMENT_MODES",
+    "ConsumerMode",
+    "PaymentMode",
+    "X402Mode",
+]
