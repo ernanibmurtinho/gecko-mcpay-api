@@ -48,6 +48,7 @@ from x402 import x402ResourceServer
 from x402.http.facilitator_client_base import FacilitatorClient
 from x402.http.middleware.fastapi import PaymentMiddlewareASGI
 from x402.http.types import PaymentOption, RouteConfig
+from x402.mechanisms.evm.exact.server import ExactEvmScheme
 from x402.mechanisms.svm.exact import ExactSvmServerScheme
 
 from gecko_api.auth import verify_frames_token
@@ -206,6 +207,30 @@ def _assert_routes_payto_well_formed(routes: dict[str, RouteConfig]) -> None:
                     "address-format check requires a static string."
                 )
             _assert_payto_format(opt.network, pay_to, route=pattern)
+            # SVM routes MUST advertise feePayer in extra — ExactSvmScheme
+            # raises client-side without it. EVM routes MUST NOT — leaks the
+            # SVM-only field into eip155:* options. Locks the contract so a
+            # future refactor that drops svm_extra fails fast at startup.
+            network = opt.network
+            extra = opt.extra or {}
+            if network and network.startswith("eip155:"):
+                if "feePayer" in extra:
+                    raise ConfigurationError(
+                        f"route {pattern!r} eip155 option carries extra.feePayer "
+                        f"({extra['feePayer']!r}); feePayer is SVM-only."
+                    )
+            elif network and network.startswith("solana"):
+                fee_payer = extra.get("feePayer")
+                if not fee_payer:
+                    raise ConfigurationError(
+                        f"route {pattern!r} solana option missing extra.feePayer; "
+                        "ExactSvmScheme requires it client-side."
+                    )
+                if fee_payer != pay_to:
+                    raise ConfigurationError(
+                        f"route {pattern!r} feePayer={fee_payer!r} != payTo={pay_to!r}; "
+                        "operator wallet must serve as both for the stub flow."
+                    )
 
 
 def _build_routes(settings: Settings) -> dict[str, RouteConfig]:
@@ -239,6 +264,12 @@ def _build_routes(settings: Settings) -> dict[str, RouteConfig]:
         pay_to = to_evm_checksum_address(pay_to)
     else:
         pay_to = settings.gecko_wallet_address or STUB_WALLET_ADDRESS_NOT_FOR_LIVE
+    # SVM (Solana) routes require feePayer in extra — the facilitator's Solana
+    # address that sponsors transaction fees. For Gecko, the same wallet
+    # receives USDC and covers fees. EVM routes don't use this field.
+    svm_extra: dict[str, str] | None = (
+        {"feePayer": pay_to} if not (chain_id and chain_id.startswith("eip155:")) else None
+    )
     routes: dict[str, RouteConfig] = {
         "POST /research": RouteConfig(
             accepts=[
@@ -247,6 +278,7 @@ def _build_routes(settings: Settings) -> dict[str, RouteConfig]:
                     pay_to=pay_to,
                     price=settings.research_basic_price,
                     network=chain_id,
+                    extra=svm_extra,
                 ),
             ],
             description="Run a Builder Bootstrap research session (basic tier)",
@@ -258,6 +290,7 @@ def _build_routes(settings: Settings) -> dict[str, RouteConfig]:
                     pay_to=pay_to,
                     price=settings.research_pro_price,
                     network=chain_id,
+                    extra=svm_extra,
                 ),
             ],
             description="Run a Builder Bootstrap research session (pro tier)",
@@ -275,6 +308,7 @@ def _build_routes(settings: Settings) -> dict[str, RouteConfig]:
                     pay_to=pay_to,
                     price=settings.route_price_default,
                     network=chain_id,
+                    extra=svm_extra,
                 ),
             ],
             description=(
@@ -289,6 +323,7 @@ def _build_routes(settings: Settings) -> dict[str, RouteConfig]:
                     pay_to=pay_to,
                     price=settings.route_price_premium,
                     network=chain_id,
+                    extra=svm_extra,
                 ),
             ],
             description=(
@@ -303,6 +338,7 @@ def _build_routes(settings: Settings) -> dict[str, RouteConfig]:
                     pay_to=pay_to,
                     price=settings.route_price_upgrade,
                     network=chain_id,
+                    extra=svm_extra,
                 ),
             ],
             description=(
@@ -320,6 +356,7 @@ def _build_routes(settings: Settings) -> dict[str, RouteConfig]:
                     pay_to=pay_to,
                     price=settings.plan_call_price,
                     network=chain_id,
+                    extra=svm_extra,
                 ),
             ],
             description="Run the 5-voice Advisor Panel against an existing session",
@@ -336,6 +373,7 @@ def _build_routes(settings: Settings) -> dict[str, RouteConfig]:
                     pay_to=pay_to,
                     price=settings.review_call_price,
                     network=chain_id,
+                    extra=svm_extra,
                 ),
             ],
             description="Synthesize a SprintReview from git log + memory + sprint docs",
@@ -350,6 +388,7 @@ def _build_routes(settings: Settings) -> dict[str, RouteConfig]:
                     pay_to=pay_to,
                     price=settings.scaffold_call_price,
                     network=chain_id,
+                    extra=svm_extra,
                 ),
             ],
             description="Generate the 3-file scaffold bundle for a Pro session",
@@ -365,6 +404,7 @@ def _build_routes(settings: Settings) -> dict[str, RouteConfig]:
                 pay_to=pay_to,
                 price=settings.advisor_voice_price,
                 network=chain_id,
+                extra=svm_extra,
             ),
         ],
         description="Invoke a single advisor voice (CEO/CTO/BM/PM/SM) on an existing session",
@@ -379,6 +419,7 @@ def _build_routes(settings: Settings) -> dict[str, RouteConfig]:
                 pay_to=pay_to,
                 price=settings.ask_call_price,
                 network=chain_id,
+                extra=svm_extra,
             ),
         ],
         description="Ask a grounded follow-up against an existing session's knowledge base",
@@ -393,6 +434,7 @@ def _build_routes(settings: Settings) -> dict[str, RouteConfig]:
                 pay_to=pay_to,
                 price=settings.classify_call_price,
                 network=chain_id,
+                extra=svm_extra,
             ),
         ],
         description="Classify an idea into categories with suggested sources and priority weights",
@@ -414,6 +456,7 @@ def _build_routes(settings: Settings) -> dict[str, RouteConfig]:
                     pay_to=pay_to,
                     price=settings.pulse_call_price,
                     network=chain_id,
+                    extra=svm_extra,
                 ),
             ],
             description=(
@@ -429,12 +472,25 @@ def _build_resource_server(facilitator: FacilitatorClient) -> x402ResourceServer
     server = x402ResourceServer(facilitator)
     # Wildcard registration covers both "solana-devnet" / "solana-mainnet"
     # (V1 names) and the CAIP-2 form returned post-normalization.
-    scheme: Any = ExactSvmServerScheme()  # type: ignore[no-untyped-call]
-    server.register("solana:*", scheme)
-    server.register("solana-devnet", scheme)
-    server.register("solana-mainnet", scheme)
+    svm_scheme: Any = ExactSvmServerScheme()  # type: ignore[no-untyped-call]
+    server.register("solana:*", svm_scheme)
+    server.register("solana-devnet", svm_scheme)
+    server.register("solana-mainnet", svm_scheme)
+    # EVM networks (Base mainnet / Base Sepolia) use CAIP-2 eip155 chain IDs.
+    evm_scheme: Any = ExactEvmScheme()  # type: ignore[no-untyped-call]
+    server.register("eip155:*", evm_scheme)
+    server.register("base-mainnet", evm_scheme)
+    server.register("base-sepolia", evm_scheme)
     return server
 
+
+# Load .env before Settings.from_env() so module-level initialization picks
+# up local dotenv overrides (lifespan's load_dotenv would be too late).
+# override is gated on GECKO_LOCAL_DEV=1 — production sets env from SSM and
+# must never let a baked-in .env stomp on those values. Dev exports the flag
+# explicitly when they want the local .env to win over stale shell vars
+# (e.g. X402_NETWORK=base-mainnet exported before devnet was configured).
+load_dotenv(override=os.environ.get("GECKO_LOCAL_DEV") == "1")
 
 # Module-level so the lifespan + the /.well-known endpoint share one config.
 _settings = Settings.from_env()
@@ -452,7 +508,6 @@ _BACKGROUND_TASKS: set[asyncio.Task[None]] = set()
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    load_dotenv()
     # S8-LOG-01 — install the redaction filter at app startup so httpcore /
     # hpack DEBUG dumps in CloudWatch don't leak Supabase JWT, Bearer
     # tokens, or apikeys.

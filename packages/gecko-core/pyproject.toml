@@ -1,6 +1,6 @@
 [project]
 name = "gecko-core"
-version = "0.1.6"
+version = "0.1.7"
 description = "Builder Bootstrap Platform SDK — pure business logic. CLI, MCP, and API import this."
 requires-python = ">=3.11"
 dependencies = [
@@ -33,15 +33,13 @@ dependencies = [
     # x402[svm] doesn't pull this; we need it explicitly for EVM signing.
     "eth-account>=0.13",
     "x402[evm,svm]>=2.8.0",
+    "voyageai>=0.2",
 ]
 
 [project.optional-dependencies]
-# S19-VOYAGE-RERANK-01 — Voyage AI post-retrieval reranker. Optional so the
-# legacy install (GECKO_RERANKER unset / "none") stays slim and never imports
-# voyageai. Operators that want the reranker install with:
-#   uv sync --extra rerank
-# The voyage_rerank module imports voyageai lazily inside the call site so an
-# install without this extra still passes type-check and unit tests.
+# S19-VOYAGE-RERANK-01 — Voyage AI post-retrieval reranker. voyageai is now a
+# core dependency (S22-VOYAGE-EMBED) so this extra is kept for backwards compat
+# only — `uv sync --extra rerank` is a no-op but won't break existing installs.
 rerank = ["voyageai>=0.2"]
 
 [build-system]

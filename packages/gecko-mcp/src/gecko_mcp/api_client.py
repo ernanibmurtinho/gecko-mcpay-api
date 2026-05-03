@@ -89,6 +89,29 @@ def _build_signer() -> Any:
     return KeypairSigner(get_keypair_for_signing())
 
 
+def _build_stub_client(api_url: str) -> httpx.AsyncClient:
+    """x402 client with a throwaway Solana keypair for stub-mode servers.
+
+    The server's StubFacilitatorClient.verify() returns is_valid=True without
+    checking signatures, so the keypair never needs to be funded or persisted.
+    Generates a fresh keypair per client instance — intentionally ephemeral.
+    """
+    from solders.keypair import Keypair
+    from x402 import x402Client
+    from x402.http.clients.httpx import x402AsyncTransport
+    from x402.mechanisms.svm.exact import ExactSvmScheme
+    from x402.mechanisms.svm.signers import KeypairSigner
+
+    signer = KeypairSigner(Keypair())
+    scheme = ExactSvmScheme(signer=signer)
+    client = x402Client()
+    client.register("solana:*", scheme)
+    client.register("solana-devnet", scheme)
+    client.register("solana-mainnet", scheme)
+    transport = x402AsyncTransport(client)
+    return httpx.AsyncClient(base_url=api_url, transport=transport, timeout=_DEFAULT_TIMEOUT)
+
+
 def _build_self_custody_client(api_url: str) -> httpx.AsyncClient:
     """Construct the v2 self-custody client with x402AsyncTransport.
 
@@ -157,8 +180,55 @@ class GeckoAPIClient:
             "self-custody" if http_client is not None else "unset"
         )
 
+    async def _server_is_stub(self) -> bool:
+        """Return True if the remote API reports payments=stub via /healthz.
+
+        Distinguishes "healthz says non-stub" (legitimate live mode) from
+        "healthz unreachable / unparseable" (transient failure). On transient
+        failure we log a warning and return False so the caller falls back to
+        frames/self-custody — but the warning surfaces the real cause instead
+        of letting a network blip masquerade as a "frames.ag refuses HTTP"
+        error downstream.
+        """
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as c:
+                r = await c.get(f"{self.api_url}/healthz")
+        except (httpx.TimeoutException, httpx.ConnectError, httpx.NetworkError) as e:
+            logger.warning(
+                "api_client: healthz unreachable at %s (%s); falling back to live mode",
+                self.api_url,
+                type(e).__name__,
+            )
+            return False
+        try:
+            payload = r.json()
+        except ValueError:
+            logger.warning(
+                "api_client: healthz at %s returned non-JSON (status=%d); assuming live mode",
+                self.api_url,
+                r.status_code,
+            )
+            return False
+        return payload.get("payments") == "stub"
+
     async def _ensure_mode(self) -> None:
         if self._mode != "unset":
+            return
+        # Local dev (http://) — assume stub mode and use throwaway keypair.
+        # The server still issues a real 402 challenge (ExactSvmScheme requires
+        # feePayer in extra); StubFacilitatorClient.verify() accepts any sig.
+        if self.api_url.startswith("http://"):
+            self._mode = "self-custody"
+            self._http = _build_stub_client(self.api_url)
+            logger.info("api_client: stub-signer mode (local http://)")
+            return
+        # Remote stub mode — server's StubFacilitatorClient.verify() returns
+        # is_valid=True unconditionally, so a throwaway keypair is enough.
+        # No wallet file, no funded balance required.
+        if await self._server_is_stub():
+            self._mode = "self-custody"
+            self._http = _build_stub_client(self.api_url)
+            logger.info("api_client: stub-signer mode (remote stub, throwaway keypair)")
             return
         if _frames_configured():
             from gecko_mcp.wallet import FramesAGWallet
