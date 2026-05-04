@@ -44,3 +44,4 @@ codex-session.jsonl
 *.pdf
 colosseum-report.html
 docs/external/
+.claude/worktrees/
