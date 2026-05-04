@@ -56,10 +56,11 @@ def _build_fake_store() -> AsyncMock:
 def client() -> Iterator[TestClient]:
     """TestClient against gecko_api in X402_MODE=stub with default prices."""
     os.environ["X402_MODE"] = "stub"
+    os.environ["X402_NETWORK"] = "solana-devnet"
     os.environ["GECKO_WALLET_ADDRESS"] = "STUB_WALLET_ADDRESS_NOT_FOR_LIVE"
-    # Scrub any developer .env override so we exercise the default prices.
-    os.environ.pop("RESEARCH_BASIC_PRICE", None)
-    os.environ.pop("RESEARCH_PRO_PRICE", None)
+    # Pin prices explicitly so local .env overrides don't bleed in via load_dotenv.
+    os.environ["RESEARCH_BASIC_PRICE"] = "$20.00"
+    os.environ["RESEARCH_PRO_PRICE"] = "$0.75"
     _purge_gecko_api_modules()
 
     from gecko_api.main import app

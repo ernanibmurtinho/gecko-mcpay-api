@@ -28,7 +28,8 @@ import time
 import click
 import httpx
 
-from gecko_mcp.wallet import CONFIG_PATH
+from gecko_mcp.wallet import CONFIG_PATH, _wallet_provider
+from gecko_mcp.wallet_self_custody import WALLET_PATH
 
 CLAWROUTER_URL = "http://localhost:8402/v1"
 CLAWROUTER_BIN = "@blockrun/clawrouter"
@@ -51,7 +52,7 @@ def _hdr(n: int, total: int, title: str) -> None:
     click.secho(f"[{n}/{total}] {title}", bold=True)
 
 
-def _check_wallet() -> bool:
+def _check_wallet_frames() -> bool:
     """Return True if frames.ag credentials are present and parseable."""
     if not CONFIG_PATH.exists():
         _fail(f"no frames.ag credentials at {CONFIG_PATH}")
@@ -63,6 +64,7 @@ def _check_wallet() -> bool:
             bold=True,
         )
         click.echo()
+        click.echo("    Or switch to self-custody: gecko-mcp wallet switch --provider self")
         click.echo("    Then re-run `gecko-mcp quickstart`.")
         return False
     try:
@@ -72,10 +74,64 @@ def _check_wallet() -> bool:
         return False
     username = cfg.get("username") or "<missing>"
     sol = cfg.get("solanaAddress") or "<missing>"
-    _ok(f"connected as @{username}")
+    _ok(f"frames.ag: connected as @{username}")
     click.echo(f"     solana: {sol}")
     click.echo(f"     fund:   https://frames.ag/u/{username}")
     return True
+
+
+def _check_wallet_self() -> bool:
+    """Return True if self-custody wallet is present at ~/.gecko/wallet.json."""
+    import json as _json
+
+    from gecko_mcp.wallet_self_custody import (
+        DEFAULT_RPC_URL,
+        _fetch_usdc_balance,
+        _resolve_usdc_mint,
+        fund_url,
+    )
+
+    if not WALLET_PATH.exists():
+        _fail(f"no self-custody wallet at {WALLET_PATH}")
+        click.echo()
+        click.echo("    Create one with:")
+        click.secho("      gecko-mcp wallet new", bold=True)
+        click.echo("    Then re-run `gecko-mcp quickstart`.")
+        return False
+    try:
+        payload = _json.loads(WALLET_PATH.read_text())
+        pubkey = payload["public_key"]
+    except Exception as exc:
+        _fail(f"could not parse {WALLET_PATH}: {exc}")
+        return False
+
+    _ok(f"self-custody wallet: {pubkey}")
+
+    rpc_url = os.environ.get("SOLANA_RPC_URL", DEFAULT_RPC_URL)
+    try:
+        mint = _resolve_usdc_mint(rpc_url)
+        balance = _fetch_usdc_balance(pubkey, rpc_url, mint)
+        cluster = "mainnet" if "mainnet" in rpc_url.lower() else "devnet"
+        click.echo(f"     balance: {balance:.2f} USDC ({cluster})")
+    except Exception:
+        click.echo("     balance: (could not fetch — RPC unreachable?)")
+
+    if balance == 0.0:
+        _warn("wallet balance is 0 — fund it to run research sessions")
+        deep_link = fund_url(pubkey, rpc_url=rpc_url)
+        click.echo(f"     fund:   {deep_link}")
+
+    return True
+
+
+def _check_wallet() -> bool:
+    """Route to frames.ag or self-custody check based on GECKO_WALLET_PROVIDER."""
+    provider = _wallet_provider()
+    if provider == "self":
+        click.echo("     provider: self-custody (~/.gecko/wallet.json)")
+        return _check_wallet_self()
+    click.echo("     provider: frames.ag (switch with `gecko-mcp wallet switch --provider self`)")
+    return _check_wallet_frames()
 
 
 def _clawrouter_reachable() -> bool:

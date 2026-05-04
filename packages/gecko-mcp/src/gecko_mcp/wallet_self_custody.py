@@ -137,13 +137,33 @@ def new(passphrase: str) -> None:
     kp = Keypair()
     _save_keypair(kp, passphrase)
 
+    pubkey_str = str(kp.pubkey())
+    rpc_url = os.environ.get("SOLANA_RPC_URL", DEFAULT_RPC_URL)
+    deep_link = fund_url(pubkey_str, amount_usdc=5.0, rpc_url=rpc_url)
+
     click.secho("Created agent wallet", fg="green")
-    click.echo(f"Public address: {kp.pubkey()}")
+    click.echo(f"Public address: {pubkey_str}")
     click.echo(f"Keypair stored encrypted at {WALLET_PATH}")
     click.echo()
     click.echo("To fund this wallet:")
-    click.echo(f"  - Send USDC on Solana directly to {kp.pubkey()}, OR")
-    click.echo("  - Visit https://app.geckovision.tech/onramp to fund via PIX or credit card")
+    click.echo(f"  - Send USDC on Solana directly to {pubkey_str}, OR")
+    click.echo(f"  - Open in Phantom (mobile): {deep_link}")
+    click.echo("  - Scan the QR code below on your phone to open Phantom:")
+    click.echo()
+    try:
+        click.echo(qr_code_ascii(deep_link))
+    except Exception:
+        click.echo(f"  (QR unavailable — open {deep_link} manually)")
+    click.echo()
+    click.secho(
+        "  Back up ~/.gecko/wallet.json — losing it means losing access to your funds.",
+        fg="yellow",
+    )
+    if not passphrase or passphrase == "default":
+        click.secho(
+            "  No passphrase set. Add one with GECKO_WALLET_PASSPHRASE env var for extra security.",
+            fg="yellow",
+        )
 
 
 @wallet.command(name="import")
@@ -198,6 +218,48 @@ def balance() -> None:
         sys.exit(1)
     cluster = "mainnet" if mint == USDC_MINT_MAINNET else "devnet"
     click.echo(f"{amount:.2f} USDC ({cluster})")
+
+
+def fund_url(pubkey: str, amount_usdc: float = 5.0, rpc_url: str = DEFAULT_RPC_URL) -> str:
+    """Return a Phantom deep link pre-filled for a USDC transfer to this wallet.
+
+    Works on mobile Phantom (opens the transfer sheet directly) and displays
+    as a plain https:// URL that Phantom's browser extension also understands.
+    """
+    mint = _resolve_usdc_mint(rpc_url)
+    # SPL Token URI scheme: Phantom opens the "Send" sheet pre-filled.
+    amount_str = f"{amount_usdc:.6f}".rstrip("0").rstrip(".")
+    return (
+        f"solana:{pubkey}"
+        f"?amount={amount_str}"
+        f"&spl-token={mint}"
+        f"&label=Gecko+Agent+Wallet"
+        f"&message=Fund+your+Gecko+agent+wallet"
+    )
+
+
+def qr_code_ascii(data: str) -> str:
+    """Return a terminal-printable ASCII QR code for *data*.
+
+    Uses qrcode's TerminalOutput which produces a dense block-character grid
+    suitable for scanning on a phone screen from a terminal window.
+    """
+    import io
+
+    import qrcode
+    from qrcode.image.terminal import TerminalImage
+
+    qr = qrcode.QRCode(
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=1,
+        border=1,
+    )
+    qr.add_data(data)
+    qr.make(fit=True)
+    buf = io.StringIO()
+    img = qr.make_image(image_factory=TerminalImage)
+    img.save(buf)
+    return buf.getvalue()
 
 
 def get_keypair_for_signing(passphrase: str | None = None) -> Keypair:

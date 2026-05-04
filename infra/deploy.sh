@@ -45,9 +45,15 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text --region "$REGION")
 ECR_URI="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${ECR_REPOSITORY}"
-IMAGE_TAG="${ENVIRONMENT}-$(git rev-parse --short HEAD 2>/dev/null || echo latest)"
+# Include a timestamp so the tag always changes, forcing CloudFormation to
+# update the task definition even when the git SHA hasn't changed (e.g. a
+# redeploy to pick up env var or infra changes without new commits).
+IMAGE_TAG="${ENVIRONMENT}-$(git rev-parse --short HEAD 2>/dev/null || echo latest)-$(date +%s)"
 FULL_IMAGE="${ECR_URI}:${IMAGE_TAG}"
-CF_IMAGE="${ECR_URI}:${ENVIRONMENT}-latest"
+# CF_IMAGE is what CloudFormation uses in the task definition. Using the
+# versioned (timestamped) tag means every deploy updates the task definition
+# and ECS picks up the fresh image — no stale-layer surprises.
+CF_IMAGE="$FULL_IMAGE"
 
 echo "==> ECR image:   $FULL_IMAGE"
 echo "==> CF image:    $CF_IMAGE"

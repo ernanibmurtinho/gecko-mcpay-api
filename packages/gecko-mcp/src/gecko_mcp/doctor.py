@@ -138,14 +138,78 @@ def check_optional_env(environ: dict[str, str] | None = None) -> list[CheckResul
 
 
 def check_wallet(wallet_path: object | None = None) -> list[CheckResult]:
-    """Report frames.ag wallet presence + addresses as INFO. Never fails.
+    """Report wallet provider, address, and balance as INFO rows. Never fails.
 
-    Reads the canonical `~/.agentwallet/config.json` written by frames.ag's
-    skill. The apiToken is never logged — we only surface username + addresses.
+    Respects GECKO_WALLET_PROVIDER (or ~/.gecko/config.toml): reports frames.ag
+    or self-custody accordingly. apiToken is never logged.
     """
     import json
     from pathlib import Path
 
+    from gecko_mcp.wallet import _wallet_provider
+
+    provider = _wallet_provider()
+    results: list[CheckResult] = [
+        CheckResult(name="payments:provider", ok=True, detail=provider, info=True)
+    ]
+
+    if provider == "self":
+        from gecko_mcp.wallet_self_custody import (
+            DEFAULT_RPC_URL,
+            WALLET_PATH,
+            _fetch_usdc_balance,
+            _resolve_usdc_mint,
+        )
+
+        if not WALLET_PATH.exists():
+            results.append(
+                CheckResult(
+                    name="payments:wallet",
+                    ok=True,
+                    detail=f"no self-custody wallet at {WALLET_PATH} — run `gecko-mcp wallet new`",
+                    info=True,
+                )
+            )
+            return results
+
+        try:
+            payload = json.loads(WALLET_PATH.read_text())
+            pubkey = str(payload.get("public_key", "<missing>"))
+        except Exception as exc:  # pragma: no cover
+            results.append(
+                CheckResult(
+                    name="payments:wallet", ok=True, detail=f"parse error: {exc}", info=True
+                )
+            )
+            return results
+
+        results.append(CheckResult(name="payments:address", ok=True, detail=pubkey, info=True))
+
+        rpc_url = os.environ.get("SOLANA_RPC_URL", DEFAULT_RPC_URL)
+        try:
+            mint = _resolve_usdc_mint(rpc_url)
+            balance = _fetch_usdc_balance(pubkey, rpc_url, mint)
+            cluster = "mainnet" if "mainnet" in rpc_url.lower() else "devnet"
+            results.append(
+                CheckResult(
+                    name="payments:balance",
+                    ok=True,
+                    detail=f"{balance:.2f} USDC ({cluster})",
+                    info=True,
+                )
+            )
+        except Exception as exc:
+            results.append(
+                CheckResult(
+                    name="payments:balance",
+                    ok=True,
+                    detail=f"could not fetch balance: {exc}",
+                    info=True,
+                )
+            )
+        return results
+
+    # frames.ag path
     if wallet_path is None:
         from gecko_mcp.wallet import CONFIG_PATH as _cp
 
@@ -153,11 +217,10 @@ def check_wallet(wallet_path: object | None = None) -> list[CheckResult]:
     else:
         path = wallet_path if isinstance(wallet_path, Path) else Path(str(wallet_path))
 
-    results: list[CheckResult] = []
     exists = path.exists()
     results.append(
         CheckResult(
-            name="wallet:present",
+            name="payments:wallet",
             ok=True,
             detail=(
                 f"frames.ag config at {path}"
@@ -176,7 +239,7 @@ def check_wallet(wallet_path: object | None = None) -> list[CheckResult]:
         except Exception as exc:  # pragma: no cover - filesystem corner case
             results.append(
                 CheckResult(
-                    name="wallet:address",
+                    name="payments:address",
                     ok=True,
                     detail=f"could not parse config: {exc}",
                     info=True,
@@ -184,10 +247,10 @@ def check_wallet(wallet_path: object | None = None) -> list[CheckResult]:
             )
         else:
             results.append(
-                CheckResult(name="wallet:username", ok=True, detail=f"@{username}", info=True)
+                CheckResult(name="payments:username", ok=True, detail=f"@{username}", info=True)
             )
-            results.append(CheckResult(name="wallet:solana", ok=True, detail=sol, info=True))
-            results.append(CheckResult(name="wallet:evm", ok=True, detail=evm, info=True))
+            results.append(CheckResult(name="payments:solana", ok=True, detail=sol, info=True))
+            results.append(CheckResult(name="payments:evm", ok=True, detail=evm, info=True))
     return results
 
 

@@ -27,12 +27,13 @@ import pytest
 from fastapi.testclient import TestClient
 
 # Force stub mode BEFORE importing the app — settings are frozen at import time.
-os.environ.setdefault("X402_MODE", "stub")
-os.environ.setdefault("GECKO_WALLET_ADDRESS", "STUB_WALLET_ADDRESS_NOT_FOR_LIVE")
-# Force defaults — these tests assert on the exact $20.00/$0.75 prices, so
-# scrub any developer .env override that would otherwise leak in.
-os.environ.pop("RESEARCH_BASIC_PRICE", None)
-os.environ.pop("RESEARCH_PRO_PRICE", None)
+os.environ["X402_MODE"] = "stub"
+os.environ["X402_NETWORK"] = "solana-devnet"
+os.environ["GECKO_WALLET_ADDRESS"] = "STUB_WALLET_ADDRESS_NOT_FOR_LIVE"
+# Pin prices explicitly — load_dotenv() at import time would otherwise reload
+# the local .env override ($0.10) after os.environ.pop() cleared it.
+os.environ["RESEARCH_BASIC_PRICE"] = "$20.00"
+os.environ["RESEARCH_PRO_PRICE"] = "$0.75"
 
 
 # ---------------------------------------------------------------------------
@@ -91,8 +92,11 @@ def client() -> Iterator[TestClient]:
     # default $20.00/$0.75 prices regardless of dev-env contamination.
     import sys
 
-    os.environ.pop("RESEARCH_BASIC_PRICE", None)
-    os.environ.pop("RESEARCH_PRO_PRICE", None)
+    os.environ["X402_MODE"] = "stub"
+    os.environ["X402_NETWORK"] = "solana-devnet"
+    os.environ["GECKO_WALLET_ADDRESS"] = "STUB_WALLET_ADDRESS_NOT_FOR_LIVE"
+    os.environ["RESEARCH_BASIC_PRICE"] = "$20.00"
+    os.environ["RESEARCH_PRO_PRICE"] = "$0.75"
     for mod in [m for m in sys.modules if m.startswith("gecko_api")]:
         sys.modules.pop(mod, None)
 

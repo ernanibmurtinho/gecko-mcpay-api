@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+from pathlib import Path
 from typing import Any
 
 import click
@@ -30,28 +31,58 @@ from gecko_core.wallet import (
     read_agent_config as _read_agent_config_shared,
 )
 
+from gecko_mcp.wallet_self_custody import (
+    WALLET_PATH,
+    get_keypair_for_signing,
+)
+
 # Re-export for back-compat with code/tests that import CONFIG_PATH from here.
 CONFIG_PATH = _SHARED_CONFIG_PATH
 FRAMES_BASE = os.environ.get("FRAMES_AG_BASE_URL", "https://frames.ag/api")
 DEFAULT_TIMEOUT = 30.0
 
-# Legacy v2 self-custody symbols re-exported for backwards compatibility
-# (demo-agent, doctor.py, tests/mcp/test_wallet.py). v3 default is frames.ag;
-# the v2 path activates when GECKO_WALLET_PROVIDER=self.
-from gecko_mcp.wallet_self_custody import (  # noqa: E402
-    WALLET_PATH,
-    get_keypair_for_signing,
-)
+_GECKO_CONFIG_PATH = Path.home() / ".gecko" / "config.toml"
 
-__all__ = [  # noqa: RUF022 - grouping (v3 facade above, v2 legacy below) is intentional
+
+def _read_gecko_config() -> dict[str, str]:
+    """Read ~/.gecko/config.toml into a flat dict (key=value pairs only)."""
+    if not _GECKO_CONFIG_PATH.exists():
+        return {}
+    result: dict[str, str] = {}
+    for line in _GECKO_CONFIG_PATH.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" in line:
+            k, _, v = line.partition("=")
+            result[k.strip()] = v.strip().strip('"').strip("'")
+    return result
+
+
+def _write_gecko_config(data: dict[str, str]) -> None:
+    _GECKO_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    lines = [f'{k} = "{v}"' for k, v in data.items()]
+    _GECKO_CONFIG_PATH.write_text("\n".join(lines) + "\n")
+
+
+def _wallet_provider() -> str:
+    """Return the effective wallet provider: 'frames' or 'self'."""
+    env = os.environ.get("GECKO_WALLET_PROVIDER")
+    if env:
+        return env
+    cfg = _read_gecko_config()
+    return cfg.get("GECKO_WALLET_PROVIDER", "frames")
+
+
+__all__ = [
     "CONFIG_PATH",
     "FRAMES_BASE",
+    "WALLET_PATH",
     "FramesAGWallet",
     "WalletNotConfiguredError",
-    "wallet",
-    # legacy v2 fallback
-    "WALLET_PATH",
+    "_wallet_provider",
     "get_keypair_for_signing",
+    "wallet",
 ]
 
 
@@ -306,6 +337,41 @@ def wallet_doctor() -> None:
 
     body = r.json()
     click.echo(f"   balances: {json.dumps(body)}")
+
+
+@wallet.command(name="switch")
+@click.argument("provider", type=click.Choice(["frames", "self"]))
+def wallet_switch(provider: str) -> None:
+    """Switch wallet provider (frames = frames.ag, self = local keypair).
+
+    Writes GECKO_WALLET_PROVIDER to ~/.gecko/config.toml so the choice
+    survives shell restarts and is picked up by quickstart and doctor.
+    """
+    cfg = _read_gecko_config()
+    cfg["GECKO_WALLET_PROVIDER"] = provider
+    _write_gecko_config(cfg)
+
+    if provider == "self":
+        from gecko_mcp.wallet_self_custody import WALLET_PATH
+
+        if WALLET_PATH.exists():
+            click.secho(f"Switched to self-custody wallet at {WALLET_PATH}", fg="green")
+        else:
+            click.secho("Switched to self-custody mode.", fg="green")
+            click.echo(f"No wallet found at {WALLET_PATH}. Create one with:")
+            click.secho("  gecko-mcp wallet new", bold=True)
+    else:
+        if CONFIG_PATH.exists():
+            click.secho("Switched to frames.ag wallet.", fg="green")
+        else:
+            click.secho("Switched to frames.ag mode.", fg="green")
+            click.echo(f"No frames.ag credentials at {CONFIG_PATH}. Set up with:")
+            click.secho(
+                "  Read https://frames.ag/skill.md and follow the instructions to join AgentWallet.",
+                bold=True,
+            )
+
+    click.echo(f"Provider saved to {_GECKO_CONFIG_PATH}")
 
 
 # ---------------------------------------------------------------------------
