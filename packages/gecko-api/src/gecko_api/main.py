@@ -34,7 +34,7 @@ import uvicorn
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from gecko_core.models import AskResult, SourceInfo, Tier
+from gecko_core.models import AskResult, ResearchResult, SourceInfo, Tier
 from gecko_core.payments.constants import STUB_WALLET_ADDRESS_NOT_FOR_LIVE
 from gecko_core.payments.factory import resolve_facilitator_client
 from gecko_core.sessions.store import SessionStore
@@ -2357,8 +2357,8 @@ async def sources(session_id: str) -> list[SourceInfo]:
         raise HTTPException(status_code=501, detail=str(e)) from e
 
 
-@app.get("/sessions/{session_id}/result")
-async def session_result(session_id: str) -> dict[str, Any]:
+@app.get("/sessions/{session_id}/result", response_model=ResearchResult)
+async def session_result(session_id: str) -> Any:
     """Poll for the async ResearchResult.
 
     Status semantics:
