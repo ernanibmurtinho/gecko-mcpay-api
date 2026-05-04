@@ -27,7 +27,6 @@ from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool
 
 from gecko_mcp.api_client import GeckoAPIClient
-from gecko_mcp.clawrouter_supervisor import warm_clawrouter
 
 server: Server = Server("gecko-mcp")
 
@@ -808,14 +807,21 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
 
 
 async def _run_classify(*, idea: str) -> dict[str, Any]:
-    """Call `gecko_core.classify.classify_idea_with_scores` + suggest_sources.
+    """Classify an idea via gecko-api (remote) or gecko_core directly (local dev).
 
-    Free path — bypasses GeckoAPIClient / x402. We import lazily so the
-    embedder + numpy aren't pulled into the MCP startup path for users
-    who never invoke the classifier. S13-COMMO-03: payload is the same
-    shape the paid `POST /classify` route returns so MCP and HTTP stay
-    interoperable.
+    S22-MCP-02: routes through the API when GECKO_API_URL is a remote host so
+    the x402 payment gate and server-side embeddings are used. Falls back to a
+    direct gecko_core call for local dev (localhost / unset) so developers can
+    iterate without a running gecko-api. S13-COMMO-03: payload shape is the
+    same in both paths.
     """
+    import os
+
+    api_url = os.environ.get("GECKO_API_URL")
+    if not _route_uses_local_fallback(api_url):
+        client = _get_client()
+        return await client.classify(idea)
+    # local-dev fallback — gecko_core direct
     from gecko_core.classify import classify_idea_with_scores, suggest_sources
 
     selected, scores = await classify_idea_with_scores(idea)
@@ -829,7 +835,18 @@ async def _run_classify(*, idea: str) -> dict[str, Any]:
 
 
 async def _run_precedents(*, idea: str, top_k: int) -> list[dict[str, Any]]:
-    """Embed `idea` and retrieve top-K Gecko flywheel precedents."""
+    """Retrieve top-K Gecko flywheel precedents via gecko-api (remote) or gecko_core (local dev).
+
+    S22-MCP-03: routes through the API when GECKO_API_URL is a remote host.
+    Falls back to direct gecko_core embedding + store lookup for local dev.
+    """
+    import os
+
+    api_url = os.environ.get("GECKO_API_URL")
+    if not _route_uses_local_fallback(api_url):
+        client = _get_client()
+        return await client.precedents(idea, top_k)
+    # local-dev fallback — gecko_core direct
     from gecko_core.ingestion.embedder import embed
     from gecko_core.sessions.store import SessionStore
 
@@ -1328,12 +1345,7 @@ def _run_available_sources() -> list[dict[str, Any]]:
 
 
 async def serve() -> None:
-    """Run the MCP server over stdio.
-
-    Self-warming: brings up ClawRouter on demand if it isn't already
-    reachable (and the user didn't override GECKO_LLM_ENDPOINT). The proxy
-    is torn down when stdio closes.
-    """
+    """Run the MCP server over stdio."""
     # S8-LOG-01 — install the redaction filter at MCP startup so DEBUG
     # logs from the API client / supabase / openai clients don't leak
     # auth tokens to stderr (which Claude Code surfaces in its UI).
@@ -1346,5 +1358,5 @@ async def serve() -> None:
     level = getattr(logging, level_name, logging.WARNING)
     install_redaction(level=level)
 
-    async with warm_clawrouter(), stdio_server() as (read, write):
+    async with stdio_server() as (read, write):
         await server.run(read, write, server.create_initialization_options())

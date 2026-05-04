@@ -1860,6 +1860,38 @@ async def classify_call(req: ClassifyRequest, request: Request) -> dict[str, Any
     }
 
 
+# ---------------------------------------------------------------------------
+# S22-MCP-03 — /precedents: flywheel precedent lookup for gecko-mcp clients.
+# ---------------------------------------------------------------------------
+
+
+@app.post("/precedents")
+async def precedents_call(req: dict[str, Any], request: Request) -> list[dict[str, Any]]:
+    """Return top-K Gecko flywheel precedents for an idea (embedding similarity).
+
+    Free endpoint — no x402 gate. Used by gecko-mcp when GECKO_API_URL is remote
+    so the embedding work stays server-side (S22-MCP-03).
+    """
+    from gecko_core.ingestion.embedder import embed
+    from gecko_core.sessions.store import SessionStore
+
+    idea = req.get("idea", "")
+    top_k = int(req.get("top_k", 5))
+    if not idea:
+        raise HTTPException(status_code=400, detail="idea is required")
+
+    try:
+        vecs, _tokens = await embed([idea])
+        if not vecs:
+            return []
+        store = SessionStore.from_env()
+        rows = await store.retrieve_gecko_precedent(embedding=vecs[0], limit=top_k)
+        return [r.model_dump(mode="json") for r in rows]
+    except Exception as exc:
+        logger.exception("precedents: failed for idea=%r", idea[:80])
+        raise HTTPException(status_code=500, detail=f"{type(exc).__name__}: {exc}") from exc
+
+
 # S5-API-03: tiered /route pricing. Each path is gated by x402 at a
 # different price; the handler logic is identical except for the
 # `tier_charged` field surfaced on the response. Premium / upgrade tier

@@ -16,6 +16,7 @@ from gecko_mcp.doctor import (
     REQUIRED_FUNCTIONS,
     REQUIRED_TABLES,
     SERVER_SIDE_ENV_VARS,
+    _is_thin_client,
     run_doctor,
 )
 
@@ -359,3 +360,85 @@ def test_doctor_cli_passes_with_no_server_keys(monkeypatch: pytest.MonkeyPatch) 
     # Server-side vars must be mentioned as INFO (not FAIL).
     for var in SERVER_SIDE_ENV_VARS:
         assert var in result.output
+
+
+# ---------------------------------------------------------------------------
+# S22-MCP-06 — _is_thin_client() and thin-client doctor gating
+# ---------------------------------------------------------------------------
+
+
+def test_is_thin_client_unset_returns_false() -> None:
+    """No GECKO_API_URL → local dev mode, not thin client."""
+    assert _is_thin_client({}) is False
+
+
+def test_is_thin_client_localhost_returns_false() -> None:
+    """localhost GECKO_API_URL → local dev mode, not thin client."""
+    assert _is_thin_client({"GECKO_API_URL": "http://localhost:8000"}) is False
+
+
+def test_is_thin_client_127_returns_false() -> None:
+    """127.0.0.1 GECKO_API_URL → local dev mode, not thin client."""
+    assert _is_thin_client({"GECKO_API_URL": "http://127.0.0.1:8000"}) is False
+
+
+def test_is_thin_client_remote_returns_true() -> None:
+    """Remote GECKO_API_URL → thin client."""
+    assert _is_thin_client({"GECKO_API_URL": "https://api.geckovision.tech"}) is True
+
+
+def test_is_thin_client_staging_returns_true() -> None:
+    """Staging GECKO_API_URL → thin client (not localhost)."""
+    assert _is_thin_client({"GECKO_API_URL": "https://staging.geckovision.tech"}) is True
+
+
+def test_run_doctor_thin_client_skips_server_checks(monkeypatch: pytest.MonkeyPatch) -> None:
+    """S22-MCP-06: when GECKO_API_URL is remote, server-side checks must not appear.
+
+    The core bug was: with server-side env vars present (developer machine),
+    _is_thin_client() returned False and VOYAGE_API_KEY/embed checks ran.
+    With the new detection (GECKO_API_URL remote = thin client), those checks
+    are skipped even when the developer has local .env keys.
+    """
+    import httpx
+
+    # Simulate a developer machine that has local server keys (like in .env)
+    # but has GECKO_API_URL pointing at the remote production API.
+    env = {
+        "GECKO_API_URL": "https://api.geckovision.tech",
+        # Developer machine has these locally but thin-client doctor must ignore them.
+        # They must NOT appear in the report (thin-client gate skips server-side checks).
+        "SUPABASE_URL": "https://x.supabase.co",
+        "SUPABASE_SERVICE_ROLE_KEY": "service-role-key",
+        "TAVILY_API_KEY": "tvly-key",
+        "VOYAGE_API_KEY": "pa-test-key-1234",
+    }
+
+    # Stub out the healthz probe so we don't make a real network call.
+    def _ok(*_args: object, **_kwargs: object) -> httpx.Response:
+        return httpx.Response(200, json={"status": "ok"})
+
+    monkeypatch.setattr("httpx.get", _ok)
+
+    exit_code, report = run_doctor(environ=env, supabase_client=None)
+    assert exit_code == 0, report
+    # Thin client: server-side section skipped entirely — keys don't appear.
+    assert "SUPABASE_URL" not in report
+    assert "TAVILY_API_KEY" not in report
+    # No embed/reranker/chunk-store/clawrouter rows for thin clients.
+    assert "embed:" not in report
+    assert "reranker:" not in report
+    assert "chunk_store:" not in report
+    assert "llm:clawrouter" not in report
+    # Supabase probe must NOT run even though creds are in env.
+    assert "supabase:" not in report
+
+
+def test_run_doctor_local_dev_still_shows_server_checks() -> None:
+    """When GECKO_API_URL is absent/localhost, server-side checks still run."""
+    # Empty env = local dev = _is_thin_client() False.
+    exit_code, report = run_doctor(environ={}, supabase_client=None)
+    assert exit_code == 0, report
+    # Server-side vars surface as INFO in local dev mode.
+    for var in SERVER_SIDE_ENV_VARS:
+        assert var in report, f"local dev mode must surface {var}"

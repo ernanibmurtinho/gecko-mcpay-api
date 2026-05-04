@@ -692,17 +692,23 @@ class GeckoAPIClient:
         $0.05. Returns ``{"html": "<html...>"}`` for format=html or
         ``{"markdown": "..."}`` for format=markdown.
 
-        The HTML response body is wrapped in a ``{"html": ...}`` envelope
-        so it round-trips cleanly through the MCP JSON transport.
+        ``format`` must be a query parameter — the FastAPI endpoint declares it
+        as a Query field, so JSON body values are silently ignored and the
+        endpoint falls back to ``html``.
         """
-        result = await self._paid_post(
-            f"/report/{session_id}",
-            {"format": format},
-        )
-        # The API returns text/html directly for format=html; when the paid
-        # transport receives it the body is already parsed as a string inside
-        # the frames response envelope. Wrap in a consistent dict so the MCP
-        # caller always receives a JSON-safe object.
+        await self._ensure_mode()
+        http = await self._free_client()
+        path = f"/report/{session_id}?format={format}"
+        try:
+            response = await http.post(path, json={})
+        except Exception as exc:
+            raise GeckoAPIError(f"could not reach gecko-api: {exc}") from exc
+        if response.status_code >= 400:
+            raise GeckoAPIError(f"{path} returned {response.status_code}: {response.text[:300]}")
+        ct = response.headers.get("content-type", "")
+        if "text/html" in ct:
+            return {"html": response.text}
+        result = _parse_json_object(response, path)
         if isinstance(result, str):
             return {"html": result}
         return result
@@ -853,6 +859,28 @@ class GeckoAPIClient:
         if response.status_code >= 400:
             raise GeckoAPIError(f"{path} returned {response.status_code}: {response.text[:300]}")
         return _parse_json_object(response, path)
+
+    async def classify(self, idea: str) -> dict[str, Any]:
+        """POST /classify — paid classify-as-a-service (S13-COMMO-03).
+
+        Returns the same JSON as the MCP gecko_classify tool: selected categories,
+        full score map, and suggested sources. /classify is x402-gated but stub
+        mode auto-passes.
+        """
+        return await self._paid_post("/classify", {"idea": idea})
+
+    async def precedents(self, idea: str, top_k: int = 5) -> list[dict[str, Any]]:
+        """POST /precedents — top-K flywheel precedents (free, no x402)."""
+        http = await self._free_client()
+        response = await http.post("/precedents", json={"idea": idea, "top_k": top_k})
+        if response.status_code >= 400:
+            raise GeckoAPIError(
+                f"/precedents returned {response.status_code}: {response.text[:200]}"
+            )
+        result = response.json()
+        if not isinstance(result, list):
+            raise GeckoAPIError(f"/precedents returned non-list JSON: {type(result).__name__}")
+        return result
 
     async def list_sources(self, session_id: str) -> list[dict[str, Any]]:
         """GET /sessions/{id}/sources — free."""

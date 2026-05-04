@@ -682,6 +682,23 @@ def check_voyage_api_key(environ: dict[str, str] | None = None) -> list[CheckRes
     return results
 
 
+def _is_thin_client(environ: dict[str, str] | None = None) -> bool:
+    """True when gecko-mcp is running as a remote client (not as the server itself).
+
+    Remote clients do not need server-side keys (SUPABASE_URL, VOYAGE_API_KEY, etc.)
+    — all embedding, storage, and LLM work happens inside gecko-api.
+
+    Detection: GECKO_API_URL is set and does NOT point at localhost/127.0.0.1.
+    Local dev (localhost or unset) = not thin client = full server checks run.
+    """
+    env = environ or dict(os.environ)
+    api_url = env.get("GECKO_API_URL", "").strip()
+    if not api_url:
+        return False  # unset = local dev mode, run full checks
+    lowered = api_url.lower()
+    return "localhost" not in lowered and "127.0.0.1" not in lowered
+
+
 def _is_server_stack(environ: dict[str, str]) -> bool:
     """True when the operator has at least one server-side credential set.
 
@@ -803,28 +820,33 @@ def run_doctor(
     absent, Supabase probes are skipped.
     """
     env = environ if environ is not None else dict(os.environ)
+    thin = _is_thin_client(env)
     results: list[CheckResult] = []
     results.extend(check_env(environ))
-    # Server-side keys: surface as PASS when set, INFO when absent.
-    # Never fail the thin-client doctor.
-    results.extend(check_server_side_env(environ))
+    # Server-side keys are only relevant for local-dev / server-operator mode.
+    # Thin clients (remote GECKO_API_URL) skip these entirely — the keys live
+    # on the server, not on the user's machine.
+    if not thin:
+        results.extend(check_server_side_env(environ))
     results.append(check_x402_mode(environ))
     results.append(check_gecko_api(environ))
-    results.extend(check_optional_env(environ))
     results.extend(check_wallet())
-    results.extend(check_llm_router(environ))
-    results.append(check_clawrouter(environ))
-    results.extend(check_chunk_store(environ))
-    results.extend(check_embed_provider(environ))
-    results.extend(check_voyage_api_key(environ))
+    if not thin:
+        results.extend(check_optional_env(environ))
+        results.extend(check_llm_router(environ))
+        results.append(check_clawrouter(environ))
+        results.extend(check_chunk_store(environ))
+        results.extend(check_embed_provider(environ))
+        results.extend(check_voyage_api_key(environ))
 
-    # Supabase probes only run when SUPABASE_URL + key are both present.
-    # For remote thin-client installs these will be absent — that is normal.
+    # Supabase probes only run in local-dev/server-operator mode when creds are present.
+    # Thin clients (remote GECKO_API_URL) never run Supabase probes — the DB is
+    # server-side and the keys are irrelevant on the client machine.
     env_ok = all(r.ok for r in results if not r.info)
     supabase_creds_present = bool(env.get("SUPABASE_URL")) and bool(
         env.get("SUPABASE_SERVICE_ROLE_KEY")
     )
-    if env_ok and supabase_creds_present:
+    if not thin and env_ok and supabase_creds_present:
         if supabase_client is not None:
             results.extend(check_supabase(supabase_client))
         else:

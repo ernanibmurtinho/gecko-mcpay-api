@@ -1193,8 +1193,6 @@ async def ask(
         )
 
     orch = get_orchestration_settings()
-    ingest_s = get_ingestion_settings()
-    client = AsyncOpenAI(api_key=ingest_s.openai_api_key.get_secret_value())
 
     context = "\n\n".join(
         f"[{i}] (source: {c.source_url}) {c.text}" for i, c in enumerate(chunks, 1)
@@ -1222,6 +1220,14 @@ async def ask(
         _ask_cfg.source.split(":", 1)[1] if _ask_cfg.source.startswith("router:") else "openai"
     )
     _ask_model = _resolve_model(_AgentRole.ask, _AskTier.budget, _ask_router)
+    # Use the router-resolved client (base_url + api_key) so OpenRouter model IDs
+    # like "openai/gpt-4.1-nano" reach the right endpoint instead of 400-ing at
+    # api.openai.com, which only accepts bare model slugs.
+    client = AsyncOpenAI(
+        base_url=_ask_cfg.base_url,
+        api_key=_ask_cfg.api_key,
+        default_headers=_ask_cfg.extra_headers,
+    )
 
     # Plain-text answer with [n] citations — no response_format=json_object
     # on purpose. ``seed=42`` for best-effort determinism (LLM-hygiene C1);
@@ -1248,11 +1254,22 @@ async def ask(
     )
     answer = resp.choices[0].message.content or ""
 
+    from gecko_core.models import Provenance as _Provenance
+
     citations = [
         Citation(
-            source_url=c.source_url,
+            # S26-CITE-03: twitsh synthetic URIs carry the real tweet URL in
+            # metadata; resolve here so callers never see twitsh://session/…
+            source_url=(
+                c.metadata.get("tweet_url") or c.source_url
+                if c.source_url.startswith("twitsh://")
+                else c.source_url
+            ),
             chunk_index=c.chunk_index,
             similarity=c.similarity,
+            # S26-SOURCE-DIVERSITY-01: stamp provider_kind from the chunk so
+            # audit_provider_mix can classify resolved twitsh/bazaar URLs.
+            provenance=_Provenance(provider_kind=c.provider_kind),
         )
         for c in chunks
     ]
@@ -1328,6 +1345,9 @@ async def degraded_research(
         url_str = str(c.get("source_url") or "")
         if not url_str:
             continue
+        # S26-CITE-03: resolve twitsh synthetic URIs in degraded path too.
+        if url_str.startswith("twitsh://"):
+            url_str = str((c.get("metadata") or {}).get("tweet_url") or url_str)
         try:
             citations.append(
                 Citation(
