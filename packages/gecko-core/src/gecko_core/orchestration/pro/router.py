@@ -54,45 +54,6 @@ def _price_per_1k_for(model: str) -> list[float] | None:
 Router = Literal["openai", "openrouter", "clawrouter"]
 _VALID_ROUTERS: frozenset[str] = frozenset(("openai", "openrouter", "clawrouter"))
 
-# Per-agent model matrix per router.
-#
-# Cheap models for analyst/proponent/critic/scoper today; larger model for
-# judge so verdict calibration doesn't drift on the small model. We promote
-# proponent/critic to the larger model later based on eval-harness signal
-# (S1-06 — out of scope for this dispatch).
-#
-# Note on agent names: the production debate uses agent names
-# ``analyst, critic, architect, scoper, judge``. We expose the alias
-# ``proponent`` -> architect's slot in the matrix so callers using the
-# roadmap vocabulary (proponent vs. critic adversarial pair) get the right
-# model without renaming the AG2 agent.
-_MATRIX: dict[str, dict[str, str]] = {
-    "openai": {
-        "analyst": "gpt-4o-mini",
-        "proponent": "gpt-4o-mini",
-        "architect": "gpt-4o-mini",
-        "critic": "gpt-4o-mini",
-        "scoper": "gpt-4o-mini",
-        "judge": "gpt-4o",
-    },
-    "openrouter": {
-        "analyst": "openai/gpt-4o-mini",
-        "proponent": "openai/gpt-4o-mini",
-        "architect": "openai/gpt-4o-mini",
-        "critic": "openai/gpt-4o-mini",
-        "scoper": "openai/gpt-4o-mini",
-        "judge": "openai/gpt-4o",
-    },
-    "clawrouter": {
-        "analyst": "blockrun/auto",
-        "proponent": "blockrun/auto",
-        "architect": "blockrun/auto",
-        "critic": "blockrun/auto",
-        "scoper": "blockrun/auto",
-        "judge": "blockrun/auto",
-    },
-}
-
 
 @dataclass(frozen=True)
 class RouterConfig:
@@ -204,26 +165,11 @@ def resolve_router(
     )
 
 
-def model_for_agent(agent_name: str, router: Router) -> str:
-    """Look up the model string for ``(agent, router)``.
-
-    Falls back to ``analyst``'s slot when ``agent_name`` is unknown — the
-    matrix is exhaustive for the production agents but stays permissive so
-    a future agent rename doesn't crash at runtime.
-    """
-    matrix = _MATRIX[router]
-    return matrix.get(agent_name) or matrix["analyst"]
-
-
-def model_matrix(router: Router) -> dict[str, str]:
-    """Return a copy of the per-agent model map for ``router``."""
-    return dict(_MATRIX[router])
-
-
 # Pro-debate agent names that participate in the catalog-driven matrix. The
-# legacy ``_MATRIX`` includes ``proponent`` as an alias for architect — the
-# catalog matrix doesn't (the AgentRole enum uses one canonical name per
-# slot).
+# legacy ``_MATRIX`` (deleted with the LLM-hygiene Commit A) included
+# ``proponent`` as an alias for architect — the catalog matrix mirrors that
+# alias at the bottom of ``model_matrix_for_tier`` so callers using the
+# roadmap vocabulary still get a valid model.
 _PRO_DEBATE_ROLES: tuple[AgentRole, ...] = (
     AgentRole.analyst,
     AgentRole.critic,
@@ -288,8 +234,6 @@ __all__ = [
     "Router",
     "RouterConfig",
     "Tier",
-    "model_for_agent",
-    "model_matrix",
     "model_matrix_for_tier",
     "resolve_router",
 ]

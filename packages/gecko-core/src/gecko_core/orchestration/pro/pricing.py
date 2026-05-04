@@ -5,10 +5,10 @@ publish. ``compute_cost_usd`` returns a Decimal quantized to micro-USD so
 session_costs rows survive aggregation without float drift.
 
 The table is intentionally small — just the models the per-agent matrix
-(``router.model_matrix``) can produce. Add a new entry when the matrix
-expands. OpenRouter passthrough uses the OpenAI direct rate; ClawRouter's
-``blockrun/auto`` is a midpoint placeholder until the proxy reports
-upstream-provider cost in response headers.
+(``router.model_matrix_for_tier``) can produce. Add a new entry when the
+matrix expands. OpenRouter passthrough uses the OpenAI direct rate;
+ClawRouter's ``blockrun/auto`` is a midpoint placeholder until the proxy
+reports upstream-provider cost in response headers.
 """
 
 from __future__ import annotations

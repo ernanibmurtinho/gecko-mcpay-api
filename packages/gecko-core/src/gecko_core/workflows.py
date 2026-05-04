@@ -466,26 +466,38 @@ async def _run_pro_debate(
     # S1-01/S1-02: route LLM traffic via the LLM_ROUTER env switch. When the
     # env var is unset we keep the legacy llm_endpoint/llm_api_key/chat_model
     # path so existing deployments are unaffected.
+    #
+    # NOTE: we deliberately do NOT pre-resolve a per-agent matrix here. The
+    # legacy ``model_matrix(cfg.router)`` returned a hardcoded gpt-4o-mini
+    # map (judge=gpt-4o) that ignored ``tier_preset`` entirely. Per Commit A
+    # of the LLM-hygiene sprint we leave ``agent_matrix=None`` so the
+    # catalog branch in ``pro/__init__.py`` (gated on ``model_matrix is None``
+    # + non-None ``tier_preset``) resolves the matrix from ``model_matrix_for_tier``.
     from gecko_core.orchestration.pro.pricing import compute_cost_usd
     from gecko_core.orchestration.pro.router import (
-        model_matrix as _matrix_for,
-    )
-    from gecko_core.orchestration.pro.router import (
+        model_matrix_for_tier,
         resolve_router,
     )
+    from gecko_core.routing.catalog import Tier as _CatalogTier
 
     if os.environ.get("LLM_ROUTER"):
         cfg = resolve_router()
         llm_config: dict[str, Any] = cfg.llm_config_for_model(
             orch.chat_model, temperature=orch.temperature
         )
-        # The matrix-driven path overrides the model per-agent inside
-        # build_groupchat. The base llm_config still needs a model field for
-        # the GroupChatManager + the auto-selector fallback path.
-        resolved_matrix: dict[str, str] = _matrix_for(cfg.router)
-        agent_matrix: dict[str, str] | None = resolved_matrix
-        # Cost-attribution lookup for the on_event closure.
-        _model_for: dict[str, str] = dict(resolved_matrix)
+        # Catalog is the single source of truth: leave ``agent_matrix=None``
+        # so pro.generate's tier_preset-driven branch resolves the per-agent
+        # matrix from ``model_matrix_for_tier``. The cost-attribution lookup
+        # below still needs to know which model each agent is going to use,
+        # so we resolve a parallel copy here purely for the on_event closure.
+        agent_matrix: dict[str, str] | None = None
+        try:
+            _resolved_for_costs = model_matrix_for_tier(
+                cfg.router, _CatalogTier(tier_preset or "balanced")
+            )
+        except Exception:
+            _resolved_for_costs = {}
+        _model_for: dict[str, str] = dict(_resolved_for_costs)
     else:
         llm_config = {
             "config_list": [

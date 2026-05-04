@@ -1,4 +1,10 @@
-"""Unit tests for the per-agent model matrix (S1-02)."""
+"""Unit tests for the per-agent model matrix.
+
+The legacy ``_MATRIX`` / ``model_matrix(router)`` / ``model_for_agent`` surface
+was removed in the LLM-hygiene Commit A — it was a hardcoded gpt-4o-mini map
+that ignored ``tier_preset`` entirely. The catalog-driven
+``model_matrix_for_tier(router, tier)`` is now the single source of truth.
+"""
 
 from __future__ import annotations
 
@@ -6,35 +12,36 @@ from typing import Any
 from unittest.mock import patch
 
 
-def test_matrix_openai_has_expected_models() -> None:
-    from gecko_core.orchestration.pro.router import model_for_agent, model_matrix
+def test_matrix_for_tier_balanced_openai_substitutes_fallback() -> None:
+    """LLM_ROUTER=openai forces an OpenAI-only fallback when the catalog
+    pick is non-OpenAI (e.g. balanced/general_reasoning -> Kimi K2.6)."""
+    from gecko_core.orchestration.pro.router import model_matrix_for_tier
+    from gecko_core.routing.catalog import Tier
 
-    assert model_for_agent("analyst", "openai") == "gpt-4o-mini"
-    assert model_for_agent("critic", "openai") == "gpt-4o-mini"
-    assert model_for_agent("scoper", "openai") == "gpt-4o-mini"
-    assert model_for_agent("judge", "openai") == "gpt-4o"
-
-    matrix = model_matrix("openai")
-    # judge is the only larger-model agent in the openai matrix today.
-    larger = {k for k, v in matrix.items() if v == "gpt-4o"}
-    assert larger == {"judge"}
-
-
-def test_matrix_openrouter_prefixes_models() -> None:
-    from gecko_core.orchestration.pro.router import model_matrix
-
-    matrix = model_matrix("openrouter")
+    matrix = model_matrix_for_tier("openai", Tier.balanced)
+    # All five Pro-debate roles plus the proponent alias resolve to a model id.
+    for role in ("analyst", "critic", "architect", "scoper", "judge", "proponent"):
+        assert role in matrix, f"missing role {role!r}"
+    # OpenAI router can't reach Anthropic/Moonshot/etc., so every entry must
+    # be an openai/* model.
     for v in matrix.values():
-        assert v.startswith("openai/")
-    assert matrix["analyst"] == "openai/gpt-4o-mini"
-    assert matrix["judge"] == "openai/gpt-4o"
+        assert v.startswith("openai/"), f"openai router leaked non-openai model: {v!r}"
 
 
-def test_matrix_clawrouter_uses_blockrun_auto() -> None:
-    from gecko_core.orchestration.pro.router import model_matrix
+def test_matrix_for_tier_balanced_openrouter_uses_catalog() -> None:
+    """OpenRouter can reach any provider; the catalog picks should land
+    intact (no fallback substitution)."""
+    from gecko_core.orchestration.pro.router import model_matrix_for_tier
+    from gecko_core.routing.catalog import AgentRole, Tier, lookup_model, task_for_role
 
-    matrix = model_matrix("clawrouter")
-    assert all(v == "blockrun/auto" for v in matrix.values())
+    matrix = model_matrix_for_tier("openrouter", Tier.balanced)
+    # Each role's resolved model id matches the catalog cell directly.
+    for role_name in ("analyst", "critic", "architect", "scoper", "judge"):
+        role = AgentRole(role_name)
+        expected = lookup_model(task_for_role(role), Tier.balanced).id
+        assert matrix[role_name] == expected, (
+            f"{role_name}: catalog={expected!r} vs resolved={matrix[role_name]!r}"
+        )
 
 
 def test_build_groupchat_overrides_per_agent_model() -> None:

@@ -64,11 +64,15 @@ def test_quantized_to_micro_usd() -> None:
     assert cost.as_tuple().exponent == -6
 
 
-def test_known_models_includes_matrix_targets() -> None:
+def test_known_models_includes_legacy_pricing_anchors() -> None:
+    """The legacy ``model_matrix`` was deleted in the LLM-hygiene Commit A.
+    The catalog-driven matrix produces ids that aren't all in the small
+    ``_PRICE_TABLE``; the table's role is per-agent cost attribution for
+    callers that pass router-prefixed names through. Just confirm the legacy
+    anchors are still priced — adding new model ids is on the catalog wiring,
+    not on the price table."""
     from gecko_core.orchestration.pro.pricing import known_models
-    from gecko_core.orchestration.pro.router import model_matrix
 
     priced = set(known_models())
-    for router in ("openai", "openrouter", "clawrouter"):
-        for model in model_matrix(router).values():
-            assert model in priced, f"{model!r} (router={router}) missing from price table"
+    for anchor in ("gpt-4o-mini", "gpt-4o", "openai/gpt-4o-mini", "blockrun/auto"):
+        assert anchor in priced, f"pricing anchor {anchor!r} missing from price table"
