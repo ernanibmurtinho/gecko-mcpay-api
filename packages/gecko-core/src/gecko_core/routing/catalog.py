@@ -84,7 +84,9 @@ class AgentRole(str, Enum):
 
     First five are the Pro-debate agents (already in production); the next
     five are the Sprint 4 Advisor Panel — wired here so the orchestration
-    shell ships with model selection ready when the panel lands.
+    shell ships with model selection ready when the panel lands. The final
+    five (LLM-hygiene Commit B) cover the orchestration-layer bypass sites
+    that previously hardcoded ``gpt-4o-mini`` / ``orch.chat_model``.
     """
 
     # Pro debate
@@ -99,6 +101,15 @@ class AgentRole(str, Enum):
     business_manager = "business_manager"
     product_manager = "product_manager"
     staff_manager = "staff_manager"
+    # Orchestration bypass sites (LLM-hygiene Commit B). These previously
+    # hardcoded ``gpt-4o-mini`` / ``orch.chat_model`` instead of resolving
+    # through the catalog. Each maps to a TaskProfile via _ROLE_TO_TASK_MATRIX
+    # below; the per-call-site default Tier is pinned at the call site.
+    post_processor = "post_processor"  # transcript -> structured JSON
+    refiner = "refiner"  # idea sharpening prompt
+    judge_synth = "judge_synth"  # tweet corpus -> skill.md envelope
+    research_basic = "research_basic"  # single-pass basic-tier research
+    ask = "ask"  # follow-up Q&A grounded in session chunks
 
 
 class ModelPricing(BaseModel):
@@ -158,6 +169,12 @@ _ROLE_TO_TASK_MATRIX: dict[AgentRole, TaskProfile] = {
     AgentRole.business_manager: TaskProfile.math_science,
     AgentRole.product_manager: TaskProfile.creative_writing,
     AgentRole.staff_manager: TaskProfile.classification,
+    # Orchestration bypass sites (LLM-hygiene Commit B)
+    AgentRole.post_processor: TaskProfile.classification,
+    AgentRole.refiner: TaskProfile.creative_writing,
+    AgentRole.judge_synth: TaskProfile.creative_writing,
+    AgentRole.research_basic: TaskProfile.general_reasoning,
+    AgentRole.ask: TaskProfile.summarization,
 }
 
 
@@ -328,6 +345,54 @@ def models_for_role(role: AgentRole) -> dict[Tier, ModelEntry]:
     return {tier: lookup_model(task, tier) for tier in Tier}
 
 
+def model_id_for_role(role: AgentRole, tier: Tier) -> str:
+    """Sibling to ``models_for_role`` that returns just the catalog id.
+
+    Most call sites pass the model id straight into ``client.chat.completions
+    .create(model=...)`` and don't need the rest of the ``ModelEntry``. Use
+    this when you've already settled on a tier; use ``resolve_model_for_router``
+    when ``LLM_ROUTER`` may require an OpenAI-only fallback.
+    """
+    return lookup_model(_ROLE_TO_TASK_MATRIX[role], tier).id
+
+
+# Providers reachable directly via OpenAI's API. Other providers must go
+# through OpenRouter (or ClawRouter). When ``LLM_ROUTER=openai`` and the
+# catalog matrix would pick a non-OpenAI model, we substitute the OpenAI
+# fallback for that tier rather than 404 at the API.
+#
+# This mirrors the legacy ``_OPENAI_FALLBACK_BY_TIER`` that lived in
+# ``orchestration/pro/router.py`` — lifted up here so all five orchestration
+# bypass sites (post_processor, refiner, judge_synth, research_basic, ask)
+# share one fallback table with the AG2 debate.
+_OPENAI_FALLBACK_BY_TIER: dict[Tier, str] = {
+    Tier.quality: "openai/gpt-5.5",
+    Tier.balanced: "openai/gpt-5-mini",
+    Tier.budget: "openai/gpt-4.1-nano",
+    Tier.free: "openai/gpt-4.1-nano",  # no free OpenAI model — degrade to nano
+}
+
+
+def resolve_model_for_router(role: AgentRole, tier: Tier, router: str) -> str:
+    """Return the model id for ``(role, tier)`` adjusted for ``router``.
+
+    When ``router == "openai"`` and the catalog pick is non-OpenAI (Anthropic,
+    Moonshot, Google, etc.), substitute the OpenAI fallback for ``tier``
+    rather than 404 at api.openai.com. ``openrouter`` and ``clawrouter``
+    pass the catalog id through unchanged.
+    """
+    catalog_id = model_id_for_role(role, tier)
+    router_norm = (router or "").strip().lower()
+    if router_norm != "openai":
+        return catalog_id
+    catalog = load_catalog()
+    entry = catalog.get(catalog_id)
+    if entry is not None and entry.provider == "openai":
+        return catalog_id
+    # Catalog pick is non-OpenAI; fall back to the OpenAI-only ladder.
+    return _OPENAI_FALLBACK_BY_TIER[tier]
+
+
 def all_models() -> list[ModelEntry]:
     """Return the full catalog as a list, sorted by id for deterministic output."""
     catalog = load_catalog()
@@ -364,6 +429,8 @@ __all__ = [
     "filter_by_provider",
     "load_catalog",
     "lookup_model",
+    "model_id_for_role",
     "models_for_role",
+    "resolve_model_for_router",
     "task_for_role",
 ]

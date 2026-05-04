@@ -19,6 +19,9 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 from gecko_core.routing.catalog import (
+    _OPENAI_FALLBACK_BY_TIER as _CATALOG_OPENAI_FALLBACK,
+)
+from gecko_core.routing.catalog import (
     AgentRole,
     Tier,
     filter_by_provider,
@@ -179,16 +182,12 @@ _PRO_DEBATE_ROLES: tuple[AgentRole, ...] = (
 )
 
 
-# Providers reachable directly via OpenAI's API. Other providers must go
-# through OpenRouter (or ClawRouter). When ``LLM_ROUTER=openai`` and the
-# catalog matrix would pick a non-OpenAI model, we substitute the OpenAI
-# fallback for that role rather than 404 at the API.
-_OPENAI_FALLBACK_BY_TIER: dict[Tier, str] = {
-    Tier.quality: "openai/gpt-5.5",
-    Tier.balanced: "openai/gpt-5-mini",
-    Tier.budget: "openai/gpt-4.1-nano",
-    Tier.free: "openai/gpt-4.1-nano",  # no free OpenAI model — degrade to nano
-}
+# LLM-hygiene Commit B: the OpenAI-only fallback table moved to
+# ``gecko_core.routing.catalog`` (``_OPENAI_FALLBACK_BY_TIER``) so the AG2
+# debate, the post-processors, and the other orchestration bypass sites all
+# share one fallback ladder. Re-exported here under the legacy name for
+# backwards compatibility with internal callers.
+_OPENAI_FALLBACK_BY_TIER: dict[Tier, str] = _CATALOG_OPENAI_FALLBACK
 
 
 def model_matrix_for_tier(router: Router, tier: Tier) -> dict[str, str]:

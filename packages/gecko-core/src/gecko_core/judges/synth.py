@@ -22,12 +22,27 @@ from pydantic import BaseModel, Field, ValidationError
 from gecko_core.judges.corpus import JudgeTweet, load_corpus
 from gecko_core.orchestration.pro.post_processors import _build_client
 from gecko_core.orchestration.pro.prompts import _BUNDLED_VERSIONS
+from gecko_core.orchestration.settings import (
+    get_orchestration_settings,
+    resolve_llm_config,
+)
+from gecko_core.routing.catalog import AgentRole, Tier, resolve_model_for_router
 
 logger = logging.getLogger(__name__)
 
-_SYNTH_MODEL = "gpt-4o-mini"
+# LLM-hygiene Commit B — judge_synth sits at the quality tier of the
+# creative_writing task profile (Claude Sonnet 4.6 by default). The corpus
+# is small but the output ships to a real human judge for sign-off, so this
+# is one of the few orchestration sites where the cost is justified.
+_SYNTH_TIER = Tier.quality
 _SYNTH_TEMPERATURE = 0.2
 _GENERATOR_TAG = "gecko `bb judges synth --handle <handle>` (v0.1.6)"
+
+
+def _resolve_synth_model() -> str:
+    cfg = resolve_llm_config(settings=get_orchestration_settings())
+    router_name = cfg.source.split(":", 1)[1] if cfg.source.startswith("router:") else "openai"
+    return resolve_model_for_router(AgentRole.judge_synth, _SYNTH_TIER, router_name)
 
 
 class JudgeSynthEnvelope(BaseModel):
@@ -160,7 +175,7 @@ async def _call_judge_synth(
     client = _build_client()
     try:
         resp = await client.chat.completions.create(
-            model=_SYNTH_MODEL,
+            model=_resolve_synth_model(),
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},

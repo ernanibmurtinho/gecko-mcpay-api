@@ -30,13 +30,31 @@ from gecko_core.models import (
     derive_verdict,
     is_low_grounding,
 )
-from gecko_core.orchestration.settings import get_orchestration_settings
+from gecko_core.orchestration.settings import (
+    get_orchestration_settings,
+    resolve_llm_config,
+)
 from gecko_core.rag.query import RagChunk, rag_query
+from gecko_core.routing.catalog import AgentRole, resolve_model_for_router
+from gecko_core.routing.catalog import Tier as CatalogTier
 from gecko_core.sessions.store import SessionStore
 
 logger = logging.getLogger(__name__)
 
 _enc = tiktoken.get_encoding("cl100k_base")
+
+
+# LLM-hygiene Commit B — basic-tier research model resolves through the
+# catalog at call time instead of reading ``OrchestrationSettings.chat_model``
+# directly. Default tier is balanced (Kimi K2.6 on the general_reasoning
+# task profile); ``LLM_ROUTER=openai`` substitutes the OpenAI-only fallback.
+_BASIC_RESEARCH_TIER = CatalogTier.balanced
+
+
+def _resolve_basic_research_model() -> str:
+    cfg = resolve_llm_config(settings=get_orchestration_settings())
+    router_name = cfg.source.split(":", 1)[1] if cfg.source.startswith("router:") else "openai"
+    return resolve_model_for_router(AgentRole.research_basic, _BASIC_RESEARCH_TIER, router_name)
 
 
 class OrchestrationError(Exception):
@@ -391,7 +409,7 @@ async def generate(
     user = _user_prompt(idea, context)
     raw, cost1 = await _call_llm(
         client=client,
-        model=orch.chat_model,
+        model=_resolve_basic_research_model(),
         system=_SYSTEM_PROMPT,
         user=user,
         temperature=orch.temperature,
@@ -412,7 +430,7 @@ async def generate(
         )
         raw2, cost2 = await _call_llm(
             client=client,
-            model=orch.chat_model,
+            model=_resolve_basic_research_model(),
             system=_SYSTEM_PROMPT,
             user=retry_user,
             temperature=orch.temperature,
@@ -433,7 +451,7 @@ async def generate(
         retry_user = user + _GAP_RETRY_SUFFIX
         raw_gap, cost_gap = await _call_llm(
             client=client,
-            model=orch.chat_model,
+            model=_resolve_basic_research_model(),
             system=_SYSTEM_PROMPT,
             user=retry_user,
             temperature=orch.temperature,

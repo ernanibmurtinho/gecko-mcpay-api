@@ -27,11 +27,25 @@ from pydantic import ValidationError
 from gecko_core.models import RefinedIdea, ResearchResult
 from gecko_core.orchestration.pro.post_processors import _build_client
 from gecko_core.orchestration.pro.prompts import _BUNDLED_VERSIONS
+from gecko_core.orchestration.settings import (
+    get_orchestration_settings,
+    resolve_llm_config,
+)
+from gecko_core.routing.catalog import AgentRole, Tier, resolve_model_for_router
 
 logger = logging.getLogger(__name__)
 
-_REFINE_MODEL = "gpt-4o-mini"
+# LLM-hygiene Commit B — model resolves through the catalog at call time,
+# adjusted for the active LLM_ROUTER. Refiner sits at the balanced tier of
+# the creative_writing task profile (Kimi K2.6 by default).
+_REFINE_TIER = Tier.balanced
 _REFINE_TEMPERATURE = 0.2
+
+
+def _resolve_refine_model() -> str:
+    cfg = resolve_llm_config(settings=get_orchestration_settings())
+    router_name = cfg.source.split(":", 1)[1] if cfg.source.startswith("router:") else "openai"
+    return resolve_model_for_router(AgentRole.refiner, _REFINE_TIER, router_name)
 
 
 class RefineError(Exception):
@@ -103,7 +117,7 @@ async def refine_idea(
     client = _build_client()
     try:
         resp = await client.chat.completions.create(
-            model=_REFINE_MODEL,
+            model=_resolve_refine_model(),
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},

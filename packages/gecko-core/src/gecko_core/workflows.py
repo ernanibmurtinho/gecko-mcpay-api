@@ -1200,8 +1200,31 @@ async def ask(
         f"[{i}] (source: {c.source_url}) {c.text}" for i, c in enumerate(chunks, 1)
     )
 
+    # LLM-hygiene Commit B — resolve through the catalog instead of reading
+    # ``orch.chat_model``. ``ask`` is a follow-up Q&A, summarization-shaped;
+    # budget tier is appropriate (gpt-4.1-nano on the openai router by
+    # default). Plain-text answer with [n] citations — no
+    # response_format=json_object on purpose (the route returns prose, not
+    # structured JSON; the prior audit was wrong about that).
+    from gecko_core.orchestration.settings import resolve_llm_config as _resolve_cfg
+    from gecko_core.routing.catalog import (
+        AgentRole as _AgentRole,
+    )
+    from gecko_core.routing.catalog import (
+        Tier as _AskTier,
+    )
+    from gecko_core.routing.catalog import (
+        resolve_model_for_router as _resolve_model,
+    )
+
+    _ask_cfg = _resolve_cfg(settings=orch)
+    _ask_router = (
+        _ask_cfg.source.split(":", 1)[1] if _ask_cfg.source.startswith("router:") else "openai"
+    )
+    _ask_model = _resolve_model(_AgentRole.ask, _AskTier.budget, _ask_router)
+
     resp = await client.chat.completions.create(
-        model=orch.chat_model,
+        model=_ask_model,
         messages=[
             {
                 "role": "system",

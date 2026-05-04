@@ -137,3 +137,119 @@ def test_60_cell_matrix_is_fully_populated() -> None:
             f"matrix references {model_id} for ({task.value}, {tier.value}) "
             "but it's not in the catalog"
         )
+
+
+# ---------------------------------------------------------------------------
+# LLM-hygiene Commit B — five new orchestration bypass roles. Each role gets
+# an end-to-end (role, tier) → model_id assertion plus an LLM_ROUTER=openai
+# fallback assertion so the legacy ``gpt-4o-mini`` hardcodes can't sneak
+# back in via a catalog regression.
+# ---------------------------------------------------------------------------
+
+
+def test_post_processor_role_resolves_to_classification_budget() -> None:
+    """Post-processor: classification × budget → DeepSeek V4 Flash (catalog)
+    or openai/gpt-4.1-nano (openai fallback)."""
+    from gecko_core.routing.catalog import (
+        AgentRole,
+        Tier,
+        model_id_for_role,
+        resolve_model_for_router,
+    )
+
+    catalog_id = model_id_for_role(AgentRole.post_processor, Tier.budget)
+    assert catalog_id == "deepseek/deepseek-v4-flash"
+    assert (
+        resolve_model_for_router(AgentRole.post_processor, Tier.budget, "openrouter") == catalog_id
+    )
+    # openai router substitutes the fallback (DeepSeek isn't reachable from
+    # api.openai.com).
+    assert (
+        resolve_model_for_router(AgentRole.post_processor, Tier.budget, "openai")
+        == "openai/gpt-4.1-nano"
+    )
+
+
+def test_refiner_role_resolves_to_creative_writing_balanced() -> None:
+    """Refiner: creative_writing × balanced → Kimi K2.6 / openai fallback."""
+    from gecko_core.routing.catalog import (
+        AgentRole,
+        Tier,
+        model_id_for_role,
+        resolve_model_for_router,
+    )
+
+    catalog_id = model_id_for_role(AgentRole.refiner, Tier.balanced)
+    assert catalog_id == "moonshotai/kimi-k2.6"
+    assert resolve_model_for_router(AgentRole.refiner, Tier.balanced, "openrouter") == catalog_id
+    assert (
+        resolve_model_for_router(AgentRole.refiner, Tier.balanced, "openai") == "openai/gpt-5-mini"
+    )
+
+
+def test_judge_synth_role_resolves_to_creative_writing_quality() -> None:
+    """Judge synth: creative_writing × quality → Claude Sonnet 4.6 / openai fallback."""
+    from gecko_core.routing.catalog import (
+        AgentRole,
+        Tier,
+        model_id_for_role,
+        resolve_model_for_router,
+    )
+
+    catalog_id = model_id_for_role(AgentRole.judge_synth, Tier.quality)
+    assert catalog_id == "anthropic/claude-sonnet-4.6"
+    assert resolve_model_for_router(AgentRole.judge_synth, Tier.quality, "openrouter") == catalog_id
+    # openai router can't reach Anthropic; ladder to gpt-5.5.
+    assert (
+        resolve_model_for_router(AgentRole.judge_synth, Tier.quality, "openai") == "openai/gpt-5.5"
+    )
+
+
+def test_research_basic_role_resolves_to_general_reasoning_balanced() -> None:
+    """Basic research: general_reasoning × balanced → Kimi K2.6 / openai fallback."""
+    from gecko_core.routing.catalog import (
+        AgentRole,
+        Tier,
+        model_id_for_role,
+        resolve_model_for_router,
+    )
+
+    catalog_id = model_id_for_role(AgentRole.research_basic, Tier.balanced)
+    assert catalog_id == "moonshotai/kimi-k2.6"
+    assert (
+        resolve_model_for_router(AgentRole.research_basic, Tier.balanced, "openrouter")
+        == catalog_id
+    )
+    assert (
+        resolve_model_for_router(AgentRole.research_basic, Tier.balanced, "openai")
+        == "openai/gpt-5-mini"
+    )
+
+
+def test_ask_role_resolves_to_summarization_budget() -> None:
+    """Ask: summarization × budget → openai/gpt-4.1-nano (already openai-native)."""
+    from gecko_core.routing.catalog import (
+        AgentRole,
+        Tier,
+        model_id_for_role,
+        resolve_model_for_router,
+    )
+
+    catalog_id = model_id_for_role(AgentRole.ask, Tier.budget)
+    # summarization × budget is already an openai/* id, so all routers agree.
+    assert catalog_id == "openai/gpt-4.1-nano"
+    for router in ("openai", "openrouter", "clawrouter"):
+        assert resolve_model_for_router(AgentRole.ask, Tier.budget, router) == catalog_id
+
+
+def test_resolve_model_for_router_openai_does_not_substitute_when_native() -> None:
+    """When the catalog pick is already an openai/* model the openai router
+    should pass it through unchanged (no spurious fallback substitution)."""
+    from gecko_core.routing.catalog import (
+        AgentRole,
+        Tier,
+        resolve_model_for_router,
+    )
+
+    # ask × budget = openai/gpt-4.1-nano — native, no fallback.
+    assert resolve_model_for_router(AgentRole.ask, Tier.budget, "openai") == "openai/gpt-4.1-nano"

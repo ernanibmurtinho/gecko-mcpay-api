@@ -33,14 +33,31 @@ from gecko_core.orchestration.settings import (
     get_orchestration_settings,
     resolve_llm_config,
 )
+from gecko_core.routing.catalog import AgentRole, Tier, resolve_model_for_router
 
 logger = logging.getLogger(__name__)
 
 # Post-processors run on a small fast model; the in-debate matrix is
 # decoupled from this surface by design (a v5.6 model swap on the debate
-# voices should not perturb the readout shape).
-_POST_PROCESSOR_MODEL = "gpt-4o-mini"
+# voices should not perturb the readout shape). Model resolves through the
+# catalog (LLM-hygiene Commit B) — pinned to the budget tier of the
+# classification task profile by default.
+_POST_PROCESSOR_TIER = Tier.budget
 _POST_PROCESSOR_TEMPERATURE = 0.2
+
+
+def _resolve_post_processor_model() -> str:
+    """Resolve the post-processor model id through the catalog.
+
+    Reads ``LLM_ROUTER`` from settings (router-driven path) so the OpenAI-only
+    fallback fires when the catalog pick is non-OpenAI.
+    """
+    cfg = resolve_llm_config(settings=get_orchestration_settings())
+    # cfg.source is "router:<name>" or "legacy"; legacy plane = openai-shaped
+    # endpoint, so treat it as openai for fallback purposes.
+    router_name = cfg.source.split(":", 1)[1] if cfg.source.startswith("router:") else "openai"
+    return resolve_model_for_router(AgentRole.post_processor, _POST_PROCESSOR_TIER, router_name)
+
 
 # Each section ships its own banner to keep the user prompt small but
 # disambiguate the model's task when it sees only the transcript text.
@@ -67,7 +84,7 @@ async def _call_json(
     user: str,
 ) -> dict[str, Any]:
     resp = await client.chat.completions.create(
-        model=_POST_PROCESSOR_MODEL,
+        model=_resolve_post_processor_model(),
         messages=[
             {"role": "system", "content": system},
             {"role": "user", "content": user},
