@@ -4,7 +4,7 @@ version = "0.2.1"
 description = "MCP server for Gecko — exposes gecko_research, gecko_ask, gecko_sources to Claude Code."
 requires-python = ">=3.11"
 dependencies = [
-    "gecko-core",
+    "gecko-core>=0.2.1",
     "mcp>=1.0",
     "click>=8.1",
     "python-dotenv>=1.0",
