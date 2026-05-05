@@ -49,7 +49,7 @@ _enc = tiktoken.get_encoding("cl100k_base")
 
 # LLM-hygiene Commit B — basic-tier research model resolves through the
 # catalog at call time instead of reading ``OrchestrationSettings.chat_model``
-# directly. Default tier is balanced (Kimi K2.6 on the general_reasoning
+# directly. Default tier is balanced (DeepSeek V3.2 on the general_reasoning
 # task profile); ``LLM_ROUTER=openai`` substitutes the OpenAI-only fallback.
 _BASIC_RESEARCH_TIER = CatalogTier.balanced
 
@@ -255,15 +255,28 @@ async def _call_llm(
     if max_tokens is not None:
         create_kwargs["max_tokens"] = max_tokens
     # Retry up to 2 times on empty content — OpenRouter-routed models
-    # (Kimi K2.6, DeepSeek V3.2) occasionally return empty responses on
-    # cold-start or transient rate-limit blips.
+    # occasionally return empty responses on cold-start or transient blips.
+    # Exception: finish_reason=length means the token budget was exhausted
+    # before any visible output (reasoning models consume budget on internal
+    # thinking tokens before emitting visible content). Retrying the same
+    # params would hit the same wall — raise immediately instead.
     _MAX_EMPTY_RETRIES = 2
     for _attempt in range(_MAX_EMPTY_RETRIES + 1):
         raw = await client.chat.completions.with_raw_response.create(**create_kwargs)
         resp = raw.parse()
         content = resp.choices[0].message.content
+        finish_reason = resp.choices[0].finish_reason if resp.choices else None
         if content:
             break
+        if finish_reason == "length":
+            logger.warning(
+                "llm.empty_content finish_reason=length model=%s — "
+                "token budget exhausted before visible output; aborting retries",
+                model,
+            )
+            raise OrchestrationError(
+                "LLM returned empty content (finish_reason=length — token budget exhausted)"
+            )
         if _attempt < _MAX_EMPTY_RETRIES:
             await asyncio.sleep(2.0 * (_attempt + 1))
     else:

@@ -243,7 +243,7 @@ _TASK_TIER_TO_MODEL_ID: dict[tuple[TaskProfile, Tier], str] = {
     (TaskProfile.code_review, Tier.budget): _id("Kimi K2.6"),
     (TaskProfile.code_review, Tier.free): _id("DeepSeek V4 Flash"),
     (TaskProfile.general_reasoning, Tier.quality): _id("GPT-5.5"),
-    (TaskProfile.general_reasoning, Tier.balanced): _id("Kimi K2.6"),
+    (TaskProfile.general_reasoning, Tier.balanced): _id("DeepSeek V3.2"),
     (TaskProfile.general_reasoning, Tier.budget): _id("Grok 4.1 Fast"),
     (TaskProfile.general_reasoning, Tier.free): _id("GPT-4.1 Nano"),
     (TaskProfile.creative_writing, Tier.quality): _id("Claude Sonnet 4.6"),
