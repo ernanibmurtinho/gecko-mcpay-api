@@ -63,7 +63,9 @@ _SERIAL_STAGE: tuple[str, ...] = ("architect", "scoper", "judge")
 # Per-voice wall-clock cap. A single hung voice cannot block the rest of
 # the debate; on timeout we emit a placeholder turn (voice failed:
 # timeout after Ns) so the transcript stays well-formed.
-_VOICE_TIMEOUT_SECONDS: float = 15.0
+# 60s: Kimi K2.6 / DeepSeek V3.2 via OpenRouter have 15-30s TTFT cold;
+# 15s was too tight for balanced/budget tiers.
+_VOICE_TIMEOUT_SECONDS: float = 60.0
 
 _RAG_CONTEXT_CHAR_CAP = 8000
 
