@@ -89,26 +89,80 @@ def _build_signer() -> Any:
     return KeypairSigner(get_keypair_for_signing())
 
 
-def _build_stub_client(api_url: str) -> httpx.AsyncClient:
-    """x402 client with a throwaway Solana keypair for stub-mode servers.
+class _StubX402Transport(httpx.AsyncBaseTransport):
+    """Handles x402 payment for stub-mode servers without Solana RPC calls.
 
-    The server's StubFacilitatorClient.verify() returns is_valid=True without
-    checking signatures, so the keypair never needs to be funded or persisted.
-    Generates a fresh keypair per client instance — intentionally ephemeral.
+    ExactSvmScheme.create_payment_payload() makes synchronous RPC calls to
+    api.devnet.solana.com (getAccountInfo + getLatestBlockhash) which block
+    the asyncio event loop. For stub servers StubFacilitatorClient.verify()
+    returns is_valid=True without inspecting the payload, so we only need a
+    structurally valid PaymentPayload — no blockhash, no mint lookup needed.
     """
-    from solders.keypair import Keypair
-    from x402 import x402Client
-    from x402.http.clients.httpx import x402AsyncTransport
-    from x402.mechanisms.svm.exact import ExactSvmScheme
-    from x402.mechanisms.svm.signers import KeypairSigner
 
-    signer = KeypairSigner(Keypair())
-    scheme = ExactSvmScheme(signer=signer)
-    client = x402Client()
-    client.register("solana:*", scheme)
-    client.register("solana-devnet", scheme)
-    client.register("solana-mainnet", scheme)
-    transport = x402AsyncTransport(client)
+    _RETRY_FLAG = "_stub_x402_retry"
+
+    def __init__(self) -> None:
+        self._inner = httpx.AsyncHTTPTransport()
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        response = await self._inner.handle_async_request(request)
+        if response.status_code != 402 or request.extensions.get(self._RETRY_FLAG):
+            return response
+
+        await response.aread()
+        try:
+            pay_hdr = response.headers.get("payment-required") or response.headers.get(
+                "PAYMENT-REQUIRED"
+            )
+            if not pay_hdr:
+                return response
+
+            from x402.http.utils import (
+                decode_payment_required_header,
+                encode_payment_signature_header,
+            )
+            from x402.schemas import PaymentPayload
+
+            payment_required = decode_payment_required_header(pay_hdr)
+            if not payment_required.accepts:
+                return response
+
+            stub_payload = PaymentPayload(
+                x402_version=2,
+                payload={"transaction": "c3R1Yg=="},  # base64("stub") — never verified
+                accepted=payment_required.accepts[0],
+            )
+            encoded = encode_payment_signature_header(stub_payload)
+
+            new_headers = dict(request.headers)
+            new_headers["PAYMENT-SIGNATURE"] = encoded
+            new_extensions = dict(request.extensions)
+            new_extensions[self._RETRY_FLAG] = True
+
+            retry = httpx.Request(
+                method=request.method,
+                url=request.url,
+                headers=new_headers,
+                content=request.content,
+                extensions=new_extensions,
+            )
+            return await self._inner.handle_async_request(retry)
+        except Exception:
+            return response  # fall back to the original 402 on any error
+
+    async def aclose(self) -> None:
+        await self._inner.aclose()
+
+
+def _build_stub_client(api_url: str) -> httpx.AsyncClient:
+    """x402 client for stub-mode servers — no Solana RPC calls.
+
+    Stub servers' StubFacilitatorClient.verify() returns is_valid=True without
+    inspecting the payment payload, so we only need a structurally valid
+    PaymentPayload. _StubX402Transport builds one without fetching blockhash or
+    mint info from the Solana RPC.
+    """
+    transport = _StubX402Transport()
     return httpx.AsyncClient(base_url=api_url, transport=transport, timeout=_DEFAULT_TIMEOUT)
 
 

@@ -4,7 +4,7 @@
 [![uv](https://img.shields.io/badge/uv-workspace-DE5FE9.svg)](https://docs.astral.sh/uv/)
 [![Claude Code](https://img.shields.io/badge/claude--code-MCP-D97757.svg)](https://docs.anthropic.com/claude/claude-code)
 [![x402](https://img.shields.io/badge/x402-stub%20%7C%20live%20%7C%20cdp-9945FF.svg)](https://x402.org/)
-[![gecko-mcp](https://img.shields.io/badge/gecko--mcp-0.2.1-success.svg)](https://pypi.org/project/gecko-mcp/)
+[![gecko-mcp](https://img.shields.io/badge/gecko--mcp-0.2.2-success.svg)](https://pypi.org/project/gecko-mcp/)
 [![gecko-core](https://img.shields.io/badge/gecko--core-0.2.1-success.svg)](https://pypi.org/project/gecko-core/)
 
 > Gecko gives crypto builders a deep, multi-voice verdict on their idea — with
@@ -15,7 +15,7 @@ This repository is the **Python backend**: `uv` workspace housing the SDK, the
 FastAPI service, the MCP server, and the `bb` / `gecko` CLI. The Next.js app
 lives in [**gecko-mcpay-app**](https://github.com/<owner>/gecko-mcpay-app).
 
-> **Status (2026-05-04):** gecko-mcp 0.2.1 on PyPI. Plug-and-play for external users — no ClawRouter, no Node.js, no local env config. One command installs; Email+OTP wallet in under 30 seconds; `gecko_research` fires in under 5 minutes from zero. See [`docs/build-plan-sprint-mcp-plug-and-play.md`](docs/build-plan-sprint-mcp-plug-and-play.md).
+> **Status (2026-05-04):** gecko-mcp 0.2.2 on PyPI. Plug-and-play for external users — no ClawRouter, no Node.js, no local env config. One command installs; Email+OTP wallet in under 30 seconds; `gecko_research` fires in under 5 minutes from zero. See [`docs/build-plan-sprint-mcp-plug-and-play.md`](docs/build-plan-sprint-mcp-plug-and-play.md).
 
 ---
 

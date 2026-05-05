@@ -528,6 +528,53 @@ async def test_delete_project_calls_delete() -> None:
     await client.aclose()
 
 
+async def test_stub_x402_transport_retries_without_rpc_calls() -> None:
+    """_StubX402Transport builds PaymentPayload without Solana RPC calls.
+
+    Root cause of the Manus hang: ExactSvmScheme.create_payment_payload() makes
+    synchronous SolanaClient.get_account_info() + get_latest_blockhash() calls
+    that block asyncio. _StubX402Transport bypasses this entirely.
+    """
+    from gecko_mcp.api_client import _StubX402Transport
+
+    post_count: dict[str, int] = {"n": 0}
+    captured: dict[str, object] = {}
+    sid = "22222222-2222-2222-2222-222222222222"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST" and "/research" in request.url.path:
+            post_count["n"] += 1
+            if post_count["n"] == 1:
+                # First call — no payment → challenge
+                return httpx.Response(
+                    status_code=402,
+                    headers={"PAYMENT-REQUIRED": _encoded_payment_required()},
+                    json={},
+                )
+            # Second call — with payment → accepted
+            captured["payment_signature"] = request.headers.get("payment-signature")
+            return httpx.Response(
+                status_code=202,
+                json={"session_id": sid, "status": "processing"},
+            )
+        if request.method == "GET" and "/result" in request.url.path:
+            return httpx.Response(status_code=200, json=_ok_research_body(sid))
+        return httpx.Response(status_code=404, json={})
+
+    transport = _StubX402Transport()
+    transport._inner = httpx.MockTransport(handler)  # type: ignore[assignment]
+    http = httpx.AsyncClient(base_url="http://test", transport=transport, timeout=5)
+    client = GeckoAPIClient(api_url="http://test", http_client=http)
+
+    result = await client.research("stub test idea")
+
+    assert post_count["n"] == 2, "expected exactly 2 POST /research calls (challenge + retry)"
+    assert captured["payment_signature"], "retry must carry PAYMENT-SIGNATURE header"
+    assert result["session_id"] == sid
+
+    await client.aclose()
+
+
 @pytest.mark.skip(
     reason=(
         "v2-only test: GeckoAPIClient no longer exposes ._get_signer(); the "
