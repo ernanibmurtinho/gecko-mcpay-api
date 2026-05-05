@@ -46,6 +46,8 @@ def test_lookup_complex_coding_quality_returns_opus() -> None:
 
 
 def test_lookup_complex_coding_balanced_returns_kimi() -> None:
+    # complex_coding×balanced still maps to Kimi K2.6: this is an AG2 plain-text
+    # voice (architect), not a json_object call site — safe to leave.
     m = lookup_model(TaskProfile.complex_coding, Tier.balanced)
     assert m.id == "moonshotai/kimi-k2.6"
     assert m.score == 84
@@ -171,7 +173,15 @@ def test_post_processor_role_resolves_to_classification_budget() -> None:
 
 
 def test_refiner_role_resolves_to_creative_writing_balanced() -> None:
-    """Refiner: creative_writing × balanced → Kimi K2.6 / openai fallback."""
+    """Refiner: creative_writing × balanced → DeepSeek V3.2 (S22-KIMI-AUDIT fix).
+
+    Kimi K2.6 was the pre-fix value. It is a reasoning model: when called with
+    response_format=json_object via OpenRouter its internal thinking trace
+    exhausts max_tokens before emitting visible output → content=null →
+    OrchestrationError. Replaced with DeepSeek V3.2 (non-reasoning, proven
+    json_object compat). OpenAI router falls back to gpt-5-mini (deepseek is
+    not reachable from api.openai.com).
+    """
     from gecko_core.routing.catalog import (
         AgentRole,
         Tier,
@@ -180,7 +190,7 @@ def test_refiner_role_resolves_to_creative_writing_balanced() -> None:
     )
 
     catalog_id = model_id_for_role(AgentRole.refiner, Tier.balanced)
-    assert catalog_id == "moonshotai/kimi-k2.6"
+    assert catalog_id == "deepseek/deepseek-v3.2"
     assert resolve_model_for_router(AgentRole.refiner, Tier.balanced, "openrouter") == catalog_id
     assert (
         resolve_model_for_router(AgentRole.refiner, Tier.balanced, "openai") == "openai/gpt-5-mini"
@@ -206,7 +216,13 @@ def test_judge_synth_role_resolves_to_creative_writing_quality() -> None:
 
 
 def test_research_basic_role_resolves_to_general_reasoning_balanced() -> None:
-    """Basic research: general_reasoning × balanced → Kimi K2.6 / openai fallback."""
+    """Basic research: general_reasoning × balanced → DeepSeek V3.2.
+
+    This cell was the first Kimi K2.6 fix in 0.2.7 (catalog.py line 246).
+    DeepSeek V3.2 is a non-reasoning model, json_object compatible via
+    OpenRouter. OpenAI router falls back to gpt-5-mini (deepseek not on
+    api.openai.com).
+    """
     from gecko_core.routing.catalog import (
         AgentRole,
         Tier,
@@ -215,7 +231,7 @@ def test_research_basic_role_resolves_to_general_reasoning_balanced() -> None:
     )
 
     catalog_id = model_id_for_role(AgentRole.research_basic, Tier.balanced)
-    assert catalog_id == "moonshotai/kimi-k2.6"
+    assert catalog_id == "deepseek/deepseek-v3.2"
     assert (
         resolve_model_for_router(AgentRole.research_basic, Tier.balanced, "openrouter")
         == catalog_id

@@ -247,7 +247,13 @@ _TASK_TIER_TO_MODEL_ID: dict[tuple[TaskProfile, Tier], str] = {
     (TaskProfile.general_reasoning, Tier.budget): _id("Grok 4.1 Fast"),
     (TaskProfile.general_reasoning, Tier.free): _id("GPT-4.1 Nano"),
     (TaskProfile.creative_writing, Tier.quality): _id("Claude Sonnet 4.6"),
-    (TaskProfile.creative_writing, Tier.balanced): _id("Kimi K2.6"),
+    # S22-KIMI-AUDIT: Kimi K2.6 is a reasoning model that exhausts max_tokens
+    # on its internal thinking trace before emitting visible JSON output via
+    # OpenRouter → content=null → OrchestrationError. All json_object call sites
+    # must use a non-reasoning model. creative_writing×balanced was used by
+    # AgentRole.refiner (bb refine, json_object call) and AgentRole.product_manager.
+    # Replaced with DeepSeek V3.2: comparable quality, proven json_object compat.
+    (TaskProfile.creative_writing, Tier.balanced): _id("DeepSeek V3.2"),
     (TaskProfile.creative_writing, Tier.budget): _id("Qwen3.6 Flash"),
     (TaskProfile.creative_writing, Tier.free): _id("GPT-4.1 Nano"),
     (TaskProfile.summarization, Tier.quality): _id("Gemini 3 Flash"),
@@ -263,7 +269,9 @@ _TASK_TIER_TO_MODEL_ID: dict[tuple[TaskProfile, Tier], str] = {
     (TaskProfile.audio_processing, Tier.budget): _id("Gemini 2.5 Flash"),
     (TaskProfile.audio_processing, Tier.free): _id("Gemini 2.5 Flash Lite"),
     (TaskProfile.tool_calling, Tier.quality): _id("Claude Sonnet 4.6"),
-    (TaskProfile.tool_calling, Tier.balanced): _id("Kimi K2.6"),
+    # S22-KIMI-AUDIT: removed Kimi K2.6 from tool_calling×balanced (latent
+    # json_object risk; no current AgentRole maps here but preventive fix).
+    (TaskProfile.tool_calling, Tier.balanced): _id("DeepSeek V3.2"),
     (TaskProfile.tool_calling, Tier.budget): _id("Gemini 3 Flash"),
     (TaskProfile.tool_calling, Tier.free): _id("GPT-4.1 Nano"),
     (TaskProfile.data_analysis, Tier.quality): _id("Claude Opus 4.7"),

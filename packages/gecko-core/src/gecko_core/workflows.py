@@ -26,7 +26,6 @@ from uuid import UUID
 from openai import AsyncOpenAI
 
 from gecko_core.ingestion import discover, ingest
-from gecko_core.ingestion.settings import get_ingestion_settings
 from gecko_core.models import (
     AskResult,
     Citation,
