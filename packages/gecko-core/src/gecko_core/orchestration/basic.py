@@ -254,6 +254,20 @@ async def _call_llm(
     }
     if max_tokens is not None:
         create_kwargs["max_tokens"] = max_tokens
+    # S22-PROVIDER-PIN-01 — OpenRouter routes a single model id to multiple
+    # sub-providers (Azure, DeepInfra, AkashML, Baidu, Novita, etc.) and some
+    # silently cap output at ~1,000 tokens regardless of max_tokens. Evidence:
+    # the 2026-05-05 OpenRouter activity CSV shows deepseek-v4-flash returning
+    # avg 193 tokens on DeepInfra vs avg 1,127 on AtlasCloud (same model id,
+    # same max_tokens=6000). For openai/* slugs, pin the provider to OpenAI
+    # direct so max_tokens is honored end-to-end. transforms=[] disables
+    # OpenRouter's default middle-out compression which can interact badly
+    # with json_object response_format.
+    if model.startswith("openai/"):
+        create_kwargs["extra_body"] = {
+            "provider": {"order": ["OpenAI"], "allow_fallbacks": False},
+            "transforms": [],
+        }
     # Retry up to 2 times on empty content — OpenRouter-routed models
     # occasionally return empty responses on cold-start or transient blips.
     # Exception: finish_reason=length means the token budget was exhausted
@@ -266,7 +280,38 @@ async def _call_llm(
         resp = raw.parse()
         content = resp.choices[0].message.content
         finish_reason = resp.choices[0].finish_reason if resp.choices else None
+        # S22-PROVIDER-PIN-01 — log on every call so the next failure is
+        # diagnosable from a single line. provider header is set by OpenRouter;
+        # absent on direct OpenAI/ClawRouter calls.
+        provider_used = raw.headers.get("x-openrouter-provider") or "unknown"
+        prompt_tokens = resp.usage.prompt_tokens if resp.usage else None
+        completion_tokens = resp.usage.completion_tokens if resp.usage else None
+        logger.info(
+            "llm.call model=%s provider=%s finish=%s prompt_tokens=%s completion_tokens=%s gen_id=%s",
+            resp.model or model,
+            provider_used,
+            finish_reason,
+            prompt_tokens,
+            completion_tokens,
+            resp.id,
+        )
         if content:
+            # If finish_reason=length AND content is non-empty, the response is
+            # truncated mid-output. Retrying with the same max_tokens won't help.
+            # Raise immediately so the caller surfaces a clean error instead of
+            # tripping a downstream JSON parse failure.
+            if finish_reason == "length":
+                logger.warning(
+                    "llm.truncated finish_reason=length model=%s provider=%s "
+                    "completion_tokens=%s — output cut mid-stream",
+                    model,
+                    provider_used,
+                    completion_tokens,
+                )
+                raise OrchestrationError(
+                    f"LLM output truncated (finish_reason=length, "
+                    f"completion_tokens={completion_tokens}, provider={provider_used})"
+                )
             break
         if finish_reason == "length":
             logger.warning(
