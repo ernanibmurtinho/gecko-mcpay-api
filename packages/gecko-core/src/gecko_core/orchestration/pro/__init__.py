@@ -305,9 +305,15 @@ async def generate(
             )
 
         usage_before = _client_usage_snapshot(agent)
+        # OpenRouter-routed models (Kimi K2.6, DeepSeek V3.2) return
+        # content=null (HTTP 200) when messages carry a `name` field on
+        # non-user roles — a format they don't support. Strip `name` from
+        # all roles universally; it's redundant since agent identity is
+        # already carried by the `role` field and the message position.
+        _messages = [{k: v for k, v in m.items() if k != "name"} for m in messages]
         try:
             reply = await asyncio.wait_for(
-                agent.a_generate_reply(messages=messages),
+                agent.a_generate_reply(messages=_messages),
                 timeout=_VOICE_TIMEOUT_SECONDS,
             )
         except TimeoutError:
@@ -333,6 +339,19 @@ async def generate(
             )
 
         text = _reply_text(reply)
+        # AG2 converts content=null → "" via content_str(None) without
+        # raising. Catch it here so an empty-content response surfaces as
+        # a named error turn rather than silently poisoning downstream
+        # synthesis with an empty assistant message.
+        if not text:
+            return _VoiceOutcome(
+                agent=agent_name,
+                kind="error",
+                content="",
+                tokens_in=0,
+                tokens_out=0,
+                error_text="model returned empty content (content=null via OpenRouter)",
+            )
         # Token attribution priority:
         #   1. Reply-shape (covers test fakes that hand back {"usage": ...})
         #   2. Wrapped-client usage delta (the production AG2 path)
