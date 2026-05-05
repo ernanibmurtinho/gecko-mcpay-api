@@ -11,6 +11,7 @@ raises `OrchestrationError` rather than silently shipping a hallucination.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 from typing import Any
@@ -253,10 +254,19 @@ async def _call_llm(
     }
     if max_tokens is not None:
         create_kwargs["max_tokens"] = max_tokens
-    raw = await client.chat.completions.with_raw_response.create(**create_kwargs)
-    resp = raw.parse()
-    content = resp.choices[0].message.content
-    if not content:
+    # Retry up to 2 times on empty content — OpenRouter-routed models
+    # (Kimi K2.6, DeepSeek V3.2) occasionally return empty responses on
+    # cold-start or transient rate-limit blips.
+    _MAX_EMPTY_RETRIES = 2
+    for _attempt in range(_MAX_EMPTY_RETRIES + 1):
+        raw = await client.chat.completions.with_raw_response.create(**create_kwargs)
+        resp = raw.parse()
+        content = resp.choices[0].message.content
+        if content:
+            break
+        if _attempt < _MAX_EMPTY_RETRIES:
+            await asyncio.sleep(2.0 * (_attempt + 1))
+    else:
         raise OrchestrationError("LLM returned empty content")
 
     cost_usd = 0.0
