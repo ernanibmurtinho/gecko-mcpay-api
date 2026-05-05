@@ -216,12 +216,13 @@ def test_judge_synth_role_resolves_to_creative_writing_quality() -> None:
 
 
 def test_research_basic_role_resolves_to_general_reasoning_balanced() -> None:
-    """Basic research: general_reasoning × balanced → DeepSeek V3.2.
+    """Basic research: general_reasoning × balanced → GPT-4.1 Mini (0.2.9).
 
-    This cell was the first Kimi K2.6 fix in 0.2.7 (catalog.py line 246).
-    DeepSeek V3.2 is a non-reasoning model, json_object compatible via
-    OpenRouter. OpenAI router falls back to gpt-5-mini (deepseek not on
-    api.openai.com).
+    0.2.7 swapped Kimi K2.6 → DeepSeek V3.2 (reasoning token fix).
+    0.2.9 swapped DeepSeek V3.2 → GPT-4.1 Mini: OpenRouter routes DeepSeek V3.2
+    to Baidu/Novita which silently caps output at ~360 tokens (finish_reason=stop
+    but truncated JSON). GPT-4.1 Mini routes to OpenAI directly via OpenRouter —
+    no provider-side cap, reliable json_object completion at 3,000+ tokens.
     """
     from gecko_core.routing.catalog import (
         AgentRole,
@@ -231,14 +232,15 @@ def test_research_basic_role_resolves_to_general_reasoning_balanced() -> None:
     )
 
     catalog_id = model_id_for_role(AgentRole.research_basic, Tier.balanced)
-    assert catalog_id == "deepseek/deepseek-v3.2"
+    assert catalog_id == "openai/gpt-4.1-mini"
     assert (
         resolve_model_for_router(AgentRole.research_basic, Tier.balanced, "openrouter")
         == catalog_id
     )
+    # openai router: gpt-4.1-mini is already openai-provider, passes through unchanged.
     assert (
         resolve_model_for_router(AgentRole.research_basic, Tier.balanced, "openai")
-        == "openai/gpt-5-mini"
+        == "openai/gpt-4.1-mini"
     )
 
 

@@ -243,7 +243,12 @@ _TASK_TIER_TO_MODEL_ID: dict[tuple[TaskProfile, Tier], str] = {
     (TaskProfile.code_review, Tier.budget): _id("Kimi K2.6"),
     (TaskProfile.code_review, Tier.free): _id("DeepSeek V4 Flash"),
     (TaskProfile.general_reasoning, Tier.quality): _id("GPT-5.5"),
-    (TaskProfile.general_reasoning, Tier.balanced): _id("DeepSeek V3.2"),
+    # S22-KIMI-AUDIT follow-up: DeepSeek V3.2 via OpenRouter truncates JSON
+    # output at ~650 tokens regardless of max_tokens=6000 (provider-side cap).
+    # GPT-4.1 Mini routes to OpenAI's native endpoint via OpenRouter — reliable
+    # json_object completion, no truncation. critic (AG2 plain text) and
+    # research_basic (json_object) both use this cell.
+    (TaskProfile.general_reasoning, Tier.balanced): _id("GPT-4.1 Mini"),
     (TaskProfile.general_reasoning, Tier.budget): _id("Grok 4.1 Fast"),
     (TaskProfile.general_reasoning, Tier.free): _id("GPT-4.1 Nano"),
     (TaskProfile.creative_writing, Tier.quality): _id("Claude Sonnet 4.6"),
