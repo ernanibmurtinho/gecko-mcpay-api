@@ -175,9 +175,9 @@ async def load_context(
     # fall through with an empty precedent list.
     flywheel_precedents: list[GeckoPrecedent] = []
     try:
-        from gecko_core.ingestion.embedder import embed
+        from gecko_core.ingestion.embedder import embed_for_postgres_vector
 
-        vecs, _tokens = await embed([record.idea])
+        vecs, _tokens = await embed_for_postgres_vector([record.idea])
         if vecs:
             flywheel_precedents = await store.retrieve_gecko_precedent(embedding=vecs[0], limit=5)
     except Exception as exc:  # pragma: no cover — defensive

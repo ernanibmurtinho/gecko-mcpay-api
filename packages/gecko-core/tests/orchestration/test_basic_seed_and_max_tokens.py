@@ -5,6 +5,10 @@ JSON-mode chat completions so eval reproducibility + budget caps don't
 silently regress. The basic-tier ``_call_llm`` is the canonical site;
 covering it here protects the per-call hygiene contract without
 re-exercising every other call site.
+
+Post-`llm_client` migration (2026-05-05): ``_call_llm`` now streams via
+``stream_chat_completion``, so the mock targets ``chat.completions.create``
+(returning an async chunk iterator) rather than ``with_raw_response.create``.
 """
 
 from __future__ import annotations
@@ -13,27 +17,76 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 
+def _make_chunk(
+    *,
+    content: str | None = None,
+    finish_reason: str | None = None,
+    prompt_tokens: int | None = None,
+    completion_tokens: int | None = None,
+    chunk_id: str = "gen-test",
+    model: str = "openai/gpt-4o-mini",
+) -> Any:
+    """Build a single ChatCompletionChunk-shaped MagicMock."""
+    chunk = MagicMock()
+    chunk.id = chunk_id
+    chunk.model = model
+    chunk.provider = "openai"
+    chunk.model_extra = None
+    if content is not None or finish_reason is not None:
+        choice = MagicMock()
+        choice.delta = MagicMock()
+        choice.delta.content = content
+        choice.finish_reason = finish_reason
+        chunk.choices = [choice]
+    else:
+        chunk.choices = []
+    if prompt_tokens is not None or completion_tokens is not None:
+        usage = MagicMock()
+        usage.prompt_tokens = prompt_tokens
+        usage.completion_tokens = completion_tokens
+        usage.cost = None
+        usage.cost_details = None
+        usage.model_extra = None
+        chunk.usage = usage
+    else:
+        chunk.usage = None
+    return chunk
+
+
+class _FakeStream:
+    """Minimal async iterator that yields a fixed chunk list and exposes ``close``."""
+
+    def __init__(self, chunks: list[Any]) -> None:
+        self._chunks = list(chunks)
+
+    def __aiter__(self) -> _FakeStream:
+        return self
+
+    async def __anext__(self) -> Any:
+        if not self._chunks:
+            raise StopAsyncIteration
+        return self._chunks.pop(0)
+
+    async def close(self) -> None:
+        return None
+
+
 def _build_fake_client(content: str = '{"foo": "bar"}') -> tuple[Any, list[dict[str, Any]]]:
-    """Build a fake AsyncOpenAI whose ``chat.completions.with_raw_response.create``
-    captures every kwarg it's called with. Returns ``(client, captured)``.
-    """
+    """Fake AsyncOpenAI whose ``chat.completions.create`` returns a streaming
+    iterator. Captures every kwarg it's called with for assertion."""
     captured: list[dict[str, Any]] = []
 
-    fake_resp = MagicMock()
-    fake_resp.choices = [MagicMock()]
-    fake_resp.choices[0].message.content = content
-    fake_resp.usage = MagicMock(prompt_tokens=10, completion_tokens=5)
-
-    fake_raw = MagicMock()
-    fake_raw.parse.return_value = fake_resp
-    fake_raw.headers = {}
+    chunks = [
+        _make_chunk(content=content),
+        _make_chunk(finish_reason="stop", prompt_tokens=10, completion_tokens=5),
+    ]
 
     async def _create(**kwargs: Any) -> Any:
         captured.append(kwargs)
-        return fake_raw
+        return _FakeStream(chunks)
 
     client = MagicMock()
-    client.chat.completions.with_raw_response.create = AsyncMock(side_effect=_create)
+    client.chat.completions.create = AsyncMock(side_effect=_create)
     return client, captured
 
 

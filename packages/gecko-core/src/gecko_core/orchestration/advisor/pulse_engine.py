@@ -128,13 +128,17 @@ async def _fresh_citations(
     are evidence, not blocking.
     """
     try:
-        from gecko_core.ingestion.embedder import embed
+        from gecko_core.db import get_chunk_store
+        from gecko_core.ingestion.embedder import embed, embed_for_postgres_vector
     except Exception as exc:  # pragma: no cover — defensive import
         logger.debug("pulse: embedder import failed: %s", exc)
         return []
 
     try:
-        vecs, _tokens = await embed([idea])
+        if get_chunk_store() == "mongo":
+            vecs, _tokens = await embed([idea])
+        else:
+            vecs, _tokens = await embed_for_postgres_vector([idea])
     except Exception as exc:  # pragma: no cover — env / network failure
         logger.debug("pulse: embed of parent idea failed: %s", exc)
         return []

@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 def test_matrix_for_tier_balanced_openai_substitutes_fallback() -> None:
     """LLM_ROUTER=openai forces an OpenAI-only fallback when the catalog
-    pick is non-OpenAI (e.g. balanced/general_reasoning -> Kimi K2.6)."""
+    pick is non-OpenAI (e.g. balanced/general_reasoning -> GPT-4.1 Mini)."""
     from gecko_core.orchestration.pro.router import model_matrix_for_tier
     from gecko_core.routing.catalog import Tier
 

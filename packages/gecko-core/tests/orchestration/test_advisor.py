@@ -8,6 +8,7 @@ pulse delta detection.
 from __future__ import annotations
 
 from typing import Any
+from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
 import pytest
@@ -104,43 +105,91 @@ def _voice_output(role: AgentRole) -> str:
     )
 
 
-class _FakeUsage:
-    def __init__(self, p: int, c: int) -> None:
-        self.prompt_tokens = p
-        self.completion_tokens = c
+# Post-`llm_client` migration (2026-05-05): advisor voices stream via
+# ``stream_chat_completion`` → ``client.chat.completions.create(stream=True)``,
+# which expects an async iterator of ChatCompletionChunk-shaped objects
+# (delta.content + final finish_reason + usage). We model that here.
+#
+# The historical ``with_raw_response.create`` surface is preserved as the
+# source-of-truth for canned content + ``calls`` capture: the streaming
+# path delegates to it. That keeps every existing test that pokes at
+# ``fake.chat.completions.with_raw_response.calls`` (or swaps in a
+# ``_SequencedRawCompletions``) working unchanged.
 
 
-class _FakeChoice:
+def _content_chunk(content: str, *, model: str = "moonshotai/kimi-k2.6") -> Any:
+    chunk = MagicMock()
+    chunk.id = "gen-test"
+    chunk.model = model
+    chunk.provider = "openrouter"
+    chunk.model_extra = None
+    choice = MagicMock()
+    choice.delta = MagicMock()
+    choice.delta.content = content
+    choice.finish_reason = None
+    chunk.choices = [choice]
+    chunk.usage = None
+    return chunk
+
+
+def _final_chunk(
+    *,
+    prompt_tokens: int = 420,
+    completion_tokens: int = 380,
+    model: str = "moonshotai/kimi-k2.6",
+) -> Any:
+    chunk = MagicMock()
+    chunk.id = "gen-test"
+    chunk.model = model
+    chunk.provider = "openrouter"
+    chunk.model_extra = None
+    choice = MagicMock()
+    choice.delta = MagicMock()
+    choice.delta.content = None
+    choice.finish_reason = "stop"
+    chunk.choices = [choice]
+    usage = MagicMock()
+    usage.prompt_tokens = prompt_tokens
+    usage.completion_tokens = completion_tokens
+    usage.cost = None
+    usage.cost_details = None
+    usage.model_extra = None
+    chunk.usage = usage
+    return chunk
+
+
+class _FakeChunkStream:
+    """Async iterator of ChatCompletionChunk-shaped MagicMocks."""
+
     def __init__(self, content: str) -> None:
-        class _M:
-            def __init__(self, c: str) -> None:
-                self.content = c
+        self._chunks: list[Any] = [_content_chunk(content), _final_chunk()]
 
-        self.message = _M(content)
+    def __aiter__(self) -> _FakeChunkStream:
+        return self
 
+    async def __anext__(self) -> Any:
+        if not self._chunks:
+            raise StopAsyncIteration
+        return self._chunks.pop(0)
 
-class _FakeResp:
-    def __init__(self, content: str) -> None:
-        self.choices = [_FakeChoice(content)]
-        self.usage = _FakeUsage(420, 380)
-
-
-class _FakeRaw:
-    def __init__(self, content: str) -> None:
-        self._r = _FakeResp(content)
-        self.headers: dict[str, str] = {}
-
-    def parse(self) -> _FakeResp:
-        return self._r
+    async def close(self) -> None:
+        return None
 
 
 class _FakeRawCompletions:
+    """Source-of-truth for canned content + call capture.
+
+    ``create`` returns a ``_FakeChunkStream`` so it works as the streaming
+    backend; tests still inspect ``.calls`` to assert which voice fired
+    with what kwargs.
+    """
+
     def __init__(self) -> None:
         # Track per-model invocations so tests can assert which model each
         # voice resolved to.
         self.calls: list[dict[str, Any]] = []
 
-    async def create(self, **kwargs: Any) -> _FakeRaw:
+    async def create(self, **kwargs: Any) -> _FakeChunkStream:
         self.calls.append(kwargs)
         # Pick the closing line based on the system prompt (the system
         # prompt opens with 'You are the CEO.' / 'You are the CTO.' etc).
@@ -158,13 +207,22 @@ class _FakeRawCompletions:
                 AgentRole.staff_manager: "you are the staff manager",
             }
             if needles[role] in sys_content:
-                return _FakeRaw(_voice_output(role))
-        return _FakeRaw("(unrecognized voice)")
+                return _FakeChunkStream(_voice_output(role))
+        return _FakeChunkStream("(unrecognized voice)")
 
 
 class _FakeCompletions:
     def __init__(self) -> None:
-        self.with_raw_response = _FakeRawCompletions()
+        self.with_raw_response: _FakeRawCompletions = _FakeRawCompletions()
+
+    async def create(self, **kwargs: Any) -> _FakeChunkStream:
+        # Streaming entry point used by ``stream_chat_completion``.
+        # Delegate to ``with_raw_response`` so call capture + per-role
+        # content routing live in one place. Tests that swap in a
+        # ``_SequencedRawCompletions`` keep working transparently.
+        # ``stream=True`` and ``stream_options`` are added by the helper;
+        # we ignore them here.
+        return await self.with_raw_response.create(**kwargs)
 
 
 class _FakeChat:
@@ -392,11 +450,8 @@ async def test_generate_panel_uses_five_distinct_models_at_balanced(
         store=store_with_result,  # type: ignore[arg-type]
         openai_client=fake,  # type: ignore[arg-type]
     )
-    # Cross-check: each voice resolves to the curated catalog model for its
-    # task profile. At Tier.balanced today the matrix yields 3 distinct
-    # models across the 5 voices (planning + complex_coding + creative_writing
-    # all currently land on Kimi K2.6) — the contract is per-task-correctness,
-    # not raw distinctness, since catalog edits may collapse or split cells.
+    # Plain-text streamed voices use the curated per-task catalog model for
+    # each role — today balanced fans across several providers when cells differ.
     for v in panel.voices:
         expected = lookup_model(task_for_role(v.role), Tier.balanced).id
         assert v.model_used == expected, f"{v.role}: {v.model_used} != {expected}"
@@ -648,7 +703,7 @@ class _SequencedRawCompletions:
         }
         self.calls: list[dict[str, Any]] = []
 
-    async def create(self, **kwargs: Any) -> _FakeRaw:
+    async def create(self, **kwargs: Any) -> _FakeChunkStream:
         self.calls.append(kwargs)
         sys_msg = next(m for m in kwargs["messages"] if m["role"] == "system")
         sys_content = sys_msg["content"].lower()
@@ -663,9 +718,9 @@ class _SequencedRawCompletions:
             if needle in sys_content:
                 queue = self._queue.get(role, [])
                 if not queue:
-                    return _FakeRaw(_voice_output(role))
-                return _FakeRaw(queue.pop(0))
-        return _FakeRaw("(unrecognized voice)")
+                    return _FakeChunkStream(_voice_output(role))
+                return _FakeChunkStream(queue.pop(0))
+        return _FakeChunkStream("(unrecognized voice)")
 
 
 def _malformed_output(role: AgentRole) -> str:

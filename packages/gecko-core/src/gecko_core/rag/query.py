@@ -1,8 +1,9 @@
-"""RAG query layer — pgvector cosine similarity over a session's chunks.
+"""RAG query — session-scoped chunk similarity (Supabase or Mongo).
 
-Calls the `match_chunks` SQL function via Supabase RPC. Embeds the question
-with the same model used at ingest time so the vectors live in the same
-space. Returns chunks ordered by similarity desc.
+Embeds the user question in the **same** space as stored chunk vectors:
+``embed_for_postgres_vector`` (OpenAI 1536) when ``GECKO_CHUNK_STORE`` is
+``supabase``; :func:`gecko_core.ingestion.embedder.embed` (Voyage 1024 by
+default) when the chunk store is ``mongo`` so $vectorSearch matches ingest.
 """
 
 from __future__ import annotations
@@ -15,7 +16,14 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
-from gecko_core.ingestion.embedder import embed
+from gecko_core.db import get_chunk_store
+from gecko_core.ingestion.embedder import (
+    POSTGRES_EMBED_MODEL,
+    embed,
+    embed_for_postgres_vector,
+    estimate_embed_cost_usd,
+)
+from gecko_core.ingestion.settings import get_ingestion_settings
 from gecko_core.models import _validate_citation_uri
 from gecko_core.rag.self_citation import (
     SELF_CITATION_DOWNWEIGHT,
@@ -237,17 +245,19 @@ async def rag_query(
 
     store = store or SessionStore.from_env()
 
-    vectors, tokens = await embed([question])
+    if get_chunk_store() == "mongo":
+        vectors, tokens = await embed([question])
+        cost_model = get_ingestion_settings().embed_model
+    else:
+        vectors, tokens = await embed_for_postgres_vector([question])
+        cost_model = POSTGRES_EMBED_MODEL
     if not vectors:
         return []
     query_embedding = vectors[0]
     # Account for the question-embedding cost too — small but real, and avoids
     # apparent margin drift between research and follow-up queries.
     if tokens > 0:
-        from gecko_core.ingestion.embedder import estimate_embed_cost_usd
-        from gecko_core.ingestion.settings import get_ingestion_settings
-
-        cost = estimate_embed_cost_usd(get_ingestion_settings().embed_model, tokens)
+        cost = estimate_embed_cost_usd(cost_model, tokens)
         await store.add_cost(session_id, "embed", cost)
 
     # S17-WEDGE-CITE-03 — over-fetch by 2x so the per-provider boost can pull
@@ -278,8 +288,6 @@ async def rag_query(
     # $vectorSearch + app-side per-kind quota (mirrors the Postgres
     # match_chunks_hybrid SQL function 1:1). Supabase path stays on the
     # RPC seam.
-    from gecko_core.db import get_chunk_store
-
     if get_chunk_store() == "mongo":
         from gecko_core.db.mongo_reads import (
             match_chunks_hybrid_mongo,

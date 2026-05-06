@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from openai import AsyncOpenAI
 
 from gecko_core.orchestration.advisor.models import AdvisorVoice
+from gecko_core.orchestration.settings import get_orchestration_settings
 from gecko_core.routing.catalog import (
     AgentRole,
     Tier,
@@ -223,36 +224,46 @@ async def _call_once(
     rather than letting ``'NoneType' object is not subscriptable`` bubble
     up as a stringified-traceback in the closing line.
     """
-    raw = await client.chat.completions.with_raw_response.create(
-        model=model_id,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        temperature=temperature,
+    # 2026-05-05 — streamed via llm_client.stream_chat_completion so
+    # advisor voices on slow OpenRouter providers (Kimi K2.6, DeepSeek
+    # V3.2) don't get killed at the edge proxy. ``LLMTruncationError``
+    # surfaces as ``VoiceContentMissingError`` so the panel can degrade
+    # that one voice rather than aborting the whole run.
+    from gecko_core.orchestration.llm_client import (
+        LLMStalledError,
+        LLMTruncationError,
+        stream_chat_completion,
     )
-    resp = raw.parse()
-    choices = getattr(resp, "choices", None)
-    if not choices:
-        raise VoiceContentMissingError(f"upstream returned no choices (model={model_id})")
-    first_choice = choices[0]
-    message = getattr(first_choice, "message", None)
-    if message is None:
-        raise VoiceContentMissingError(f"upstream choice has no message (model={model_id})")
-    content_raw = getattr(message, "content", None)
-    if content_raw is None or (isinstance(content_raw, str) and not content_raw.strip()):
-        raise VoiceContentMissingError(f"upstream returned empty content (model={model_id})")
-    content = content_raw
-    prompt_tokens = int(getattr(resp.usage, "prompt_tokens", 0) or 0) if resp.usage else 0
-    completion_tokens = int(getattr(resp.usage, "completion_tokens", 0) or 0) if resp.usage else 0
 
-    cost_usd: float | None = None
-    header = raw.headers.get("x-clawrouter-cost-usd") if hasattr(raw, "headers") else None
-    if header:
-        try:
-            cost_usd = float(header)
-        except ValueError:
-            cost_usd = None
+    try:
+        completion = await stream_chat_completion(
+            client,
+            model=model_id,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=temperature,
+            max_tokens=get_orchestration_settings().max_tokens_advisor,
+        )
+    except LLMTruncationError as exc:
+        raise VoiceContentMissingError(f"voice truncated (model={model_id}): {exc}") from exc
+    except LLMStalledError as exc:
+        raise VoiceContentMissingError(f"voice stalled (model={model_id}): {exc}") from exc
+
+    content = completion.content
+    if not content or not content.strip():
+        raise VoiceContentMissingError(
+            f"upstream returned empty content "
+            f"(model={completion.model}, provider={completion.provider}, "
+            f"gen_id={completion.gen_id})"
+        )
+    prompt_tokens = int(completion.prompt_tokens or 0)
+    completion_tokens = int(completion.completion_tokens or 0)
+
+    # OpenRouter usage.cost is preferred when present (real billed amount);
+    # otherwise fall back to the gpt-4o-equivalent estimate.
+    cost_usd = completion.usage_cost_usd
     if cost_usd is None:
         cost_usd = _gpt4o_estimate(prompt_tokens, completion_tokens)
 

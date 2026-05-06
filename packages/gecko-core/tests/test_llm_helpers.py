@@ -199,25 +199,64 @@ def _make_async_create(content: str) -> tuple[Any, list[dict[str, Any]]]:
     return client, captured
 
 
-def _make_async_with_raw(content: str) -> tuple[Any, list[dict[str, Any]]]:
-    """Build a fake whose chat.completions.with_raw_response.create captures kwargs."""
+def _make_async_stream(content: str) -> tuple[Any, list[dict[str, Any]]]:
+    """Fake AsyncOpenAI whose chat.completions.create returns a streaming
+    iterator. Used by basic._call_llm tests after the llm_client migration."""
     captured: list[dict[str, Any]] = []
-    fake_resp = MagicMock()
-    fake_resp.choices = [MagicMock()]
-    fake_resp.choices[0].message.content = content
-    fake_resp.usage = MagicMock(prompt_tokens=10, completion_tokens=5)
-    fake_resp.model = "gpt-4o"
 
-    fake_raw = MagicMock()
-    fake_raw.parse.return_value = fake_resp
-    fake_raw.headers = {}
+    content_chunk = MagicMock()
+    content_chunk.id = "gen-test"
+    content_chunk.model = "gpt-4o"
+    content_chunk.provider = "openai"
+    content_chunk.model_extra = None
+    content_choice = MagicMock()
+    content_choice.delta = MagicMock()
+    content_choice.delta.content = content
+    content_choice.finish_reason = None
+    content_chunk.choices = [content_choice]
+    content_chunk.usage = None
+
+    final_chunk = MagicMock()
+    final_chunk.id = "gen-test"
+    final_chunk.model = "gpt-4o"
+    final_chunk.provider = "openai"
+    final_chunk.model_extra = None
+    final_choice = MagicMock()
+    final_choice.delta = MagicMock()
+    final_choice.delta.content = None
+    final_choice.finish_reason = "stop"
+    final_chunk.choices = [final_choice]
+    final_usage = MagicMock()
+    final_usage.prompt_tokens = 10
+    final_usage.completion_tokens = 5
+    final_usage.cost = None
+    final_usage.cost_details = None
+    final_usage.model_extra = None
+    final_chunk.usage = final_usage
+
+    chunks = [content_chunk, final_chunk]
+
+    class _FakeStream:
+        def __init__(self) -> None:
+            self._chunks = list(chunks)
+
+        def __aiter__(self) -> _FakeStream:
+            return self
+
+        async def __anext__(self) -> Any:
+            if not self._chunks:
+                raise StopAsyncIteration
+            return self._chunks.pop(0)
+
+        async def close(self) -> None:
+            return None
 
     async def _create(**kwargs: Any) -> Any:
         captured.append(kwargs)
-        return fake_raw
+        return _FakeStream()
 
     client = MagicMock()
-    client.chat.completions.with_raw_response.create = AsyncMock(side_effect=_create)
+    client.chat.completions.create = AsyncMock(side_effect=_create)
     client.close = AsyncMock()
     return client, captured
 
@@ -228,7 +267,7 @@ async def test_basic_call_llm_uses_strict_schema_on_openai_router(
     """basic._call_llm forwards a strict json_schema when the caller passes one."""
     from gecko_core.orchestration.basic import _call_llm
 
-    client, captured = _make_async_with_raw('{"foo": "bar"}')
+    client, captured = _make_async_stream('{"foo": "bar"}')
     rf = build_response_format(_LLMOutput, "openai/gpt-4.1-nano", "openai")
 
     await _call_llm(
@@ -249,6 +288,10 @@ async def test_basic_call_llm_uses_strict_schema_on_openai_router(
     # Hygiene preserved: seed=42 and max_tokens still flow through.
     assert sent["seed"] == 42
     assert sent["max_tokens"] == 2000
+    # Streaming hygiene: stream + include_usage forwarded so OpenRouter
+    # keep-alives + final-chunk usage land.
+    assert sent["stream"] is True
+    assert sent["stream_options"] == {"include_usage": True}
 
 
 async def test_basic_call_llm_defaults_to_json_object_when_no_format_supplied() -> None:
@@ -256,7 +299,7 @@ async def test_basic_call_llm_defaults_to_json_object_when_no_format_supplied() 
     keep the legacy ``json_object`` wire shape."""
     from gecko_core.orchestration.basic import _call_llm
 
-    client, captured = _make_async_with_raw('{"foo": "bar"}')
+    client, captured = _make_async_stream('{"foo": "bar"}')
     await _call_llm(
         client=client,
         model="gpt-4o-mini",

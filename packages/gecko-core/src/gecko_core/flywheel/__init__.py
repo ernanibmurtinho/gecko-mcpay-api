@@ -30,7 +30,7 @@ from uuid import UUID
 from openai import AsyncOpenAI
 
 from gecko_core.classify import classify_idea
-from gecko_core.ingestion.embedder import embed
+from gecko_core.ingestion.embedder import embed_for_postgres_vector
 from gecko_core.llm_helpers import supports_strict_outputs
 from gecko_core.orchestration.settings import get_orchestration_settings
 from gecko_core.sessions.store import SessionStore, Verdict
@@ -323,7 +323,7 @@ async def write_precedent(
 
         # Embed the SUMMARY (not the idea) so retrieval surfaces categorically
         # similar precedent without leaking the original phrasing.
-        vectors, _tokens = await embed([idea_summary], client=openai_client)
+        vectors, _tokens = await embed_for_postgres_vector([idea_summary])
         if not vectors:
             logger.warning("flywheel: empty embedding result for session %s", session_id)
             return None

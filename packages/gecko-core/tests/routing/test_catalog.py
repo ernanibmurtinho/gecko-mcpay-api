@@ -45,12 +45,18 @@ def test_lookup_complex_coding_quality_returns_opus() -> None:
     assert m.name == "Claude Opus 4.7"
 
 
-def test_lookup_complex_coding_balanced_returns_kimi() -> None:
-    # complex_coding×balanced still maps to Kimi K2.6: this is an AG2 plain-text
-    # voice (architect), not a json_object call site — safe to leave.
+def test_lookup_planning_balanced_returns_gemini_3_flash() -> None:
+    # CEO / judge balanced voices: avoids Kimi's hidden reasoning token burn on
+    # streamed plain-text (see S22-KIMI advisor follow-up in catalog).
+    m = lookup_model(TaskProfile.planning, Tier.balanced)
+    assert m.id == "google/gemini-3-flash-preview"
+
+
+def test_lookup_complex_coding_balanced_returns_deepseek_v4_pro() -> None:
+    # S22-KIMI advisor follow-up: Kimi streamed plain-text could finish with
+    # finish_reason=length and empty aggregated content (reasoning deltas only).
     m = lookup_model(TaskProfile.complex_coding, Tier.balanced)
-    assert m.id == "moonshotai/kimi-k2.6"
-    assert m.score == 84
+    assert m.id == "deepseek/deepseek-v4-pro"
 
 
 def test_lookup_file_navigation_budget_returns_deepseek_v4_flash() -> None:

@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from gecko_core.ingestion.embedder import embed as _ingestion_embed
+from gecko_core.ingestion.embedder import embed_for_postgres_vector as _pg_embed
 
 
 def render_value_for_embedding(
@@ -35,8 +35,8 @@ def render_value_for_embedding(
 
 
 async def embed_text(text: str) -> list[float]:
-    """Embed a single string. Returns the 1536-float vector."""
-    vectors, _tokens = await _ingestion_embed([text])
+    """Embed a single string for the ``memory`` table (``vector(1536)``)."""
+    vectors, _tokens = await _pg_embed([text])
     if not vectors:
         raise RuntimeError("embedder returned no vectors")
     return vectors[0]

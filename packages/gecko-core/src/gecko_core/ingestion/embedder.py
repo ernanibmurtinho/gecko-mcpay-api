@@ -2,9 +2,13 @@
 
 Default provider is Voyage AI `voyage-3` (1024-dim vectors), controlled by
 `EMBED_PROVIDER=voyage` / `EMBED_MODEL=voyage-3` in settings.  The legacy
-OpenAI `text-embedding-3-small` path (1536-dim) remains fully functional and
-is selected when `EMBED_PROVIDER=openai` or when an explicit `client=` is
-passed.
+OpenAI `text-embedding-3-small` path (1536-dim) is selected when
+`EMBED_PROVIDER=openai` or when an explicit `client=` is passed.
+
+Supabase pgvector columns (`gecko_precedent`, `memory`, chunk RPCs) are
+migrated as ``vector(1536)`` for ``text-embedding-3-small``. Call
+:func:`embed_for_postgres_vector` from those code paths so they stay
+1536-dimensional even when the default ingest embedder is Voyage (1024).
 
 --- OpenAI path ---
 Concurrency + retry (V11-01): a *module-level* semaphore caps in-flight
@@ -264,6 +268,45 @@ async def _embed_voyage(
     return results, total_tokens
 
 
+# Dimension assumed by ``infra/supabase/migrations`` for precedent / memory /
+# ``match_chunks*`` RPC parameters (text-embedding-3-small).
+POSTGRES_VECTOR_DIM: int = 1536
+POSTGRES_EMBED_MODEL: str = "text-embedding-3-small"
+
+
+async def embed_for_postgres_vector(
+    texts: list[str],
+    *,
+    batch_size: int = EMBED_BATCH_SIZE,
+) -> tuple[list[list[float]], int]:
+    """Embed for Supabase ``vector(1536)`` ANN (precedent, memory, chunk RPCs).
+
+    Always uses OpenAI ``text-embedding-3-small`` and ``OPENAI_API_KEY``,
+    regardless of ``EMBED_PROVIDER``, so Postgres rows and query vectors stay
+    in the same space while ingestion / Mongo paths may use Voyage 1024 via
+    :func:`embed`.
+    """
+    if not texts:
+        return [], 0
+    settings = get_ingestion_settings()
+    if settings.openai_api_key is None:
+        raise ValueError(
+            "OPENAI_API_KEY must be set for embed_for_postgres_vector "
+            f"(Supabase ANN expects {POSTGRES_VECTOR_DIM} dims / {POSTGRES_EMBED_MODEL})"
+        )
+    api = AsyncOpenAI(api_key=settings.openai_api_key.get_secret_value())
+    batches = list(_chunked(texts, batch_size))
+    shed = _ShedState()
+    results: list[list[float]] = []
+    total_tokens = 0
+    for batch in batches:
+        vectors, tokens = await _create_with_retry(api, POSTGRES_EMBED_MODEL, batch, shed)
+        results.extend(vectors)
+        total_tokens += tokens
+    await asyncio.sleep(0)
+    return results, total_tokens
+
+
 async def embed(
     texts: list[str],
     *,
@@ -338,4 +381,11 @@ async def embed(
     return results, total_tokens
 
 
-__all__ = ["EMBED_BATCH_SIZE", "embed", "estimate_embed_cost_usd"]
+__all__ = [
+    "EMBED_BATCH_SIZE",
+    "POSTGRES_EMBED_MODEL",
+    "POSTGRES_VECTOR_DIM",
+    "embed",
+    "embed_for_postgres_vector",
+    "estimate_embed_cost_usd",
+]

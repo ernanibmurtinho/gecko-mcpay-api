@@ -116,6 +116,12 @@ async def refine_idea(
     system = _load_refine_prompt()
     user = _build_user_prompt(idea=idea, result=result, today=today or date.today().isoformat())
 
+    from gecko_core.orchestration.llm_client import (
+        LLMStalledError,
+        LLMTruncationError,
+        stream_chat_completion,
+    )
+
     client = _build_client()
     model_id, router_name = _resolve_refine_model()
     try:
@@ -124,25 +130,37 @@ async def refine_idea(
         # (Kimi K2.6 via OpenRouter) — that path stays on json_object and
         # the f67b211 RefinedIdea coercers absorb drift. The OpenAI fallback
         # path (LLM_ROUTER=openai, gpt-5-mini) gets strict mode.
-        resp = await client.chat.completions.create(
+        #
+        # 2026-05-05 — streamed via llm_client.stream_chat_completion so
+        # OpenRouter SSE keep-alives prevent edge-proxy timeouts and a
+        # mid-stream truncation surfaces as ``LLMTruncationError``.
+        completion = await stream_chat_completion(
+            client,
             model=model_id,
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
-            response_format=cast(Any, build_response_format(RefinedIdea, model_id, router_name)),
             temperature=_REFINE_TEMPERATURE,
-            seed=42,
             max_tokens=get_orchestration_settings().max_tokens_refiner,
+            response_format=cast(Any, build_response_format(RefinedIdea, model_id, router_name)),
         )
-    except Exception as exc:  # OpenAI / network
+    except LLMTruncationError as exc:
+        raise RefineError(f"refine_idea truncated: {exc}") from exc
+    except LLMStalledError as exc:
+        raise RefineError(f"refine_idea stalled: {exc}") from exc
+    except Exception as exc:
         raise RefineError(f"refine_idea call failed: {exc}") from exc
     finally:
         await client.close()
 
-    content = resp.choices[0].message.content
+    content = completion.content
     if not content:
-        raise RefineError("refine_idea returned empty content")
+        raise RefineError(
+            f"refine_idea returned empty content "
+            f"[model={completion.model}, provider={completion.provider}, "
+            f"gen_id={completion.gen_id}]"
+        )
     try:
         raw = json.loads(content)
     except json.JSONDecodeError as exc:

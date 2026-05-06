@@ -92,25 +92,48 @@ async def _call_json(
     # OpenRouter forwards seed per-provider; not all providers honor it
     # (Anthropic and Google silently ignore; OpenAI honours it).
     # LLM-hygiene Commit D: when the (model, router) supports it, opt into
-    # OpenAI Structured Outputs strict mode keyed off ``model_cls``. Sites
-    # that pass ``model_cls=None`` (e.g. transcript_summary, classification
-    # extraction) stay on json_object since their output isn't a single
-    # canonical Pydantic model.
-    model_id, router_name = _resolve_post_processor_model()
-    resp = await client.chat.completions.create(
-        model=model_id,
-        messages=[
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
-        response_format=cast(Any, build_response_format(model_cls, model_id, router_name)),
-        temperature=_POST_PROCESSOR_TEMPERATURE,
-        seed=42,
-        max_tokens=get_orchestration_settings().max_tokens_post_processor,
+    # OpenAI Structured Outputs strict mode keyed off ``model_cls``.
+    #
+    # 2026-05-05 — streamed via gecko_core.orchestration.llm_client so
+    # the connection stays open against slow OpenRouter providers and a
+    # ``finish_reason=length`` truncation surfaces as
+    # ``LLMTruncationError`` (caught by ``_run_section``).
+    from gecko_core.orchestration.llm_client import (
+        LLMStalledError,
+        LLMTruncationError,
+        stream_chat_completion,
     )
-    content = resp.choices[0].message.content
+
+    model_id, router_name = _resolve_post_processor_model()
+    response_format = cast(Any, build_response_format(model_cls, model_id, router_name))
+    try:
+        completion = await stream_chat_completion(
+            client,
+            model=model_id,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            temperature=_POST_PROCESSOR_TEMPERATURE,
+            max_tokens=get_orchestration_settings().max_tokens_post_processor,
+            response_format=response_format,
+        )
+    except LLMTruncationError as exc:
+        # Truncation is a structural failure — partial JSON cannot be
+        # validated. Surface the typed message to the section handler so
+        # the operator sees gen_id / provider / model rather than a
+        # downstream pydantic ValidationError.
+        raise ValueError(f"post-processor truncated: {exc}") from exc
+    except LLMStalledError as exc:
+        raise ValueError(f"post-processor stalled: {exc}") from exc
+
+    content = completion.content
     if not content:
-        raise ValueError("post-processor returned empty content")
+        raise ValueError(
+            f"post-processor returned empty content "
+            f"[model={completion.model}, provider={completion.provider}, "
+            f"gen_id={completion.gen_id}]"
+        )
     parsed = json.loads(content)
     if not isinstance(parsed, dict):
         raise ValueError("post-processor JSON was not an object")
@@ -154,12 +177,10 @@ def _coherence_drop_steps(
 
 
 def _build_client() -> AsyncOpenAI:
+    from gecko_core.orchestration.llm_client import build_async_client
+
     orch = get_orchestration_settings()
-    cfg = resolve_llm_config(settings=orch)
-    client_kwargs: dict[str, Any] = {"api_key": cfg.api_key, "base_url": cfg.base_url}
-    if cfg.extra_headers:
-        client_kwargs["default_headers"] = dict(cfg.extra_headers)
-    return AsyncOpenAI(**client_kwargs)
+    return build_async_client(resolve_llm_config(settings=orch))
 
 
 _CLASSIFICATION_VALID_IDEA = frozenset({"greenfield", "iterative", "unclear"})

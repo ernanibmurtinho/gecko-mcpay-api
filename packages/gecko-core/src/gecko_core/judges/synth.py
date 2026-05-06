@@ -174,31 +174,48 @@ async def _call_judge_synth(
         "Respond with the JSON object specified in the system message."
     )
 
+    from gecko_core.orchestration.llm_client import (
+        LLMStalledError,
+        LLMTruncationError,
+        stream_chat_completion,
+    )
+
     client = _build_client()
     model_id, router_name = _resolve_synth_model()
     try:
         # LLM-hygiene Commit D: judge_synth default is Claude Sonnet 4.6 via
-        # OpenRouter — that path stays on json_object (Anthropic strict-mode
-        # via OpenRouter is not yet contract-tested). LLM_ROUTER=openai
-        # falls back to the OpenAI ladder which DOES support strict mode.
-        resp = await client.chat.completions.create(
+        # OpenRouter — stays on json_object. LLM_ROUTER=openai falls back to
+        # the OpenAI ladder which DOES support strict mode.
+        #
+        # 2026-05-05 — streamed via llm_client.stream_chat_completion so
+        # OpenRouter SSE keep-alives prevent edge-proxy timeouts on the
+        # quality-tier (Claude Sonnet 4.6) which can take 30+ seconds.
+        completion = await stream_chat_completion(
+            client,
             model=model_id,
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
+            temperature=_SYNTH_TEMPERATURE,
+            max_tokens=get_orchestration_settings().max_tokens_judge_synth,
             response_format=cast(
                 Any, build_response_format(JudgeSynthEnvelope, model_id, router_name)
             ),
-            temperature=_SYNTH_TEMPERATURE,
-            seed=42,
-            max_tokens=get_orchestration_settings().max_tokens_judge_synth,
         )
+    except LLMTruncationError as exc:
+        raise RuntimeError(f"judge_synth truncated: {exc}") from exc
+    except LLMStalledError as exc:
+        raise RuntimeError(f"judge_synth stalled: {exc}") from exc
     finally:
         await client.close()
-    content = resp.choices[0].message.content
+    content = completion.content
     if not content:
-        raise RuntimeError("judge_synth returned empty content")
+        raise RuntimeError(
+            f"judge_synth returned empty content "
+            f"[model={completion.model}, provider={completion.provider}, "
+            f"gen_id={completion.gen_id}]"
+        )
     parsed = json.loads(content)
     if not isinstance(parsed, dict):
         raise RuntimeError("judge_synth JSON was not an object")

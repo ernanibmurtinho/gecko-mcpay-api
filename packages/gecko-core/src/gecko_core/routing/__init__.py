@@ -25,6 +25,7 @@ import uuid
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
+from gecko_core.orchestration.settings import LLMClientConfig
 from gecko_core.payments.x402_client import get_client, new_intent_id
 from gecko_core.routing.costs import estimate_cost_usd, estimate_tokens, price_for
 from gecko_core.routing.matrix import (
@@ -231,42 +232,53 @@ async def _call_model(
     """
     # Lazy import — avoid pulling the OpenAI SDK into modules that just want
     # routing decisions (matrix tests, CLI argument parsing).
-    from openai import AsyncOpenAI
-
+    #
+    # 2026-05-05 — built via build_async_client (explicit timeouts) and
+    # streamed via stream_chat_completion (OpenRouter SSE keep-alives) so
+    # the routed call inherits the same hardening as the basic / pro paths.
+    from gecko_core.orchestration.llm_client import (
+        LLMStalledError,
+        LLMTruncationError,
+        build_async_client,
+        stream_chat_completion,
+    )
     from gecko_core.orchestration.pro.router import resolve_router
 
     cfg = resolve_router()
-    client = AsyncOpenAI(
-        api_key=cfg.api_key,
-        base_url=cfg.base_url,
-        default_headers=cfg.extra_headers or None,
+    client = build_async_client(
+        LLMClientConfig(
+            base_url=cfg.base_url,
+            api_key=cfg.api_key,
+            extra_headers=dict(cfg.extra_headers),
+            chat_model=model,
+            temperature=0.3,
+            max_input_tokens=0,
+            source=f"router:{cfg.router}",
+        )
     )
     extra_body: dict[str, object] | None = None
     if fallback_model:
         extra_body = {"models": [model, fallback_model]}
 
-    if extra_body is not None:
-        resp = await client.chat.completions.create(
+    try:
+        completion = await stream_chat_completion(
+            client,
             model=model,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,
             extra_body=extra_body,
         )
-    else:
-        resp = await client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.3,
-        )
+    except (LLMTruncationError, LLMStalledError):
+        # `route()` already retries once with the fallback model; surface
+        # truncation/stall as transient failures upstream.
+        raise
 
-    text = (resp.choices[0].message.content or "") if resp.choices else ""
-    usage = getattr(resp, "usage", None)
-    tokens_in = int(getattr(usage, "prompt_tokens", 0) or 0)
-    tokens_out = int(getattr(usage, "completion_tokens", 0) or 0)
-    usage_cost, upstream_cost = _extract_usage_cost(usage)
-    # OpenRouter echoes the model that actually served the request. When the
-    # transport doesn't surface it, fall back to the requested id.
-    model_used = str(getattr(resp, "model", None) or model)
+    text = completion.content
+    tokens_in = int(completion.prompt_tokens or 0)
+    tokens_out = int(completion.completion_tokens or 0)
+    usage_cost = completion.usage_cost_usd
+    upstream_cost = completion.upstream_cost_usd
+    model_used = completion.model
     return _CallOutcome(
         text=text,
         tokens_in=tokens_in,

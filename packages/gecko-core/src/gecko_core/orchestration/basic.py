@@ -218,147 +218,105 @@ async def _call_llm(
     max_tokens: int | None = None,
     response_format: dict[str, Any] | None = None,
 ) -> tuple[str, float]:
-    """Run a chat completion and return (content, estimated_cost_usd).
+    """Stream a chat completion and return (content, estimated_cost_usd).
+
+    Streaming via ``stream_chat_completion`` keeps the connection alive
+    via OpenRouter SSE keep-alives (``: OPENROUTER PROCESSING``), so
+    slow models (Kimi K2.6, DeepSeek V3.2) don't get killed by edge
+    proxy idle timeouts. ``finish_reason="length"`` raises
+    ``LLMTruncationError`` from the helper; this wrapper rewraps as
+    ``OrchestrationError`` to keep the existing exception contract.
 
     Cost resolution order:
-    1. `x-clawrouter-cost-usd` response header (preferred — real spend).
-    2. Token-based estimate from `usage` * `_MODEL_RATES_USD_PER_1M`.
-    3. 0.0 (unknown model, no header) — surfaces as zero on the dashboard.
+    1. OpenRouter's ``usage.cost`` from the streamed final chunk (real spend).
+    2. Token-based estimate from ``usage`` * ``_MODEL_RATES_USD_PER_1M``.
+    3. 0.0 (unknown model, no usage) — surfaces as zero on the dashboard.
+
+    The legacy ``x-clawrouter-cost-usd`` header path is gone — ClawRouter
+    is the local-dev plane and doesn't time out at the edge, so it's a
+    correctness-only loss for the dev plane (cost falls back to estimate).
 
     Reproducibility: ``seed=42`` is forwarded for best-effort determinism
     on supporting providers. OpenRouter passes ``seed`` per-provider; not
-    all providers honor it (best-effort, not bit-identical across runs;
-    Anthropic and Google silently ignore the kwarg).
-
-    LLM-hygiene Commit D: ``response_format`` defaults to ``json_object``
-    so the existing test surface and any caller that doesn't thread the
-    kwarg keeps the legacy behavior. Pass a strict-mode ``json_schema``
-    payload when the (model, router) supports it; the wrapper does not
-    decide that for you — the caller resolves it via
-    ``llm_helpers.build_response_format``. We stay on
-    ``with_raw_response.create`` rather than ``client.beta.chat.completions
-    .parse`` so the ClawRouter cost header (``x-clawrouter-cost-usd``) is
-    still readable; the Beta helper hides response headers.
+    all providers honor it.
     """
-    create_kwargs: dict[str, Any] = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
-        "response_format": response_format
-        if response_format is not None
-        else {"type": "json_object"},
-        "temperature": temperature,
-        "seed": 42,
-    }
-    if max_tokens is not None:
-        create_kwargs["max_tokens"] = max_tokens
+    from gecko_core.orchestration.llm_client import (
+        LLMStalledError,
+        LLMTruncationError,
+        stream_chat_completion,
+    )
+
+    messages = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": user},
+    ]
+    rf = response_format if response_format is not None else {"type": "json_object"}
+
+    extra_body: dict[str, Any] | None = None
     # S22-PROVIDER-PIN-01 — OpenRouter routes a single model id to multiple
     # sub-providers (Azure, DeepInfra, AkashML, Baidu, Novita, etc.) and some
-    # silently cap output at ~1,000 tokens regardless of max_tokens. Evidence:
-    # the 2026-05-05 OpenRouter activity CSV shows deepseek-v4-flash returning
-    # avg 193 tokens on DeepInfra vs avg 1,127 on AtlasCloud (same model id,
-    # same max_tokens=6000). For openai/* slugs, pin the provider to OpenAI
-    # direct so max_tokens is honored end-to-end. transforms=[] disables
-    # OpenRouter's default middle-out compression which can interact badly
-    # with json_object response_format.
+    # silently cap output at ~1,000 tokens regardless of max_tokens. For
+    # openai/* slugs, pin the provider to OpenAI direct so max_tokens is
+    # honored end-to-end. transforms=[] disables OpenRouter's default
+    # middle-out compression which can interact badly with json_object.
     if model.startswith("openai/"):
-        create_kwargs["extra_body"] = {
+        extra_body = {
             "provider": {"order": ["OpenAI"], "allow_fallbacks": False},
             "transforms": [],
         }
-    # S22-PROVIDER-PIN-01 + S22-DIAG-02 — Retry up to 2 times on empty content.
-    # On exhaustion, raise with FULL diagnostic detail (status, provider,
-    # finish_reason, tokens, gen_id, body sample) so the caller sees the actual
-    # cause without needing CloudWatch access. Production debugging via error
-    # messages > production debugging via log aggregation.
+
     _MAX_EMPTY_RETRIES = 2
     last_diagnostics: dict[str, Any] = {}
+    content = ""
+    completion_obj = None
     for _attempt in range(_MAX_EMPTY_RETRIES + 1):
-        raw = await client.chat.completions.with_raw_response.create(**create_kwargs)
-        resp = raw.parse()
-        content = resp.choices[0].message.content
-        finish_reason = resp.choices[0].finish_reason if resp.choices else None
-        provider_used = (
-            raw.headers.get("x-openrouter-provider")
-            or raw.headers.get("openrouter-provider")
-            or "unknown"
-        )
-        prompt_tokens = resp.usage.prompt_tokens if resp.usage else None
-        completion_tokens = resp.usage.completion_tokens if resp.usage else None
-        # Capture diagnostics on every attempt so we always have the latest
-        # state if we end up raising at the bottom of the loop.
+        try:
+            completion_obj = await stream_chat_completion(
+                client,
+                model=model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                response_format=rf,
+                extra_body=extra_body,
+            )
+        except LLMTruncationError as exc:
+            logger.warning("llm.truncated model=%s — output cut mid-stream: %s", model, exc)
+            raise OrchestrationError(str(exc)) from exc
+        except LLMStalledError as exc:
+            logger.warning("llm.stalled model=%s — upstream stopped streaming: %s", model, exc)
+            raise OrchestrationError(str(exc)) from exc
+
         last_diagnostics = {
             "attempt": _attempt + 1,
-            "status": raw.status_code,
-            "model": resp.model or model,
-            "provider": provider_used,
-            "finish_reason": finish_reason,
-            "prompt_tokens": prompt_tokens,
-            "completion_tokens": completion_tokens,
-            "gen_id": resp.id,
-            "content_len": len(content) if content else 0,
+            "model": completion_obj.model,
+            "provider": completion_obj.provider,
+            "finish_reason": completion_obj.finish_reason,
+            "prompt_tokens": completion_obj.prompt_tokens,
+            "completion_tokens": completion_obj.completion_tokens,
+            "gen_id": completion_obj.gen_id,
+            "content_len": len(completion_obj.content),
+            "chunks": completion_obj.chunks,
         }
-        logger.info(
-            "llm.call model=%s provider=%s finish=%s prompt_tokens=%s "
-            "completion_tokens=%s gen_id=%s content_len=%s",
-            resp.model or model,
-            provider_used,
-            finish_reason,
-            prompt_tokens,
-            completion_tokens,
-            resp.id,
-            last_diagnostics["content_len"],
-        )
-        if content:
-            if finish_reason == "length":
-                logger.warning(
-                    "llm.truncated finish_reason=length model=%s provider=%s "
-                    "completion_tokens=%s — output cut mid-stream",
-                    model,
-                    provider_used,
-                    completion_tokens,
-                )
-                raise OrchestrationError(
-                    f"LLM output truncated [finish_reason=length, "
-                    f"completion_tokens={completion_tokens}, provider={provider_used}, "
-                    f"gen_id={resp.id}]"
-                )
+        if completion_obj.content:
+            content = completion_obj.content
             break
-        if finish_reason == "length":
-            logger.warning(
-                "llm.empty_content finish_reason=length model=%s — "
-                "token budget exhausted before visible output; aborting retries",
-                model,
-            )
-            raise OrchestrationError(
-                f"LLM returned empty content [finish_reason=length — token "
-                f"budget exhausted before visible output] {last_diagnostics}"
-            )
         if _attempt < _MAX_EMPTY_RETRIES:
             await asyncio.sleep(2.0 * (_attempt + 1))
     else:
-        # Empty after all retries. Raise with full diagnostic context — the
-        # caller (and ultimately the error response) sees model, provider,
-        # finish_reason, tokens, and gen_id. No CloudWatch trip required.
         raise OrchestrationError(
-            f"LLM returned empty content after {_MAX_EMPTY_RETRIES + 1} "
-            f"attempts {last_diagnostics}"
+            f"LLM returned empty content after {_MAX_EMPTY_RETRIES + 1} attempts {last_diagnostics}"
         )
 
-    cost_usd = 0.0
-    header = raw.headers.get("x-clawrouter-cost-usd")
-    if header:
-        try:
-            cost_usd = float(header)
-        except ValueError:
-            cost_usd = 0.0
-    if cost_usd == 0.0 and resp.usage is not None:
+    assert completion_obj is not None  # loop body sets it before break
+    cost_usd = completion_obj.usage_cost_usd or 0.0
+    if cost_usd == 0.0 and (
+        completion_obj.prompt_tokens is not None or completion_obj.completion_tokens is not None
+    ):
         cost_usd = _estimate_cost_usd(
-            resp.model or model,
-            resp.usage.prompt_tokens or 0,
-            resp.usage.completion_tokens or 0,
+            completion_obj.model,
+            completion_obj.prompt_tokens or 0,
+            completion_obj.completion_tokens or 0,
         )
     return content, cost_usd
 
@@ -647,16 +605,13 @@ async def generate(
     else:
         # S8-CONFIG-01 — single resolution path. Honors LLM_ROUTER so the
         # basic tier respects the same router plane as the Pro debate.
+        # build_async_client adds explicit OPENROUTER_TIMEOUT_S /
+        # OPENROUTER_MAX_RETRIES so slow models don't die at the edge.
+        from gecko_core.orchestration.llm_client import build_async_client
         from gecko_core.orchestration.settings import resolve_llm_config
 
         cfg = resolve_llm_config(settings=orch)
-        client_kwargs: dict[str, Any] = {
-            "api_key": cfg.api_key,
-            "base_url": cfg.base_url,
-        }
-        if cfg.extra_headers:
-            client_kwargs["default_headers"] = dict(cfg.extra_headers)
-        client = AsyncOpenAI(**client_kwargs)
+        client = build_async_client(cfg)
 
     context = _format_context(chunks)
     # Truncate the *context* portion only — system + idea are tiny and known.

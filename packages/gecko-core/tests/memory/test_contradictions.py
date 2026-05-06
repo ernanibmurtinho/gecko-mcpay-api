@@ -50,7 +50,7 @@ class _StubStore:
 @pytest.fixture(autouse=True)
 def _stub_embedder(monkeypatch: pytest.MonkeyPatch) -> None:
     async def _fake(text: str) -> list[float]:
-        return [0.001] * 1024
+        return [0.001] * 1536
 
     monkeypatch.setattr(contradictions, "embed_text", _fake)
 

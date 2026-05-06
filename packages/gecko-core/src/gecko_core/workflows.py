@@ -23,8 +23,6 @@ from collections.abc import Awaitable, Callable
 from typing import Any, cast
 from uuid import UUID
 
-from openai import AsyncOpenAI
-
 from gecko_core.ingestion import discover, ingest
 from gecko_core.models import (
     AskResult,
@@ -1049,7 +1047,7 @@ async def _dispatch_v1_sources(
     """
     try:
         from gecko_core.classify import classify_idea
-        from gecko_core.ingestion.embedder import embed
+        from gecko_core.ingestion.embedder import embed_for_postgres_vector
         from gecko_core.sources.v1_block import (
             build_default_sources,
             dispatch_and_render,
@@ -1062,7 +1060,7 @@ async def _dispatch_v1_sources(
         # renders three headings + "No data found." for precedents).
         embedding: list[float] | None = None
         try:
-            vectors, _ = await embed([idea])
+            vectors, _ = await embed_for_postgres_vector([idea])
             if vectors:
                 embedding = vectors[0]
         except Exception as exc:  # pragma: no cover — defensive
@@ -1130,11 +1128,11 @@ async def _retrieve_pro_precedents(
     rather than killing the pro debate.
     """
     try:
-        from gecko_core.ingestion.embedder import embed
+        from gecko_core.ingestion.embedder import embed_for_postgres_vector
         from gecko_core.sources import dispatch_sources
         from gecko_core.sources.gecko_precedent import GeckoPrecedentSource
 
-        vectors, _ = await embed([idea])
+        vectors, _ = await embed_for_postgres_vector([idea])
         if not vectors:
             return []
         source = GeckoPrecedentSource(embedding=vectors[0], store=store)
@@ -1222,36 +1220,53 @@ async def ask(
     # Use the router-resolved client (base_url + api_key) so OpenRouter model IDs
     # like "openai/gpt-4.1-nano" reach the right endpoint instead of 400-ing at
     # api.openai.com, which only accepts bare model slugs.
-    client = AsyncOpenAI(
-        base_url=_ask_cfg.base_url,
-        api_key=_ask_cfg.api_key,
-        default_headers=_ask_cfg.extra_headers,
+    #
+    # 2026-05-05 — built via build_async_client + streamed via
+    # stream_chat_completion so the connection stays alive on slow models
+    # and the answer surface raises typed errors when truncated/stalled.
+    from gecko_core.orchestration.llm_client import (
+        LLMStalledError,
+        LLMTruncationError,
+        build_async_client,
+        stream_chat_completion,
     )
+
+    client = build_async_client(_ask_cfg)
 
     # Plain-text answer with [n] citations — no response_format=json_object
     # on purpose. ``seed=42`` for best-effort determinism (LLM-hygiene C1);
     # ``max_tokens`` capped per role from OrchestrationSettings (C2).
-    resp = await client.chat.completions.create(
-        model=_ask_model,
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "You answer questions strictly from the provided context. "
-                    "Cite chunk numbers like [1], [2] inline. If the context "
-                    "is insufficient, say so."
-                ),
-            },
-            {
-                "role": "user",
-                "content": f"Context:\n{context}\n\nQuestion: {question}",
-            },
-        ],
-        temperature=orch.temperature,
-        seed=42,
-        max_tokens=orch.max_tokens_ask,
-    )
-    answer = resp.choices[0].message.content or ""
+    try:
+        completion = await stream_chat_completion(
+            client,
+            model=_ask_model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You answer questions strictly from the provided context. "
+                        "Cite chunk numbers like [1], [2] inline. If the context "
+                        "is insufficient, say so."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": f"Context:\n{context}\n\nQuestion: {question}",
+                },
+            ],
+            temperature=orch.temperature,
+            max_tokens=orch.max_tokens_ask,
+        )
+        answer = completion.content
+    except LLMTruncationError:
+        # Ask answers are short prose; truncation here means max_tokens_ask
+        # was too low. Surface the partial answer with a marker rather than
+        # hard-failing the whole follow-up — the operator can re-ask.
+        logger.warning("ask answer truncated for session=%s", sid)
+        answer = "(answer truncated — increase ORCH_MAX_TOKENS_ASK and retry)"
+    except LLMStalledError as exc:
+        logger.warning("ask answer stalled for session=%s: %s", sid, exc)
+        answer = "(upstream stalled — retry)"
 
     from gecko_core.models import Provenance as _Provenance
 

@@ -223,7 +223,11 @@ def _id(display_name: str) -> str:
 # Quick Reference.md "Best Model Per Task" table.
 _TASK_TIER_TO_MODEL_ID: dict[tuple[TaskProfile, Tier], str] = {
     (TaskProfile.complex_coding, Tier.quality): _id("Claude Opus 4.7"),
-    (TaskProfile.complex_coding, Tier.balanced): _id("Kimi K2.6"),
+    # S22-KIMI-AUDIT advisor follow-up (2026-05-05): Kimi K2.6 on balanced
+    # plain-text streamed calls can consume max_tokens in hidden reasoning deltas
+    # (finish_reason=length, completion_tokens=max, aggregated content "").
+    # Use DeepSeek V4 Pro — strong technical reasoning, emits visible assistant text.
+    (TaskProfile.complex_coding, Tier.balanced): _id("DeepSeek V4 Pro"),
     (TaskProfile.complex_coding, Tier.budget): _id("DeepSeek V4 Pro"),
     (TaskProfile.complex_coding, Tier.free): _id("DeepSeek V4 Flash"),
     (TaskProfile.simple_coding, Tier.quality): _id("Claude Sonnet 4.6"),
@@ -231,7 +235,10 @@ _TASK_TIER_TO_MODEL_ID: dict[tuple[TaskProfile, Tier], str] = {
     (TaskProfile.simple_coding, Tier.budget): _id("Step 3.5 Flash"),
     (TaskProfile.simple_coding, Tier.free): _id("GPT-4.1 Nano"),
     (TaskProfile.planning, Tier.quality): _id("Claude Opus 4.7"),
-    (TaskProfile.planning, Tier.balanced): _id("Kimi K2.6"),
+    # Plain-text advisory (CEO balanced, judge balanced): avoid Kimi's hidden reasoning
+    # burn (same as complex_coding×balanced). Gemini 3 Flash already proven at
+    # planning×budget — good strategic narrative without duplicating CTO's V4 Pro cell.
+    (TaskProfile.planning, Tier.balanced): _id("Gemini 3 Flash"),
     (TaskProfile.planning, Tier.budget): _id("Gemini 3 Flash"),
     (TaskProfile.planning, Tier.free): _id("GPT-4.1 Nano"),
     (TaskProfile.file_navigation, Tier.quality): _id("Claude Haiku 4.5"),
@@ -240,7 +247,8 @@ _TASK_TIER_TO_MODEL_ID: dict[tuple[TaskProfile, Tier], str] = {
     (TaskProfile.file_navigation, Tier.free): _id("GPT-4.1 Nano"),
     (TaskProfile.code_review, Tier.quality): _id("Claude Sonnet 4.6"),
     (TaskProfile.code_review, Tier.balanced): _id("DeepSeek V4 Pro"),
-    (TaskProfile.code_review, Tier.budget): _id("Kimi K2.6"),
+    # Preventive: code_review × budget shared Kimi's reasoning-only failure mode.
+    (TaskProfile.code_review, Tier.budget): _id("DeepSeek V4 Flash"),
     (TaskProfile.code_review, Tier.free): _id("DeepSeek V4 Flash"),
     (TaskProfile.general_reasoning, Tier.quality): _id("GPT-5.5"),
     # S22-KIMI-AUDIT follow-up: DeepSeek V3.2 via OpenRouter truncates JSON
