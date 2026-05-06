@@ -1,16 +1,24 @@
-# S20 Plan — Knowledge as Commodity
+# S20 Plan — Knowledge as Commodity (Build-Context Layer)
 
 **Window:** 2026-05-10 → 2026-05-17 (proposed, ~6 working days solo)
 **Predecessor:** S19 (Voyage/Mongo hardening — H1/H2/H4 shipped 2026-05-05)
 **Author:** staff-engineer (synthesis), data-engineer (Track A), web3-engineer (Track B), ai-ml-engineer (Track C)
-**Theme:** Lay the foundation for the categorized, compounding knowledge base. Verdicts become the output format of consuming the base; the moat is the categorized vector base that gets denser per query and re-sells categorized retrieval endpoints to external agents via MCP/x402.
+**Theme:** Build the persistent, categorized, build-aware context layer. Gecko sits between paid sources (pay.sh, Tavily, twit.sh, Bazaar) and the builder's own build agent — pre-loading full domain knowledge per *app vertical* (neobank, DEX, marketplace, …), indexed across 7 knowledge dimensions, served on every build-step query. The base compounds per vertical; later builders in the same vertical hit denser, faster, cheaper retrieval.
+
+**Refined positioning (2026-05-06 brainstorm):** the moat is **NOT** the verdict shape alone. It's the combination of **(a) vertical-shaped index** (neobank, DEX, marketplace…), **(b) build-time consumption pattern** (the user's own build agent queries Gecko on every step, not just at pre-ideation), **(c) compounding density per vertical** (each builder's queries enrich the base), and **(d) switching cost on the agent integration** (build agents wired to Gecko's structured store). pay.sh sells the rail; Gecko sells the categorized organization. Different axes — orthogonal, not substitutes.
+
+**Public-facing wedge sentence:**
+> "Gecko is the categorized build-context layer for AI builders. We pre-load the full domain knowledge for your app vertical (neobank, DEX, marketplace, …), index it across 7 dimensions, and serve it to your build agent on every step — paid per call via x402. The base compounds: every builder makes the next one cheaper."
 
 **Reference docs:**
 - Manifest sketch: `docs/strategy/2026-05-05-agent-skills-manifest-sketch.md`
 - Pricing math: same doc (verified against live `bb research` smoke 2026-05-05–06)
+- Manus first-touch sequence: `docs/demo/2026-05-06-manus-first-touch-sequence.md`
 - Memory: `project_knowledge_as_commodity_pivot`, `reference_pay_sh`
 
 **Verbosity-smoke verification (2026-05-06):** local gecko-api booted with `LOG_LEVEL=DEBUG`, two `bb research` runs at `tier=basic preset=budget` produced clean OpenRouter dispatch (`openai/gpt-4.1-mini-2025-04-14` via OpenRouter), Voyage embed (1024-dim Mongo), and zero errors. Total cost per session: ~$0.043. Proceed.
+
+**Production smoke (2026-05-06, session `6afd55d7`):** full pipeline on v0.2.12 against `api.geckovision.tech` returned REFINE verdict with TAM=4 / WEDGE=5 / V1_FEAS=8. Surviving dissents (TAM unquantified, no named paying user, weak moat) directly motivate this S20 plan: the moat-trajectory thesis below converts each surviving dissent into a track.
 
 ---
 
@@ -22,12 +30,14 @@ Spine of the sprint. Six tickets, ordered by dependency.
 
 | # | Ticket | Owner | Effort | Acceptance |
 |---|---|---|---|---|
-| **A1** | **S20-A-TAXONOMY-01** | data-eng | XS | Single-source-of-truth module `packages/gecko-core/src/gecko_core/knowledge/taxonomy.py`. `Category` Literal (7 values), `Subcategory` map, `KnowledgeSource` Literal (`web` \| `tavily` \| `twit_sh` \| `bazaar` \| `pay_sh` \| `user_query` \| `enriched_output`), `ChunkMetadata` TypedDict (`confidence: float`, `usage_count: int`, `timestamp: datetime`). Schema-drift test mirrors `tests/test_payment_mode_consistency.py`. Pattern A enforced. |
-| **A2** | **S20-A-CHUNK-SCHEMA-01** | data-eng | M | Extend `MongoChunkDoc` (`mongo_chunks.py:108-125`) with `category`, `subcategory`, `source`, `metadata.{confidence,usage_count,timestamp}`. Alias `provider_kind` → `source` (deprecated read-only mirror for one sprint). New `gecko_core/knowledge/classifier.py` (`gpt-4o-mini`, `response_format=json_object`, ≤1.5k input tokens, batch=20). Reject writes missing `category`/`source`. Mongo validator JSON enforces enum from A1. |
+| **A1** | **S20-A-TAXONOMY-01** | data-eng | S | Single-source-of-truth module `packages/gecko-core/src/gecko_core/knowledge/taxonomy.py`. **TWO orthogonal axes** declared as Literals: `Category` (7 knowledge dimensions: market_intelligence, business_financial, investment_signals, product, technical_engineering, ai_ml, design_ux) AND `Vertical` (app domain: `neobank`, `dex`, `marketplace`, `prediction_market`, `indexer`, `b2b_saas`, `consumer_social`, `ai_agent_platform`, `gaming`, `infra_devtool`, `unknown`). `Subcategory` map per Category. `KnowledgeSource` Literal (`web` \| `tavily` \| `twit_sh` \| `bazaar` \| `pay_sh` \| `user_query` \| `enriched_output`). `ChunkMetadata` TypedDict (`confidence: float`, `usage_count: int`, `timestamp: datetime`, `pioneer: bool` — true for first chunk in a (vertical, category) cell). Schema-drift test mirrors `tests/test_payment_mode_consistency.py`. Pattern A enforced. **Vertical list is editable post-launch but the Literal must be the canonical source — no string-typed verticals anywhere.** |
+| **A2** | **S20-A-CHUNK-SCHEMA-01** | data-eng | M | Extend `MongoChunkDoc` (`mongo_chunks.py:108-125`) with `category`, `subcategory`, `vertical`, `source`, `metadata.{confidence,usage_count,timestamp,pioneer}`. Alias `provider_kind` → `source` (deprecated read-only mirror for one sprint). New `gecko_core/knowledge/classifier.py` (`gpt-4o-mini`, `response_format=json_object`, ≤1.5k input tokens, batch=20) emits BOTH `category` and `vertical` per chunk. Reject writes missing `category`/`vertical`/`source`. Mongo validator JSON enforces both enums from A1. **Compound index on `(vertical, category, project_id, captured_at)` becomes the primary read path** — every retrieval filters by `(vertical, category)` first. |
 | **A3** | **S20-A-LEGACY-REVOKE-01** | data-eng | S | Per `project_mongo_cutover_no_backfill`: stamp legacy chunks `category="legacy_uncategorized"`, `metadata.deprecated=true`. Default `rag_query` filter excludes legacy unless `include_legacy=True`. Build index on `(category, project_id, captured_at)`. |
 | **A4** | **S20-A-PRECEDENT-PORT-01** | data-eng | M | Port `gecko_precedent` Postgres table → Mongo `precedents` collection (Voyage 1024). Eliminates the 1536-dim Postgres tail that produced S19's dimension churn. Spike eval: ≥0.7 Jaccard top-5 overlap vs current pgvector before merge. Postgres migration `revoke_writes_gecko_precedent.sql` keeps table for read-fallback one sprint. |
 | **A5** | **S20-A-MEMORY-PORT-01** | data-eng | M | Same shape as A4 for `memory` table. After this lands, pgvector has zero active write paths. `embed_for_postgres_vector` is unreferenced (grep guard). |
-| **A6** | **S20-A-USAGE-COUNT-01** | sw-eng | S | `usage_count` bumps on **citation in output** (not retrieval). Synth emits `cited_doc_ids`; async batch `$inc` per cited chunk. Structured log line `chunk_cited` with `chunk_id`, `category`, `confidence`. |
+| **A6** | **S20-A-USAGE-COUNT-01** | sw-eng | S | `usage_count` bumps on **citation in output** (not retrieval). Synth emits `cited_doc_ids`; async batch `$inc` per cited chunk. Structured log line `chunk_cited` with `chunk_id`, `category`, `vertical`, `confidence`. |
+| **A7** | **S20-A-VERTICAL-PIONEER-01** | data-eng | S (0.5d) | New `gecko_core/knowledge/pioneer.py`. On every ingest, check Mongo for `(vertical, category)` cell density; if `count(chunks WHERE vertical=X AND category=Y) < PIONEER_THRESHOLD` (default 5), mark this chunk `metadata.pioneer = True` and surface `pioneer_call=true` in the response payload. **Pricing decision (whether pioneer pays premium, flat, or we eat cost) is OPEN — see §Open decisions before sleep.** This ticket only INSTRUMENTS the signal. |
+| **A8** | **S20-A-VERTICAL-DETECT-01** | ai-ml | S (0.5d) | When a session opens, classify the user idea into one of the declared Verticals. Reuse `gecko_core/knowledge/classifier.py` from A2 with a vertical-specific prompt; default to `unknown` on low confidence (<0.6). User can override via explicit `vertical` param on `gecko_research` / `gecko_research_market` calls. **Open: if classifier returns `unknown`, do we (a) refuse the call, (b) fall back to cross-vertical retrieval, (c) prompt the user to pick? Recommended: (b) for now — graceful degradation.** |
 
 **Track A risks:**
 - Old-vs-new chunk boundary → fresh-start cutover (A3), reject classifier-on-read.
@@ -150,6 +160,69 @@ uv run bb research --idea "S20 dogfood smoke" --tier basic --tier-preset budget
 
 ---
 
+## Vertical-shaped index (the moat thesis)
+
+The base partitions on **two orthogonal axes**:
+- **Category** (knowledge dimension): market_intelligence, business_financial, investment_signals, product, technical_engineering, ai_ml, design_ux. From the original slides.
+- **Vertical** (app domain): neobank, dex, marketplace, prediction_market, indexer, b2b_saas, consumer_social, ai_agent_platform, gaming, infra_devtool. **NEW** — added 2026-05-06.
+
+Every chunk lives in exactly one `(vertical, category)` cell. Retrieval filters by `(vertical, category)` first, then runs vector search inside the cell.
+
+**Why this is the moat (not just verdict shape):**
+
+1. **Vertical-shaped index ≠ pay.sh's catalog.** pay.sh's categories (compute, finance, messaging, …) are *what services do*. Gecko's verticals are *what apps the user is building*. Orthogonal. pay.sh has zero incentive to vertical-index; their economics are transaction-volume across horizontals.
+2. **Build-time consumption pattern.** When a builder commits to "I'm building a neobank," their build agent queries Gecko on every step (schema design, regulatory check, pricing analog, BaaS integration). High call volume per builder, not a one-shot pre-idea call.
+3. **Compounding density per (vertical, category) cell.** Every neobank builder either (a) hits cached chunks (cheap, fast) or (b) extends the base (their query enriches the cell). Replicators face cold starts in every vertical we've already filled.
+4. **Switching cost on agent integration.** Build agents wired to Gecko's structured store can't trivially swap to "raw pay.sh + organize-yourself" without losing the persistent context. They're consuming the *organization*, not just the data.
+
+### Pioneer's tax — the seed economics
+
+The **first builder per (vertical, category) cell** triggers heavy live-fetch (Tavily + twit.sh + Bazaar + pay.sh) to seed the cell. Estimated cost per cell-seed: **$5–10** of upstream queries. Subsequent calls in that cell hit the cache: ~$0.001 retrieval cost.
+
+**A7 instruments this signal** (`pioneer_call=true` in response). The **pricing choice is open** (see §Open decisions before sleep).
+
+### Concrete example — neobank vertical (worked through with the user)
+
+A neobank builder consumes this slice over a typical build:
+
+| Cell | Example chunks |
+|---|---|
+| `neobank × business_financial` | BaaS providers (Synapse, Treasury Prime, Unit, Lithic), capital reqs by jurisdiction, unit economics (interchange split, deposit float yield), pricing structures, comparable cap tables (Nubank, Brex, Mercury) |
+| `neobank × investment_signals` | Recent BR/LatAm fintech funding rounds, DD red flags, strategic acquirers + integration patterns |
+| `neobank × technical_engineering` | Card-issuing API patterns, KYC/AML integration, ledger architectures, banking-core options, settlement/payment-rail patterns (PIX, ACH, SEPA, USDC) |
+| `neobank × regulated` (open Q — should regulated be a Category or part of business_financial?) | BCB/CVM rulings, FinCEN MSB, EU Payment Institution rules |
+| `neobank × product` | JTBD by segment, activation funnel benchmarks, onboarding friction patterns |
+| `neobank × ai_ml` | Fraud-scoring patterns, transaction categorization models, fintech-specific support agents |
+| `neobank × design_ux` | Compliance-friendly disclosure patterns, card design + BIN restrictions, mobile-first onboarding |
+
+That's roughly **40–60 categorized chunks per vertical**, ingested once, queryable forever.
+
+---
+
+## Open decisions before sleep
+
+Three blockers for Track A start. Two more I'd like answers on but can defer.
+
+### Blocking (must answer before A1/A2 ships)
+
+1. **Initial Vertical list.** I seeded 11 verticals in A1 (neobank, dex, marketplace, prediction_market, indexer, b2b_saas, consumer_social, ai_agent_platform, gaming, infra_devtool, unknown). **Are these the right v1 set?** Missing obvious candidates: `defi_lending`, `nft_marketplace`, `infra_rpc`, `wallet_tooling`, `chain_abstraction`, `data_analytics`, `social_token`. Recommendation: add `defi_lending`, `wallet_tooling`, `chain_abstraction` (these come up frequently in Solana ecosystem); rest can land via S21 expansion.
+
+2. **Pioneer's tax pricing.** When a call seeds a `(vertical, category)` cell that costs us $5–10 in upstream live-fetch, three options:
+   - **(a) Eat the cost.** Loss-leader for the first builder per cell. Margin compounds on subsequent builders. Bear case: someone seeds 50 verticals overnight to drain us.
+   - **(b) Charge transparent premium.** First builder per cell pays $5 flat (vs $0.10 normal) with a header `X-Pioneer-Surcharge: true`. Manus-class agents will read this and decide.
+   - **(c) Token-meter overage.** Bundled tokens are tighter for pioneer calls (5K vs 100K), so live-fetch consumption ticks the overage meter; user's bulk credit absorbs it transparently.
+   - **My recommendation: (c).** Cleanest UX, no surprise charges, the credit-pack consumer doesn't care; the pay-per-call user sees a slightly higher effective rate on cold cells but that maps to actual cost. (a) is too easy to drain, (b) is hostile UX.
+
+3. **Vertical detection on `unknown`.** A8 ticket asks: when classifier returns `vertical=unknown` (low confidence), do we refuse / fall back / prompt? Recommendation: **fall back to cross-vertical retrieval** for V1, prompt the user via response payload (`detected_vertical: "unknown", suggest_override: ["neobank", "marketplace"]`). User's next call passes explicit `vertical=neobank` and we cache it.
+
+### Defer-able (nice to have, not blocking)
+
+4. **Is `regulated` a Category or a slice of `business_financial`?** The neobank example surfaced regulated content (BCB, FinCEN, EU). Currently the 7 categories don't include `regulated`. Two options: (a) add as 8th Category, (b) put under `business_financial` subcategory. Recommendation: **(b)** — keeps the canonical 7 stable. Regulated lives in `business_financial.regulatory`.
+
+5. **First-class build-context endpoint.** Today's MCP tools (`gecko_research`, `gecko_ask`) are oriented around pre-ideation. The build-time consumption pattern needs `gecko_build_context(vertical, category, query)` or similar. Recommendation: **add to S21**, not S20 — we need first to validate the vertical-shaped index works before exposing a new tool surface.
+
+---
+
 ## Decision log
 
 - **2026-05-05** — pivot from "judgment as commodity" to "knowledge as commodity" (memory `project_knowledge_as_commodity_pivot`).
@@ -159,3 +232,6 @@ uv run bb research --idea "S20 dogfood smoke" --tier basic --tier-preset budget
 - **2026-05-06** — `usage_count` bumps on **citation in output**, not retrieval.
 - **2026-05-06** — no voice-prompt refactor; new teams are additive, current 5-voice advisor stays.
 - **2026-05-06** — verbosity smoke against local gecko-api passed clean. Proceed.
+- **2026-05-06** — production smoke session `6afd55d7` verified end-to-end on v0.2.12. Surviving dissents motivate this S20 plan.
+- **2026-05-06** — repositioned to "build-context layer" (NOT "judgment as commodity" or "knowledge as commodity" externally). Wedge sentence above. Subscription pricing explicitly rejected (x402 is per-call by protocol; bulk credit pack is the only prepay shape).
+- **2026-05-06** — moat thesis sharpened: vertical-shaped index + build-time consumption + compounding per cell + switching cost on agent integration. Categorized base alone is NOT the moat; it's all four together.
