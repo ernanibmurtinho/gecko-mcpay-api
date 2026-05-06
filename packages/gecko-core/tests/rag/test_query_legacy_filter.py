@@ -22,11 +22,22 @@ def _route_to_mongo(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GECKO_RETRIEVAL_HYBRID", "false")
     # Voyage rerank off — keeps the slate flow predictable.
     monkeypatch.setenv("GECKO_RERANKER", "none")
+    # S20-HOTFIX: legacy filter is opt-in via GECKO_RAG_LEGACY_FILTER (default
+    # off until Atlas index migration declares the filter paths). Tests that
+    # verify the filter SHAPE turn it on; the off-default test below explicitly
+    # leaves it unset.
     from gecko_core.db import chunk_store as cs_mod
 
     cs_mod.get_chunk_store.cache_clear()
     yield
     cs_mod.get_chunk_store.cache_clear()
+
+
+@pytest.fixture
+def _legacy_filter_on(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Opt-in to the legacy filter via env. Required for the existing
+    filter-shape tests; the default-off behavior is covered separately."""
+    monkeypatch.setenv("GECKO_RAG_LEGACY_FILTER", "on")
 
 
 @pytest.fixture
@@ -54,9 +65,9 @@ def _row(chunk_index: int, similarity: float = 0.9, **extra: Any) -> dict[str, A
 
 @pytest.mark.asyncio
 async def test_default_filters_legacy_uncategorized_via_extra_filter(
-    monkeypatch: pytest.MonkeyPatch, stub_embed: None
+    monkeypatch: pytest.MonkeyPatch, stub_embed: None, _legacy_filter_on: None
 ) -> None:
-    """rag_query (default) passes a Mongo $ne legacy_uncategorized filter."""
+    """rag_query (with GECKO_RAG_LEGACY_FILTER=on) passes a Mongo $ne legacy_uncategorized filter."""
     captured: dict[str, Any] = {}
 
     async def _fake_match_chunks_mongo(**kwargs: Any) -> list[dict[str, Any]]:
@@ -86,9 +97,9 @@ async def test_default_filters_legacy_uncategorized_via_extra_filter(
 
 @pytest.mark.asyncio
 async def test_default_filters_metadata_deprecated(
-    monkeypatch: pytest.MonkeyPatch, stub_embed: None
+    monkeypatch: pytest.MonkeyPatch, stub_embed: None, _legacy_filter_on: None
 ) -> None:
-    """rag_query (default) excludes metadata.deprecated=True chunks."""
+    """rag_query (with GECKO_RAG_LEGACY_FILTER=on) excludes metadata.deprecated=True chunks."""
     captured: dict[str, Any] = {}
 
     async def _fake_match_chunks_mongo(**kwargs: Any) -> list[dict[str, Any]]:
@@ -155,3 +166,37 @@ async def test_legacy_exclude_filter_shape() -> None:
         "category": {"$ne": "legacy_uncategorized"},
         "metadata.deprecated": {"$ne": True},
     }
+
+
+@pytest.mark.asyncio
+async def test_default_no_filter_when_env_off(
+    monkeypatch: pytest.MonkeyPatch, stub_embed: None
+) -> None:
+    """S20-HOTFIX: legacy filter is OFF by default (no GECKO_RAG_LEGACY_FILTER).
+
+    Until the Atlas index migration declares `category` + `metadata.deprecated`
+    as filter paths on `chunks_vector`, pushing them into `$vectorSearch.filter`
+    causes Atlas to hard-reject the query. Default-off keeps production alive.
+    """
+    captured: dict[str, Any] = {}
+
+    async def _fake_match_chunks_mongo(**kwargs: Any) -> list[dict[str, Any]]:
+        captured.update(kwargs)
+        return [_row(0)]
+
+    monkeypatch.setattr(
+        "gecko_core.db.mongo_reads.match_chunks_mongo",
+        _fake_match_chunks_mongo,
+    )
+    # Explicitly DO NOT set GECKO_RAG_LEGACY_FILTER. The autouse fixture leaves
+    # it unset; this test pins that default-off path.
+    monkeypatch.delenv("GECKO_RAG_LEGACY_FILTER", raising=False)
+
+    class _StubStore:
+        async def add_cost(self, *_a: Any, **_kw: Any) -> None:
+            return None
+
+    from gecko_core.rag.query import rag_query
+
+    await rag_query(uuid4(), "q", top_k=4, store=_StubStore())  # type: ignore[arg-type]
+    assert captured["extra_filter"] is None

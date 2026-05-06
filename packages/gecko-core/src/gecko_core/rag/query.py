@@ -345,8 +345,19 @@ async def rag_query(
         # S20-A3 — exclude legacy chunks by default. Best-effort INFO log
         # signals the filter is active; we don't run a separate count to
         # report exact excluded N (would double the wire round-trip).
+        #
+        # S20-HOTFIX (2026-05-06) — the filter pushdown requires Atlas to
+        # have `category` + `metadata.deprecated` declared as filter paths
+        # on `chunks_vector`. Production index doesn't yet (RAG-02 migration
+        # script `scripts/mongo/s20_rag02_filterable_index.py --apply` must
+        # run first). Default the filter OFF until the operator opts in via
+        # `GECKO_RAG_LEGACY_FILTER=on`. Without it, Atlas hard-rejects every
+        # query with `Path 'category' needs to be indexed as filter`.
         extra_filter: dict[str, Any] | None = None
-        if not include_legacy:
+        legacy_filter_enabled = (
+            os.environ.get("GECKO_RAG_LEGACY_FILTER", "off").strip().lower() == "on"
+        )
+        if not include_legacy and legacy_filter_enabled:
             extra_filter = _legacy_exclude_filter()
             logger.info(
                 "rag.query.legacy_filtered legacy_filter_active=true session_id=%s",
