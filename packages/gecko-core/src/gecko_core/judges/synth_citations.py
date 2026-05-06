@@ -29,6 +29,14 @@ REACHABILITY (per CLAUDE.md feedback_wedge_reachability_check):
         → workflows.research returns to caller (CLI / API / MCP)
     Pro tier: workflows.research keeps base_result fields via model_copy
     update; cited_doc_ids passes through unchanged.
+
+    Back-fill path (S20-FIX-04): when the model emits ``[N]`` in prose
+    but skips/empties ``citations``, the back-fill scans prose markers
+    and rebuilds entries from the ordered ``rag_context_chunks``
+    argument. Reachable from basic.generate (passes the rag_query
+    chunks list directly) AND from workflows._run_pro_debate via
+    ResearchResult.model_copy passthrough — pro tier inherits the
+    basic-tier base result, so back-filled citations propagate.
 """
 
 from __future__ import annotations
@@ -85,11 +93,54 @@ def _collect_prose_markers(prose_surfaces: Iterable[str | None]) -> set[int]:
     return found
 
 
+def _back_fill_from_prose(
+    prose_idxs: set[int],
+    rag_context_chunks: list[Any],
+) -> list[CitationMarker]:
+    """Build CitationMarker entries from prose ``[N]`` markers + ordered chunks.
+
+    S20-FIX-04 — defensive safety net for the case where the model emitted
+    ``[N]`` in prose but skipped (or emptied) the structured ``citations``
+    field. We pick the chunk at index ``N-1`` from the rag_context list
+    (matches the 1-indexed labeling done by ``basic._format_context``);
+    when ``N`` exceeds the available chunk count, we cap silently — the
+    caller logs the cap-hit count.
+
+    Only chunks with a non-empty ``chunk_id`` are eligible — without a
+    chunk_id we can't ground the back-fill against the cited_doc_ids
+    contract (cited_doc_ids ⊆ {c.chunk_id for c in rag_context}).
+    """
+    if not prose_idxs or not rag_context_chunks:
+        return []
+    out: list[CitationMarker] = []
+    max_idx = len(rag_context_chunks)
+    for n in sorted(prose_idxs):
+        if n < 1 or n > max_idx:
+            continue
+        chunk = rag_context_chunks[n - 1]
+        chunk_id = getattr(chunk, "chunk_id", None)
+        url = getattr(chunk, "source_url", None)
+        if not chunk_id or not url:
+            continue
+        try:
+            marker = CitationMarker(
+                idx=n,
+                doc_id=str(chunk_id),
+                url=str(url),
+                span=None,
+            )
+        except ValidationError:
+            continue
+        out.append(marker)
+    return out
+
+
 def extract_citation_markers(
     *,
     raw_citations: Any,
     allowed_doc_ids: set[str],
     prose_surfaces: Iterable[str | None] = (),
+    rag_context_chunks: list[Any] | None = None,
 ) -> tuple[list[CitationMarker], list[str]]:
     """Validate and align the model's ``citations`` field.
 
@@ -111,17 +162,18 @@ def extract_citation_markers(
     Note: silent-degradation contract. Bad input never raises; it logs
     and returns an empty (or smaller) list. Callers want best-effort.
     """
-    if raw_citations is None or not isinstance(raw_citations, list):
-        return [], []
-
-    total = len(raw_citations)
-    if total == 0:
-        return [], []
+    raw_list: list[Any] = (
+        [] if raw_citations is None or not isinstance(raw_citations, list) else raw_citations
+    )
+    # Materialize prose_surfaces once — both the back-fill and the
+    # downstream Pass 3 alignment iterate over it.
+    prose_list: list[str | None] = list(prose_surfaces)
+    total = len(raw_list)
 
     # Pass 1 — coerce + pydantic-validate each entry.
     validated: list[CitationMarker] = []
     coercion_dropped = 0
-    for entry in raw_citations:
+    for entry in raw_list:
         coerced = _coerce_marker(entry)
         if coerced is None:
             coercion_dropped += 1
@@ -132,6 +184,34 @@ def extract_citation_markers(
             coercion_dropped += 1
             continue
         validated.append(marker)
+
+    # S20-FIX-04 — defensive back-fill. If the model emitted ``[N]`` in
+    # prose but skipped/emptied ``citations``, scan the prose markers and
+    # rebuild from the ordered rag_context. Only synthesize entries the
+    # model failed to surface (idx not already present). WARN log fires so
+    # we can track the back-fill rate in production; once the prompt
+    # tightening lands the rate should trend toward zero.
+    prose_idxs_for_backfill = _collect_prose_markers(prose_list)
+    if rag_context_chunks and prose_idxs_for_backfill:
+        existing_idxs = {m.idx for m in validated}
+        missing_idxs = prose_idxs_for_backfill - existing_idxs
+        if missing_idxs:
+            backfilled = _back_fill_from_prose(missing_idxs, rag_context_chunks)
+            requested = len(missing_idxs)
+            cap_hit = requested - len(backfilled)
+            logger.warning(
+                "synth.citation.back_fill_used count=%d requested=%d cap_hit=%d "
+                "(model emitted [N] in prose but skipped citations entries; "
+                "back-filled from rag_context — prompt regression signal)",
+                len(backfilled),
+                requested,
+                cap_hit,
+            )
+            validated.extend(backfilled)
+
+    if not validated and total == 0:
+        # No structured entries, no prose-driven back-fill — nothing to do.
+        return [], []
 
     # Pass 2 — drop hallucinated doc_ids.
     grounded: list[CitationMarker] = []
@@ -151,8 +231,8 @@ def extract_citation_markers(
         )
 
     # Pass 3 — align with prose `[N]` markers (when surfaces supplied).
-    prose_idxs = _collect_prose_markers(prose_surfaces)
-    if prose_surfaces and prose_idxs:
+    prose_idxs = _collect_prose_markers(prose_list)
+    if prose_list and prose_idxs:
         # Only emit a doc_id when its idx is referenced in prose AND the
         # entry survived hallucination filtering.
         matched: list[CitationMarker] = []

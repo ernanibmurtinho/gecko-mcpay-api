@@ -149,6 +149,127 @@ def test_research_result_roundtrip_preserves_fields() -> None:
     assert rr2.citation_markers[0].idx == 1
 
 
+class _FakeChunk:
+    """Minimal RagChunk-shape stand-in for back-fill tests (id + url only)."""
+
+    def __init__(self, chunk_id: str, source_url: str) -> None:
+        self.chunk_id = chunk_id
+        self.source_url = source_url
+
+
+def test_back_fill_happy_path_with_structured_citations() -> None:
+    """S20-FIX-04 regression check: structured citations + prose markers
+    take the normal path — back-fill does NOT fire when entries already exist."""
+    allowed = {"chunk-a", "chunk-b"}
+    raw = [
+        _raw(1, "chunk-a", "https://example.com/a", "passage A"),
+        _raw(2, "chunk-b", "https://example.com/b", "passage B"),
+    ]
+    chunks = [
+        _FakeChunk("chunk-a", "https://example.com/a"),
+        _FakeChunk("chunk-b", "https://example.com/b"),
+    ]
+    prose = ["A [1] and B [2]."]
+
+    markers, cited = extract_citation_markers(
+        raw_citations=raw,
+        allowed_doc_ids=allowed,
+        prose_surfaces=prose,
+        rag_context_chunks=chunks,
+    )
+    assert {m.idx for m in markers} == {1, 2}
+    assert set(cited) == {"chunk-a", "chunk-b"}
+
+
+def test_back_fill_kicks_in_on_empty_citations(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """S20-FIX-04: empty `citations` + prose `[1][2]` → back-filled, WARN fires."""
+    allowed = {"chunk-a", "chunk-b"}
+    chunks = [
+        _FakeChunk("chunk-a", "https://example.com/a"),
+        _FakeChunk("chunk-b", "https://example.com/b"),
+    ]
+    prose = ["wedge claim [1] and consequence [2]."]
+
+    with caplog.at_level(logging.WARNING, logger="gecko_core.judges.synth_citations"):
+        markers, cited = extract_citation_markers(
+            raw_citations=[],
+            allowed_doc_ids=allowed,
+            prose_surfaces=prose,
+            rag_context_chunks=chunks,
+        )
+
+    assert {m.idx for m in markers} == {1, 2}
+    assert {m.doc_id for m in markers} == {"chunk-a", "chunk-b"}
+    assert set(cited) == {"chunk-a", "chunk-b"}
+    msgs = "\n".join(r.getMessage() for r in caplog.records)
+    assert "synth.citation.back_fill_used" in msgs
+    assert "count=2" in msgs
+
+
+def test_back_fill_caps_when_prose_exceeds_chunks(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """5 prose markers + 2 chunks → back-fill caps at 2, cap_hit=3 in log."""
+    allowed = {"chunk-a", "chunk-b"}
+    chunks = [
+        _FakeChunk("chunk-a", "https://example.com/a"),
+        _FakeChunk("chunk-b", "https://example.com/b"),
+    ]
+    prose = ["A [1] B [2] C [3] D [4] E [5]."]
+
+    with caplog.at_level(logging.WARNING, logger="gecko_core.judges.synth_citations"):
+        markers, cited = extract_citation_markers(
+            raw_citations=[],
+            allowed_doc_ids=allowed,
+            prose_surfaces=prose,
+            rag_context_chunks=chunks,
+        )
+
+    # Only the in-range [1][2] back-fill; [3][4][5] are dropped.
+    assert {m.idx for m in markers} == {1, 2}
+    assert set(cited) == {"chunk-a", "chunk-b"}
+    msgs = "\n".join(r.getMessage() for r in caplog.records)
+    assert "synth.citation.back_fill_used" in msgs
+    assert "cap_hit=3" in msgs
+
+
+def test_hallucinated_with_back_fill_drops_only_the_bad_one(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Hallucinated doc_id still drops; valid entries (incl. back-filled) survive."""
+    allowed = {"chunk-a", "chunk-b"}
+    raw = [
+        # Model emitted citations[0] for [1], with a hallucinated doc_id.
+        _raw(1, "chunk-GHOST", "https://example.com/ghost"),
+        # Model emitted citations[1] for [2], grounded.
+        _raw(2, "chunk-b", "https://example.com/b"),
+    ]
+    chunks = [
+        _FakeChunk("chunk-a", "https://example.com/a"),
+        _FakeChunk("chunk-b", "https://example.com/b"),
+    ]
+    prose = ["A [1] B [2]."]
+
+    with caplog.at_level(logging.INFO, logger="gecko_core.judges.synth_citations"):
+        markers, cited = extract_citation_markers(
+            raw_citations=raw,
+            allowed_doc_ids=allowed,
+            prose_surfaces=prose,
+            rag_context_chunks=chunks,
+        )
+
+    # Hallucinated [1] dropped at the grounding pass; [2]'s real entry kept.
+    # Back-fill does NOT re-add [1] because the model DID emit an entry for
+    # idx=1 (it just had the wrong doc_id) — back-fill only fires for
+    # missing_idxs (prose [N] with no citations[*].idx == N).
+    assert {m.idx for m in markers} == {2}
+    assert cited == ["chunk-b"]
+    msgs = "\n".join(r.getMessage() for r in caplog.records)
+    assert "synth.citation.hallucination_rate" in msgs
+
+
 def test_span_truncated_to_200_chars() -> None:
     """Defensive: a span > 200 chars is truncated, not raised."""
     allowed = {"chunk-a"}

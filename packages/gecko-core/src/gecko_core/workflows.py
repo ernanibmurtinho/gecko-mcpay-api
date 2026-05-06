@@ -37,6 +37,7 @@ from gecko_core.models import (
     is_low_grounding,
 )
 from gecko_core.orchestration.basic import generate as basic_generate
+from gecko_core.orchestration.degraded import DegradedSectionTracker
 from gecko_core.orchestration.pro import generate as pro_generate
 from gecko_core.orchestration.settings import get_orchestration_settings
 from gecko_core.payments import run_payment_gate
@@ -419,6 +420,7 @@ async def _run_pro_debate(
     *,
     tier_preset: str | None = None,
     calibration_block: str | None = None,
+    tracker: DegradedSectionTracker | None = None,
 ) -> ResearchResult:
     """Run the 5-agent pro debate and merge its transcript into the result.
 
@@ -729,6 +731,27 @@ async def _run_pro_debate(
             "founder_posture": founder_posture,
         }
     )
+
+    # S20-OBS-01 — stamp accumulated degraded-section state onto the pro
+    # result. Pro tier inherits ``degraded_sections`` from ``base_result``
+    # via ``model_copy`` passthrough above; if the caller passed an explicit
+    # tracker (or pro post-processors marked sections via a fresh local
+    # tracker), apply_to overlays those values. We don't silently override
+    # the base_result inheritance: only apply when the caller passed a
+    # tracker in OR a fresh local tracker has accumulated state.
+    pro_tracker = tracker if tracker is not None else DegradedSectionTracker()
+    if pro_tracker.to_dict() or tracker is not None:
+        pro_tracker.apply_to(pro_result)
+        if pro_result.degraded_sections:
+            logger.info(
+                "synth.degraded_sections.summary",
+                extra={
+                    "event": "synth.degraded_sections.summary",
+                    "tier": "pro",
+                    "degraded_sections": pro_result.degraded_sections,
+                    "degraded_reasons": pro_result.degraded_reasons,
+                },
+            )
 
     # S20-A6 / S20-A-USAGE-COUNT-01 — fire-and-forget bump of
     # metadata.usage_count for chunks that landed in the pro synth's

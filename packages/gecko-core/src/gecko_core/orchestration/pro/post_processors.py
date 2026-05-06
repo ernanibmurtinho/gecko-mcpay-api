@@ -23,6 +23,8 @@ from pydantic import BaseModel, ValidationError
 
 from gecko_core.llm_helpers import build_response_format
 from gecko_core.models import (
+    Competitor,
+    LandscapeSectionFlag,
     MarketLandscape,
     NextStep,
     NextStepsWithFalsifiers,
@@ -88,6 +90,7 @@ async def _call_json(
     system: str,
     user: str,
     model_cls: type[BaseModel] | None = None,
+    max_tokens: int | None = None,
 ) -> dict[str, Any]:
     # LLM-hygiene Commit C: ``seed=42`` is best-effort determinism.
     # OpenRouter forwards seed per-provider; not all providers honor it
@@ -116,15 +119,20 @@ async def _call_json(
                 {"role": "user", "content": user},
             ],
             temperature=_POST_PROCESSOR_TEMPERATURE,
-            max_tokens=get_orchestration_settings().max_tokens_post_processor,
+            max_tokens=(
+                max_tokens
+                if max_tokens is not None
+                else get_orchestration_settings().max_tokens_post_processor
+            ),
             response_format=response_format,
         )
-    except LLMTruncationError as exc:
+    except LLMTruncationError:
         # Truncation is a structural failure — partial JSON cannot be
-        # validated. Surface the typed message to the section handler so
-        # the operator sees gen_id / provider / model rather than a
-        # downstream pydantic ValidationError.
-        raise ValueError(f"post-processor truncated: {exc}") from exc
+        # validated. Re-raise the typed exception so callers that can do
+        # best-effort recovery (S20-FIX-05 ``market_landscape``) read
+        # ``partial_content``; the generic ``_run_section`` wrapper still
+        # catches it via ``Exception`` and degrades to ``None``.
+        raise
     except LLMStalledError as exc:
         raise ValueError(f"post-processor stalled: {exc}") from exc
 
@@ -158,6 +166,84 @@ async def _run_section(
     except Exception as exc:  # JSON, OpenAI, network — degrade gracefully
         logger.warning("post-processor %s call failed: %s", section, exc)
         return None
+
+
+def _recover_market_landscape_partial(partial_content: str) -> MarketLandscape:
+    """S20-FIX-05 — best-effort parse of a truncated market_landscape payload.
+
+    Mirrors :func:`_validate_next_steps_partial` for the
+    ``{competitors: list[Competitor], section_flag: ...}`` shape. The LLM
+    typically truncates mid-list (closing ``]`` and ``}`` missing, last
+    competitor entry cut off mid-string). Strategy:
+
+    1. Locate the ``competitors`` array opening bracket; if absent, no
+       recovery is possible (zero-recovery flag).
+    2. Walk the buffer tracking brace + string depth, capturing each
+       top-level ``{...}`` competitor object as a fragment.
+    3. ``json.loads`` + ``Competitor.model_validate`` each fragment;
+       silently drop the malformed ones (same posture as
+       ``_validate_next_steps_partial``).
+
+    Returns a ``MarketLandscape`` with ``section_flag`` set to either
+    ``"truncated_partial_recovery"`` (≥1 competitor recovered) or
+    ``"truncated_zero_recovery"`` (no recoverable prefix → empty list).
+    Always returns a value — never ``None`` — so the renderer can show a
+    degraded-section indicator instead of silently dropping the field.
+    """
+    competitors: list[Competitor] = []
+
+    marker_idx = partial_content.find('"competitors"')
+    if marker_idx == -1:
+        return MarketLandscape(competitors=[], section_flag="truncated_zero_recovery")
+    bracket_idx = partial_content.find("[", marker_idx)
+    if bracket_idx == -1:
+        return MarketLandscape(competitors=[], section_flag="truncated_zero_recovery")
+
+    body = partial_content[bracket_idx + 1 :]
+    depth = 0
+    start = 0
+    in_str = False
+    escape = False
+    fragments: list[str] = []
+    for i, ch in enumerate(body):
+        if escape:
+            escape = False
+            continue
+        if ch == "\\":
+            escape = True
+            continue
+        if ch == '"':
+            in_str = not in_str
+            continue
+        if in_str:
+            continue
+        if ch == "{":
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                fragments.append(body[start : i + 1])
+        elif ch == "]" and depth == 0:
+            break
+
+    for frag in fragments:
+        try:
+            obj = json.loads(frag)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(obj, dict):
+            continue
+        try:
+            competitors.append(Competitor.model_validate(obj))
+        except ValidationError:
+            continue
+
+    flag: LandscapeSectionFlag = (
+        "truncated_partial_recovery" if competitors else "truncated_zero_recovery"
+    )
+    return MarketLandscape(competitors=competitors, section_flag=flag)
 
 
 def _validate_next_steps_partial(raw: dict[str, Any]) -> NextStepsWithFalsifiers | None:
@@ -311,13 +397,46 @@ async def run_post_processors(
                 logger.warning("post-processor transcript_summary failed: %s", exc)
                 return None
 
-        landscape_task = _run_section(
-            c,
-            system=prompts["market_landscape"],
-            user=user,
-            model_cls=MarketLandscape,
-            section="market_landscape",
-        )
+        async def _landscape_task() -> MarketLandscape | None:
+            # S20-FIX-05 — market_landscape needs (a) a higher max_tokens
+            # cap because 3-5 competitors x 4 fields + axis-key echo
+            # routinely overruns the shared 2000-token cap on
+            # deepseek-v4-flash, and (b) best-effort recovery on
+            # truncation so a mid-list cap doesn't silently drop the
+            # whole competitor section.
+            from gecko_core.orchestration.llm_client import LLMTruncationError
+
+            ml_cap = get_orchestration_settings().max_tokens_market_landscape
+            try:
+                raw = await _call_json(
+                    c,
+                    system=prompts["market_landscape"],
+                    user=user,
+                    model_cls=MarketLandscape,
+                    max_tokens=ml_cap,
+                )
+            except LLMTruncationError as exc:
+                recovered = _recover_market_landscape_partial(exc.partial_content)
+                logger.warning(
+                    "pro.market_landscape.truncated",
+                    extra={
+                        "event": "pro.market_landscape.truncated",
+                        "section_flag": recovered.section_flag,
+                        "recovered_competitors": len(recovered.competitors),
+                        "max_tokens": ml_cap,
+                    },
+                )
+                return recovered
+            except Exception as exc:
+                logger.warning("post-processor market_landscape call failed: %s", exc)
+                return None
+            try:
+                return MarketLandscape.model_validate(raw)
+            except ValidationError as exc:
+                logger.warning("post-processor market_landscape validation failed: %s", exc)
+                return None
+
+        landscape_task = _landscape_task()
         dissent_task = _run_section(
             c,
             system=prompts["surviving_dissent"],
@@ -380,7 +499,8 @@ async def run_post_processors(
 
     per_voice = cast("PerVoiceReadout | None", results[0])
     summary = results[1]
-    market_landscape = cast("MarketLandscape | None", results[2])
+    # results[2] is already typed MarketLandscape | None (S20-FIX-05 _landscape_task).
+    market_landscape = results[2]
     surviving_dissent = cast("SurvivingDissent | None", results[3])
     # results[4] is already typed NextStepsWithFalsifiers | None (FIX-03 _steps_task).
     next_steps = results[4]

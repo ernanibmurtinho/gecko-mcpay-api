@@ -167,6 +167,109 @@ async def test_basic_generate_propagates_cited_doc_ids(
     assert len(result.validation_report.citations) >= 1
 
 
+def _llm_payload_empty_citations_with_prose_markers() -> str:
+    """S20-FIX-04 regression fixture: prose has `[1][2]` but citations is []."""
+    return json.dumps(
+        {
+            "business_plan": {
+                "problem": "p",
+                "icp": "i",
+                "solution": "s",
+                "market": "m",
+                "business_model": "bm",
+                "channels": "c",
+                "risks": [],
+                "citations": [
+                    {
+                        "source_url": "https://example.com/a",
+                        "chunk_index": 0,
+                        "similarity": 0.85,
+                    }
+                ],
+            },
+            "validation_report": {
+                "market_size_signal": "x",
+                "competitor_analysis": "x",
+                "demand_evidence": "x",
+                "risk_flags": [],
+                "citations": [
+                    {
+                        "source_url": "https://example.com/a",
+                        "chunk_index": 0,
+                        "similarity": 0.85,
+                    }
+                ],
+                "gap_classification": "Partial:UX",
+                "gap_summary": "competitor X covers fraud but not replay [1]",
+                "gap_explanation": (
+                    "The UX is the gap [1]. The opposite onramp [2] is what "
+                    "the user needs. Ship the replay-from-error path."
+                ),
+            },
+            "prd": {
+                "v1_scope": ["x"],
+                "v2_scope": ["x"],
+                "v3_scope": ["x"],
+                "acceptance_criteria": ["x"],
+                "non_functional": ["x"],
+                "success_metrics": ["x"],
+                "citations": [
+                    {
+                        "source_url": "https://example.com/a",
+                        "chunk_index": 0,
+                        "similarity": 0.85,
+                    }
+                ],
+            },
+            # S20-FIX-04 — model omitted top-level citations entries despite
+            # emitting [1][2] in prose. Back-fill must repair this.
+            "citations": [],
+        }
+    )
+
+
+@pytest.mark.asyncio
+async def test_basic_generate_back_fills_when_model_skips_citations(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """S20-FIX-04: prose `[1][2]` + empty citations → back-fill repairs end-to-end."""
+    import logging
+
+    from gecko_core.orchestration import basic as basic_mod
+
+    chunks = [
+        _mk_chunk(0, "chunk-AAA", url="https://example.com/a"),
+        _mk_chunk(1, "chunk-BBB", url="https://example.com/a"),
+    ]
+
+    async def _fake_rag_query(*_a: object, **_kw: object) -> list[Any]:
+        return chunks
+
+    async def _fake_call_llm(**_kw: Any) -> tuple[str, float]:
+        return _llm_payload_empty_citations_with_prose_markers(), 0.0001
+
+    monkeypatch.setattr(basic_mod, "rag_query", _fake_rag_query)
+    monkeypatch.setattr(basic_mod, "_call_llm", _fake_call_llm)
+
+    store = _FakeStore(["https://example.com/a"])
+    session_id = uuid4()
+
+    with caplog.at_level(logging.WARNING, logger="gecko_core.judges.synth_citations"):
+        result = await basic_mod.generate(
+            session_id=session_id,
+            idea="test idea",
+            store=store,  # type: ignore[arg-type]
+            openai_client=AsyncMock(),
+        )
+
+    # Back-fill produced two markers — [1] → chunk-AAA, [2] → chunk-BBB.
+    assert {m.idx for m in result.citation_markers} == {1, 2}
+    assert set(result.cited_doc_ids) == {"chunk-AAA", "chunk-BBB"}
+    msgs = "\n".join(r.getMessage() for r in caplog.records)
+    assert "synth.citation.back_fill_used" in msgs
+
+
 def test_format_context_includes_chunk_id() -> None:
     """The rendered context block must surface chunk_id so the model can copy it."""
     from gecko_core.orchestration.basic import _format_context

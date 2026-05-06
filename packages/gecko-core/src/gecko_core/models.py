@@ -622,7 +622,17 @@ class PerVoiceReadout(BaseModel):
 
 
 CompetitorFlag = Literal["cannot_articulate_difference"]
-LandscapeSectionFlag = Literal["insufficient_competitors_in_chunks"]
+LandscapeSectionFlag = Literal[
+    "insufficient_competitors_in_chunks",
+    # S20-FIX-05 — best-effort recovery flags raised by the
+    # ``market_landscape`` post-processor when the LLM output truncated
+    # mid-list. ``truncated_partial_recovery`` = at least one valid
+    # competitor parsed from the prefix; ``truncated_zero_recovery`` =
+    # no parseable prefix, ``competitors=[]`` propagates so the renderer
+    # can show a degraded-section indicator instead of a silent ``null``.
+    "truncated_partial_recovery",
+    "truncated_zero_recovery",
+]
 
 # v5.5 — closed list of differentiator axes the market_landscape post-
 # processor picks from. Decoupled from `why_we_are_not_them` (sentence)
@@ -860,6 +870,21 @@ class ResearchResult(BaseModel):
     # owns the digest. Powers the C5 confidence-gated enrichment loop
     # (separate ticket).
     confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    # S20-OBS-01 — names of post-processor sections that failed or returned
+    # partial output (e.g. ``["market_landscape", "next_steps_with_falsifiers"]``).
+    # Empty list signals a clean run. Surfaced so the renderer can show
+    # a "this section failed to render" indicator instead of mis-reading
+    # ``market_landscape: None`` as "no competitors found." Default empty
+    # for back-compat — existing serialized rows round-trip cleanly.
+    # Excluded from verdict_hash inputs (telemetry surface, not structural
+    # verdict shape).
+    degraded_sections: list[str] = Field(default_factory=list)
+    # S20-OBS-01 — companion to ``degraded_sections`` mapping section name to
+    # a short, machine-greppable reason string (e.g. ``"truncated_partial_recovery"``,
+    # ``"validation_dropped_all"``, ``"model_timeout"``). Optional renderer /
+    # telemetry surface; producers stamp via
+    # ``orchestration.degraded.DegradedSectionTracker.apply_to``.
+    degraded_reasons: dict[str, str] = Field(default_factory=dict)
 
 
 class AskResult(BaseModel):

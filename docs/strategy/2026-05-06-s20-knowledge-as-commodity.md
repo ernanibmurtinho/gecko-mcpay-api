@@ -7,8 +7,10 @@
 
 **Refined positioning (2026-05-06 brainstorm):** the moat is **NOT** the verdict shape alone. It's the combination of **(a) vertical-shaped index** (neobank, DEX, marketplace…), **(b) build-time consumption pattern** (the user's own build agent queries Gecko on every step, not just at pre-ideation), **(c) compounding density per vertical** (each builder's queries enrich the base), and **(d) switching cost on the agent integration** (build agents wired to Gecko's structured store). pay.sh sells the rail; Gecko sells the categorized organization. Different axes — orthogonal, not substitutes.
 
-**Public-facing wedge sentence:**
-> "Gecko is the categorized build-context layer for AI builders. We pre-load the full domain knowledge for your app vertical (neobank, DEX, marketplace, …), index it across 7 dimensions, and serve it to your build agent on every step — paid per call via x402. The base compounds: every builder makes the next one cheaper."
+**Public-facing wedge sentence (revised 2026-05-06 post-dogfood `c05ab663`):**
+> "Gecko is the categorized build-context layer for AI builders. We pre-load the full domain knowledge for your app vertical (neobank, DEX, marketplace, …), index it across 7 dimensions, and serve it to your build agent on every step — paid per call via x402. **The first 10 builders per (vertical, category) cell earn a revenue share on every subsequent retrieval.** Builders make the next one cheaper *and* get paid for seeding the cell."
+
+**SUPERSEDED wedge sentence (2026-05-05 → 2026-05-06):** previously framed as "first builder pays a pioneer's surcharge." Dogfood judge rejected as a "gamified knowledge-sharing tax." See memory `project_pioneer_as_bounty_reframe` — pioneer flips from buyer-with-surcharge to contributor-with-bounty. Same compounding-base economics, different role framing.
 
 **Reference docs:**
 - Manifest sketch: `docs/strategy/2026-05-05-agent-skills-manifest-sketch.md`

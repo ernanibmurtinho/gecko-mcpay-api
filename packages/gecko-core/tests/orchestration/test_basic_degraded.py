@@ -1,20 +1,17 @@
-"""S20-A6 — basic-tier wiring: synth completion fires bump_usage_counts.
+"""S20-OBS-01 — basic.generate wiring of DegradedSectionTracker.
 
-Asserts that ``basic.generate``:
-  (a) schedules ``bump_usage_counts`` (via ``asyncio.create_task``) with the
-      result's ``cited_doc_ids`` when the LLM produced citations, and
-  (b) does NOT call ``bump_usage_counts`` when ``cited_doc_ids`` is empty
-      (no wasted Mongo trip).
-
-We monkeypatch ``bump_usage_counts`` to an ``AsyncMock`` so we can assert
-call args without reaching Mongo. The fire-and-forget task is drained via
-``asyncio.gather`` over pending tasks before assertion to avoid races.
+Asserts that:
+  1. A clean run produces an empty ``degraded_sections`` and does NOT emit
+     the ``synth.degraded_sections.summary`` INFO log.
+  2. A run where a tracker is passed in (and pre-marked) propagates the
+     marked sections + reasons onto the ResearchResult and emits the
+     structured INFO log.
 """
 
 from __future__ import annotations
 
-import asyncio
 import json
+import logging
 from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock
@@ -58,7 +55,7 @@ class _FakeStore:
         return None
 
 
-def _llm_payload(citations: list[dict[str, Any]]) -> str:
+def _llm_payload() -> str:
     return json.dumps(
         {
             "business_plan": {
@@ -91,7 +88,10 @@ def _llm_payload(citations: list[dict[str, Any]]) -> str:
                 ],
                 "gap_classification": "Partial:UX",
                 "gap_summary": "competitor X covers fraud but not replay debugging",
-                "gap_explanation": ("The UX is the gap [1]. Ship the replay-from-error path."),
+                "gap_explanation": (
+                    "The UX is the gap — chunk one [1] confirms the wedge. "
+                    "Ship the replay-from-error path before competing on dashboards."
+                ),
             },
             "prd": {
                 "v1_scope": ["x"],
@@ -108,68 +108,24 @@ def _llm_payload(citations: list[dict[str, Any]]) -> str:
                     }
                 ],
             },
-            "citations": citations,
-        }
-    )
-
-
-async def _drain_pending(seen_before: set[asyncio.Task[Any]]) -> None:
-    """Wait for tasks created during the call (the fire-and-forget bump)."""
-    pending = [t for t in asyncio.all_tasks() if t not in seen_before and not t.done()]
-    if pending:
-        await asyncio.gather(*pending, return_exceptions=True)
-
-
-async def test_generate_fires_bump_when_citations_present(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from gecko_core.orchestration import basic as basic_mod
-
-    chunks = [_mk_chunk(0, "chunk-AAA")]
-
-    async def _fake_rag_query(*_a: object, **_kw: object) -> list[Any]:
-        return chunks
-
-    async def _fake_call_llm(**_kw: Any) -> tuple[str, float]:
-        payload = _llm_payload(
-            [
+            "citations": [
                 {
                     "idx": 1,
                     "doc_id": "chunk-AAA",
                     "url": "https://example.com/a",
-                    "span": "passage",
+                    "span": "the cited passage",
                 }
-            ]
-        )
-        return payload, 0.0001
-
-    bump_mock = AsyncMock(return_value=1)
-    monkeypatch.setattr(basic_mod, "rag_query", _fake_rag_query)
-    monkeypatch.setattr(basic_mod, "_call_llm", _fake_call_llm)
-    # Patch the symbol where _dispatch_usage_count_bump imports it from.
-    monkeypatch.setattr(
-        "gecko_core.db.mongo_chunks.bump_usage_counts",
-        bump_mock,
+            ],
+        }
     )
 
-    store = _FakeStore(["https://example.com/a"])
 
-    seen_before = set(asyncio.all_tasks())
-    result = await basic_mod.generate(
-        session_id=uuid4(),
-        idea="test idea",
-        store=store,  # type: ignore[arg-type]
-        openai_client=AsyncMock(),
-    )
-    await _drain_pending(seen_before)
-
-    assert result.cited_doc_ids == ["chunk-AAA"]
-    bump_mock.assert_awaited_once_with(["chunk-AAA"])
-
-
-async def test_generate_skips_bump_when_no_citations(
+@pytest.mark.asyncio
+async def test_clean_run_has_empty_degraded_and_no_summary_log(
     monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
+    """Happy path: no marks → empty fields, no INFO log fired."""
     from gecko_core.orchestration import basic as basic_mod
 
     chunks = [_mk_chunk(0, "chunk-AAA")]
@@ -178,35 +134,70 @@ async def test_generate_skips_bump_when_no_citations(
         return chunks
 
     async def _fake_call_llm(**_kw: Any) -> tuple[str, float]:
-        # Empty top-level citations AND prose with no `[N]` markers — the
-        # only path that genuinely yields zero cited_doc_ids post-S20-FIX-04.
-        # (Empty citations + prose `[N]` now triggers the defensive
-        # back-fill, so we must scrub the markers to keep this test's
-        # original semantic — "model cited nothing → no bump".)
-        payload_dict = json.loads(_llm_payload([]))
-        payload_dict["validation_report"]["gap_explanation"] = (
-            "The UX is the gap. Ship the replay-from-error path."
-        )
-        return json.dumps(payload_dict), 0.0001
+        return _llm_payload(), 0.0001
 
-    bump_mock = AsyncMock(return_value=0)
     monkeypatch.setattr(basic_mod, "rag_query", _fake_rag_query)
     monkeypatch.setattr(basic_mod, "_call_llm", _fake_call_llm)
-    monkeypatch.setattr(
-        "gecko_core.db.mongo_chunks.bump_usage_counts",
-        bump_mock,
-    )
 
     store = _FakeStore(["https://example.com/a"])
+    caplog.set_level(logging.INFO, logger=basic_mod.__name__)
 
-    seen_before = set(asyncio.all_tasks())
     result = await basic_mod.generate(
         session_id=uuid4(),
         idea="test idea",
         store=store,  # type: ignore[arg-type]
         openai_client=AsyncMock(),
     )
-    await _drain_pending(seen_before)
 
-    assert result.cited_doc_ids == []
-    bump_mock.assert_not_called()
+    assert result.degraded_sections == []
+    assert result.degraded_reasons == {}
+    # The structured summary log MUST NOT fire on clean runs.
+    summary_records = [
+        r for r in caplog.records if r.getMessage() == "synth.degraded_sections.summary"
+    ]
+    assert summary_records == []
+
+
+@pytest.mark.asyncio
+async def test_marked_tracker_propagates_to_result_and_logs_summary(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Caller pre-marks a tracker → ResearchResult carries the entry + INFO log fires."""
+    from gecko_core.orchestration import basic as basic_mod
+    from gecko_core.orchestration.degraded import DegradedSectionTracker
+
+    chunks = [_mk_chunk(0, "chunk-AAA")]
+
+    async def _fake_rag_query(*_a: object, **_kw: object) -> list[Any]:
+        return chunks
+
+    async def _fake_call_llm(**_kw: Any) -> tuple[str, float]:
+        return _llm_payload(), 0.0001
+
+    monkeypatch.setattr(basic_mod, "rag_query", _fake_rag_query)
+    monkeypatch.setattr(basic_mod, "_call_llm", _fake_call_llm)
+
+    store = _FakeStore(["https://example.com/a"])
+    tracker = DegradedSectionTracker()
+    tracker.mark("market_landscape", "validation_dropped_all")
+    caplog.set_level(logging.INFO, logger=basic_mod.__name__)
+
+    result = await basic_mod.generate(
+        session_id=uuid4(),
+        idea="test idea",
+        store=store,  # type: ignore[arg-type]
+        openai_client=AsyncMock(),
+        tracker=tracker,
+    )
+
+    assert result.degraded_sections == ["market_landscape"]
+    assert result.degraded_reasons == {"market_landscape": "validation_dropped_all"}
+
+    summary_records = [
+        r for r in caplog.records if r.getMessage() == "synth.degraded_sections.summary"
+    ]
+    assert len(summary_records) == 1
+    rec = summary_records[0]
+    assert getattr(rec, "degraded_sections", None) == ["market_landscape"]
+    assert getattr(rec, "degraded_reasons", None) == {"market_landscape": "validation_dropped_all"}

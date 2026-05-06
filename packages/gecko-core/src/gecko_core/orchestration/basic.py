@@ -38,6 +38,7 @@ from gecko_core.models import (
     derive_verdict,
     is_low_grounding,
 )
+from gecko_core.orchestration.degraded import DegradedSectionTracker
 from gecko_core.orchestration.settings import (
     get_orchestration_settings,
     resolve_llm_config,
@@ -158,16 +159,43 @@ prd: {v1_scope, v2_scope, v3_scope, acceptance_criteria, non_functional,
 Citation = {source_url: <one of the urls in the context>, chunk_index: int,
   similarity: float in [0,1]}.
 
-In addition to the per-document citation lists above, return a TOP-LEVEL
-``citations`` field (sibling of business_plan / validation_report / prd) that
-maps every ``[N]`` marker you used in prose to the chunk that backs it:
+In addition to the per-document citation lists above, you MUST return a
+TOP-LEVEL ``citations`` field (sibling of business_plan / validation_report
+/ prd) that maps every ``[N]`` marker you used in prose to the chunk that
+backs it. This field is REQUIRED whenever any prose surface
+(gap_explanation, gap_summary, or any other narrative field) contains a
+``[N]`` marker — emitting ``[1]`` in prose without a corresponding
+``citations[*].idx == 1`` entry is a contract violation.
+
+Shape:
   citations: list[{idx: int, doc_id: str, url: str, span: str | None}].
   - ``idx`` — the integer N you used in your `[N]` prose marker (1-indexed).
   - ``doc_id`` — the chunk_id from the Context block (each chunk is labeled
-    "[n] (chunk_id=<id>) (source: <url>)"). Copy this verbatim. NEVER invent.
+    "[n] (chunk_id=<id>) (source: <url>)"). Copy the chunk_id verbatim.
+    NEVER invent doc_ids; only use chunk_ids that appear in the Context.
   - ``url`` — the same source_url shown for that chunk.
   - ``span`` — optional excerpt (≤ 200 chars) of the cited passage.
-If you didn't use any ``[N]`` markers, emit ``citations: []``.
+
+For every ``[N]`` you write in prose, emit one citations entry with the
+matching idx. If your prose has no ``[N]`` markers at all, emit
+``citations: []``.
+
+Inline examples — given Context with two chunks:
+  [1] (chunk_id=ch_abc123) (source: https://example.com/a) ...
+  [2] (chunk_id=ch_def456) (source: https://example.com/b) ...
+
+If your gap_explanation says
+  "Stripe Radar covers fraud [1] but not webhook replay [2]."
+then citations MUST be:
+  "citations": [
+    {"idx": 1, "doc_id": "ch_abc123", "url": "https://example.com/a",
+     "span": "Stripe Radar fraud detection..."},
+    {"idx": 2, "doc_id": "ch_def456", "url": "https://example.com/b",
+     "span": "webhook replay debugging gap..."}
+  ]
+
+Every ``[N]`` in prose ↔ exactly one citations[*].idx == N entry. No
+exceptions.
 
 Rules:
 - Every document MUST include at least one citation.
@@ -632,8 +660,17 @@ async def generate(
     *,
     top_k: int = 12,
     openai_client: AsyncOpenAI | None = None,
+    tracker: DegradedSectionTracker | None = None,
 ) -> ResearchResult:
-    """Single-pass basic generation. See module docstring for contract."""
+    """Single-pass basic generation. See module docstring for contract.
+
+    ``tracker`` (S20-OBS-01) collects per-section degradation reasons so the
+    final ``ResearchResult`` carries a structured signal when a post-processor
+    failed or returned partial output. ``None`` (default) means we instantiate
+    a fresh tracker locally — back-compat with all existing call sites.
+    """
+    if tracker is None:
+        tracker = DegradedSectionTracker()
     chunks = await rag_query(session_id, idea, top_k=top_k, store=store)
     sources = await store.list_sources(session_id)
     allowed_urls = {str(s.url) for s in sources}
@@ -881,6 +918,7 @@ async def generate(
         raw_citations=out.citations,
         allowed_doc_ids=allowed_doc_ids,
         prose_surfaces=prose_surfaces,
+        rag_context_chunks=chunks,
     )
 
     # S20-C-CONFIDENCE-PROMPT-01 — aggregate per-section confidences.
@@ -913,6 +951,21 @@ async def generate(
         citation_markers=markers,
         confidence=document_confidence,
     )
+
+    # S20-OBS-01 — stamp accumulated degraded-section state onto the result.
+    # When the tracker is empty (clean run), this is a no-op pair of empty
+    # writes. When non-empty, log a structured INFO row so production logs
+    # can be grepped for which sections fail most.
+    tracker.apply_to(result)
+    if result.degraded_sections:
+        logger.info(
+            "synth.degraded_sections.summary",
+            extra={
+                "event": "synth.degraded_sections.summary",
+                "degraded_sections": result.degraded_sections,
+                "degraded_reasons": result.degraded_reasons,
+            },
+        )
 
     # S20-A6 / S20-A-USAGE-COUNT-01 — fire-and-forget bump of
     # metadata.usage_count for chunks that landed in the synth output.

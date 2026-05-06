@@ -56,6 +56,13 @@ class OrchestrationSettings(BaseSettings):
     # truncation. Override per-deploy via env (e.g. ``ORCH_MAX_TOKENS_AG2``).
     max_tokens_research_basic: int = Field(6000, alias="ORCH_MAX_TOKENS_RESEARCH_BASIC")
     max_tokens_post_processor: int = Field(2000, alias="ORCH_MAX_TOKENS_POST_PROCESSOR")
+    # S20-FIX-05 — `market_landscape` is structurally larger than the
+    # other post-processors (3-5 competitors x 4 fields each + axis-key
+    # echo) and saturated the shared 2000-token cap on deepseek-v4-flash
+    # in production (session c05ab663 returned `market_landscape: null`).
+    # Default 4000 leaves comfortable headroom; override per-deploy via
+    # ``GECKO_MARKET_LANDSCAPE_MAX_TOKENS``.
+    max_tokens_market_landscape: int = Field(4000, alias="GECKO_MARKET_LANDSCAPE_MAX_TOKENS")
     max_tokens_refiner: int = Field(4000, alias="ORCH_MAX_TOKENS_REFINER")
     max_tokens_judge_synth: int = Field(4000, alias="ORCH_MAX_TOKENS_JUDGE_SYNTH")
     max_tokens_ask: int = Field(1500, alias="ORCH_MAX_TOKENS_ASK")

@@ -1252,7 +1252,7 @@ requires-dist = [
 
 [[package]]
 name = "gecko-core"
-version = "0.2.13"
+version = "0.2.14"
 source = { editable = "packages/gecko-core" }
 dependencies = [
     { name = "ag2", extra = ["openai"] },
@@ -1335,7 +1335,7 @@ requires-dist = [
 
 [[package]]
 name = "gecko-mcp"
-version = "0.2.13"
+version = "0.2.14"
 source = { editable = "packages/gecko-mcp" }
 dependencies = [
     { name = "click" },

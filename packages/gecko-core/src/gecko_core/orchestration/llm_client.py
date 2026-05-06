@@ -71,7 +71,17 @@ class LLMTruncationError(Exception):
     The message includes ``model``, ``provider``, ``gen_id``,
     ``completion_tokens`` so the caller can surface a self-contained
     error without trip to log aggregation.
+
+    ``partial_content`` carries whatever the streamer accumulated before
+    the cap fired — callers that can do best-effort recovery (e.g. the
+    ``market_landscape`` post-processor, S20-FIX-05) parse the prefix;
+    everyone else ignores the attribute and falls through to the typed
+    message.
     """
+
+    def __init__(self, message: str, *, partial_content: str = "") -> None:
+        super().__init__(message)
+        self.partial_content = partial_content
 
 
 class LLMStalledError(Exception):
@@ -341,7 +351,8 @@ async def stream_chat_completion(
         raise LLMTruncationError(
             f"LLM output truncated [finish_reason=length, "
             f"completion_tokens={completion_tokens}, model={resolved_model}, "
-            f"provider={provider}, gen_id={gen_id}]"
+            f"provider={provider}, gen_id={gen_id}]",
+            partial_content=content,
         )
 
     return StreamedCompletion(
