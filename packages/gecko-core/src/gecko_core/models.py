@@ -177,6 +177,36 @@ class Citation(BaseModel):
     creator_wallet: str | None = None
 
 
+class CitationMarker(BaseModel):
+    """S20-C-CITATION-CONTRACT-01 — structured `[N]` → chunk_id marker map.
+
+    Distinct from :class:`Citation` (which carries (source_url, chunk_index,
+    similarity, provenance) and is the *evidence* shape attached to plan /
+    validation_report / prd). ``CitationMarker`` is the *prose-marker* shape:
+    each item maps an inline ``[N]`` reference in the synth output to the
+    chunk_id of the chunk it cites. It powers two downstream features that
+    Citation alone can't:
+
+      - the C4 enrichment writer bumps ``usage_count`` on chunks that were
+        *cited in output*, not merely *retrieved* (per user decision);
+      - telemetry can correlate ``[N]`` markers in rendered prose to the
+        underlying chunk store row without re-parsing the source_url.
+
+    Fields are deliberately small. ``span`` is optional and ≤200 chars when
+    present — enough to make a citation auditable without bloating the row.
+    """
+
+    idx: int = Field(ge=1)
+    doc_id: str = Field(min_length=1)
+    url: str
+    span: str | None = Field(default=None, max_length=200)
+
+    @field_validator("url")
+    @classmethod
+    def _check_url(cls, v: str) -> str:
+        return _validate_citation_uri(v)
+
+
 class BusinessPlan(BaseModel):
     """One-page business plan for the idea."""
 
@@ -806,6 +836,21 @@ class ResearchResult(BaseModel):
     # as `transcript`). None when gecko_plan was not called for this
     # session. Excluded from verdict_hash inputs.
     advisor_panel: dict[str, object] | None = None
+    # S20-C-CITATION-CONTRACT-01 — chunk_ids actually referenced by ``[N]``
+    # markers in synthesized prose, after hallucination-drop validation
+    # against the rag_context chunk set. Empty by default so legacy callers
+    # / rows that pre-date the contract round-trip cleanly. Powers the C4
+    # enrichment loop's `usage_count` bump (citation in output, not
+    # retrieval). Excluded from verdict_hash inputs by design — drift in
+    # marker emission must not flap the deterministic hash.
+    cited_doc_ids: list[str] = Field(default_factory=list)
+    # S20-C-CITATION-CONTRACT-01 — structured `[N]` → chunk_id marker map.
+    # Mirrors ``cited_doc_ids`` (the doc_id list is just ``[m.doc_id for m
+    # in citation_markers]``) but preserves the marker number, source URL,
+    # and optional span excerpt for telemetry / renderer use. Empty by
+    # default; legacy renderers continue to read ``validation_report.citations``
+    # for footnote rendering and are unaffected.
+    citation_markers: list[CitationMarker] = Field(default_factory=list)
 
 
 class AskResult(BaseModel):

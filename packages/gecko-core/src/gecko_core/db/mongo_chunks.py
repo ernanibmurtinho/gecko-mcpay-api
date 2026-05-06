@@ -31,6 +31,7 @@ that ticket lands.
 from __future__ import annotations
 
 import logging
+import warnings
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -39,6 +40,14 @@ from gecko_core.db.mongo import (
     audit_collection,
     cache_collection,
     chunks_collection,
+)
+from gecko_core.knowledge.taxonomy import (
+    CATEGORIES,
+    KNOWLEDGE_SOURCES,
+    VERTICALS,
+    Category,
+    KnowledgeSource,
+    Vertical,
 )
 
 if TYPE_CHECKING:
@@ -51,6 +60,21 @@ logger = logging.getLogger(__name__)
 # `EMBED_DIM` is kept as a back-compat alias for the existing chunk validators.
 MONGO_VECTOR_DIM_EXPECTED = 1024
 EMBED_DIM = MONGO_VECTOR_DIM_EXPECTED
+
+# S20-A2 — compound index for categorized retrieval pre-filter. Vector search
+# in Atlas is fed a `(vertical, category, project_id)` $match before the kNN
+# stage; this btree index speeds the equivalent client-side analytics queries
+# and metadata listings. Index name is exported so tests / doctor can assert
+# it exists. Index creation itself happens in Atlas console (Atlas Search /
+# btree indexes are managed externally) — see TODO below.
+CHUNKS_VERTICAL_CATEGORY_INDEX = "vertical_category_compound"
+# TODO(S20-A2): create the compound index on the chunks collection in Atlas:
+#   db.chunks.createIndex(
+#     { vertical: 1, category: 1, project_id: 1, captured_at: -1 },
+#     { name: "vertical_category_compound" }
+#   )
+# Doctor will fail the chunk_store check until this exists once the
+# corresponding doctor probe lands (separate ticket).
 
 
 class _MongoUnavailable(RuntimeError):
@@ -75,7 +99,12 @@ async def insert_chunks_mongo(
     source_id: UUID,
     chunks: list[tuple[int, str, list[float]]],
     *,
-    provider_kind: ProviderKind = "web",
+    category: Category | None = None,
+    subcategory: str | None = None,
+    vertical: Vertical | None = None,
+    source: KnowledgeSource | None = None,
+    confidence: float = 0.0,
+    provider_kind: ProviderKind | None = None,
     project_id: UUID | None = None,
     source_url: str | None = None,
 ) -> int:
@@ -85,11 +114,94 @@ async def insert_chunks_mongo(
     ``(source_id, chunk_index)`` unique index are tolerated — a re-run of
     the same source produces zero net new docs but doesn't raise.
     Pre-flight validation mirrors the Supabase path.
+
+    S20-A2 — every chunk now carries a ``(category, vertical, source)``
+    triple plus a ``metadata`` sub-document. The new keyword args are
+    REQUIRED for new callers; ``provider_kind`` is the deprecated alias
+    for ``source`` and emits a ``DeprecationWarning`` for one sprint
+    (S21 removes it).
     """
     if not chunks:
         return 0
 
     from gecko_core.ingestion.exceptions import ChunkValidationError
+
+    # ------------------------------------------------------------------
+    # S20-A2 backwards-compat shim: alias provider_kind -> source.
+    # ------------------------------------------------------------------
+    legacy_path = source is None and provider_kind is not None
+    if legacy_path:
+        warnings.warn(
+            "insert_chunks_mongo: `provider_kind` is deprecated — pass "
+            "`source` (and `category`, `vertical`) explicitly. The alias "
+            "will be removed in S21.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        # provider_kind values overlap with KnowledgeSource for the common
+        # cases; downstream validator checks the enum, so fall back if not.
+        source = (
+            provider_kind  # type: ignore[assignment]
+            if provider_kind in KNOWLEDGE_SOURCES
+            else "web"
+        )
+
+    # Backwards-compat: pre-S20 callers (no category/vertical AND only
+    # provider_kind, or nothing at all) get safe defaults plus a
+    # deprecation warning. New-style callers that pass `source` MUST also
+    # pass category and vertical — partial-new is treated as a bug.
+    pre_s20_call = (
+        source is None and provider_kind is None and category is None and vertical is None
+    ) or legacy_path
+    if pre_s20_call and (category is None or vertical is None):
+        warnings.warn(
+            "insert_chunks_mongo: missing `source`/`category`/`vertical` — "
+            "defaulting to ('web','market_intelligence','unknown'). New "
+            "callers MUST pass these explicitly; defaults will be removed "
+            "in S21.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        if source is None:
+            source = "web"
+        if category is None:
+            category = "market_intelligence"
+        if vertical is None:
+            vertical = "unknown"
+
+    # ------------------------------------------------------------------
+    # Required-field validation — mirror ChunkValidationError contract.
+    # ------------------------------------------------------------------
+    if category is None:
+        raise ChunkValidationError(
+            "missing required field: category",
+            kind="missing_category",
+        )
+    if vertical is None:
+        raise ChunkValidationError(
+            "missing required field: vertical",
+            kind="missing_vertical",
+        )
+    if source is None:
+        raise ChunkValidationError(
+            "missing required field: source",
+            kind="missing_source",
+        )
+    if category not in CATEGORIES:
+        raise ChunkValidationError(
+            f"invalid category={category!r}; expected one of {CATEGORIES}",
+            kind="invalid_category",
+        )
+    if vertical not in VERTICALS:
+        raise ChunkValidationError(
+            f"invalid vertical={vertical!r}; expected one of {VERTICALS}",
+            kind="invalid_vertical",
+        )
+    if source not in KNOWLEDGE_SOURCES:
+        raise ChunkValidationError(
+            f"invalid source={source!r}; expected one of {KNOWLEDGE_SOURCES}",
+            kind="invalid_source",
+        )
 
     for idx, text, embedding in chunks:
         if not text or not text.strip():
@@ -113,6 +225,14 @@ async def insert_chunks_mongo(
     # source_url is denormalized onto the chunk doc so M4 read paths don't
     # need a Supabase round-trip per query — sources stay on Supabase, but
     # chunks own their own URL for citation rendering.
+    # captured_at is kept (legacy field) AND mirrored into metadata.timestamp
+    # for one sprint so existing analytics keep working while readers migrate.
+    metadata = {
+        "confidence": float(confidence),
+        "usage_count": 0,
+        "timestamp": now,
+        "pioneer": False,
+    }
     docs: list[dict[str, Any]] = [
         {
             "session_id": str(session_id),
@@ -121,9 +241,16 @@ async def insert_chunks_mongo(
             "chunk_index": idx,
             "text": text,
             "embedding": embedding,
-            "provider_kind": provider_kind,
+            # S20-A2 categorized-knowledge fields.
+            "category": category,
+            "subcategory": subcategory or "",
+            "vertical": vertical,
+            "source": source,
+            # Legacy alias kept for one sprint (S21 drops it).
+            "provider_kind": provider_kind if provider_kind is not None else source,
             "project_id": str(project_id) if project_id is not None else None,
             "captured_at": now,
+            "metadata": dict(metadata),
         }
         for idx, text, embedding in chunks
     ]
@@ -164,7 +291,9 @@ async def insert_chunks_mongo(
             "source_id": str(source_id),
             "n_inbound": len(docs),
             "n_inserted": inserted,
-            "provider_kind": provider_kind,
+            "category": category,
+            "vertical": vertical,
+            "source": source,
         },
     )
     return inserted
@@ -353,6 +482,7 @@ async def put_chunk_cache_mongo(
 
 
 __all__ = [
+    "CHUNKS_VERTICAL_CATEGORY_INDEX",
     "EMBED_DIM",
     "MONGO_VECTOR_DIM_EXPECTED",
     "chunks_write_audit_rollup_recent_mongo",

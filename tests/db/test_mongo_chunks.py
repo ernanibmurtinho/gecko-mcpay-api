@@ -215,6 +215,114 @@ class TestInsertChunksMongo:
 
 
 # ---------------------------------------------------------------------------
+# S20-A2 — categorized-knowledge fields
+# ---------------------------------------------------------------------------
+
+
+class TestInsertChunksCategorizedFields:
+    @pytest.mark.asyncio
+    async def test_writes_categorized_fields_and_metadata(
+        self, fake_chunks_coll: _FakeChunksCollection
+    ) -> None:
+        n = await mongo_chunks.insert_chunks_mongo(
+            uuid4(),
+            uuid4(),
+            [(0, "a chunk", _embed(0.1))],
+            category="business_financial",
+            subcategory="regulatory",
+            vertical="neobank",
+            source="tavily",
+            confidence=0.87,
+        )
+        assert n == 1
+        d = fake_chunks_coll.docs[0]
+        assert d["category"] == "business_financial"
+        assert d["subcategory"] == "regulatory"
+        assert d["vertical"] == "neobank"
+        assert d["source"] == "tavily"
+        meta = d["metadata"]
+        assert meta["confidence"] == pytest.approx(0.87)
+        assert meta["usage_count"] == 0
+        assert meta["pioneer"] is False
+        assert "timestamp" in meta
+
+    @pytest.mark.asyncio
+    async def test_missing_category_raises(self, fake_chunks_coll: _FakeChunksCollection) -> None:
+        from gecko_core.ingestion.exceptions import ChunkValidationError
+
+        with pytest.raises(ChunkValidationError) as exc_info:
+            await mongo_chunks.insert_chunks_mongo(
+                uuid4(),
+                uuid4(),
+                [(0, "ok", _embed())],
+                vertical="neobank",
+                source="web",
+            )
+        assert "category" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_missing_vertical_raises(self, fake_chunks_coll: _FakeChunksCollection) -> None:
+        from gecko_core.ingestion.exceptions import ChunkValidationError
+
+        with pytest.raises(ChunkValidationError) as exc_info:
+            await mongo_chunks.insert_chunks_mongo(
+                uuid4(),
+                uuid4(),
+                [(0, "ok", _embed())],
+                category="ai_ml",
+                source="web",
+            )
+        assert "vertical" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_provider_kind_alias_to_source_emits_deprecation(
+        self, fake_chunks_coll: _FakeChunksCollection
+    ) -> None:
+        """Legacy callers that pass only provider_kind still write a 'source' field."""
+        import warnings
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            n = await mongo_chunks.insert_chunks_mongo(
+                uuid4(),
+                uuid4(),
+                [(0, "ok", _embed())],
+                provider_kind="bazaar",
+            )
+        assert n == 1
+        d = fake_chunks_coll.docs[0]
+        # source got the provider_kind value (bazaar is in KNOWLEDGE_SOURCES).
+        assert d["source"] == "bazaar"
+        assert d["provider_kind"] == "bazaar"
+        # category / vertical defaulted with a deprecation warning.
+        assert d["category"] == "market_intelligence"
+        assert d["vertical"] == "unknown"
+        assert any(issubclass(w.category, DeprecationWarning) for w in caught)
+
+    @pytest.mark.asyncio
+    async def test_invalid_category_value_raises(
+        self, fake_chunks_coll: _FakeChunksCollection
+    ) -> None:
+        from gecko_core.ingestion.exceptions import ChunkValidationError
+
+        with pytest.raises(ChunkValidationError) as exc_info:
+            await mongo_chunks.insert_chunks_mongo(
+                uuid4(),
+                uuid4(),
+                [(0, "ok", _embed())],
+                category="not_a_real_category",  # type: ignore[arg-type]
+                vertical="neobank",
+                source="web",
+            )
+        assert "invalid category" in str(exc_info.value)
+
+
+def test_compound_index_constant_exported() -> None:
+    """The compound-index name is exported for tests / doctor probes."""
+    assert mongo_chunks.CHUNKS_VERTICAL_CATEGORY_INDEX == "vertical_category_compound"
+
+
+# ---------------------------------------------------------------------------
 # insert_chunks_write_audit_mongo
 # ---------------------------------------------------------------------------
 

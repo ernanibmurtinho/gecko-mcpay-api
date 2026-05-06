@@ -21,6 +21,7 @@ import tiktoken
 from openai import AsyncOpenAI
 from pydantic import BaseModel, ValidationError
 
+from gecko_core.judges.synth_citations import extract_citation_markers
 from gecko_core.llm_helpers import build_response_format
 from gecko_core.models import (
     GAP_CLASSIFICATION_FALLBACK,
@@ -74,11 +75,22 @@ class OrchestrationError(Exception):
 
 
 class _LLMOutput(BaseModel):
-    """Shape we ask the LLM to produce. We stamp the rest in the workflow."""
+    """Shape we ask the LLM to produce. We stamp the rest in the workflow.
+
+    S20-C-CITATION-CONTRACT-01 — ``citations`` is the new top-level
+    ``[N] → chunk_id`` marker map. Optional with an empty default so the
+    field is fully backwards-compatible: legacy fixtures and older models
+    that don't emit it parse cleanly, and the synth-citations parser
+    returns empty lists in that case.
+    """
 
     business_plan: BusinessPlan
     validation_report: ValidationReport
     prd: PRD
+    # Loose typing on purpose — pydantic CitationMarker validation runs
+    # downstream in extract_citation_markers, where we can drop one bad
+    # entry without failing the whole synth output.
+    citations: list[Any] = []
 
 
 _SYSTEM_PROMPT = """You are a startup research analyst. You will receive:
@@ -137,6 +149,17 @@ prd: {v1_scope, v2_scope, v3_scope, acceptance_criteria, non_functional,
 Citation = {source_url: <one of the urls in the context>, chunk_index: int,
   similarity: float in [0,1]}.
 
+In addition to the per-document citation lists above, return a TOP-LEVEL
+``citations`` field (sibling of business_plan / validation_report / prd) that
+maps every ``[N]`` marker you used in prose to the chunk that backs it:
+  citations: list[{idx: int, doc_id: str, url: str, span: str | None}].
+  - ``idx`` — the integer N you used in your `[N]` prose marker (1-indexed).
+  - ``doc_id`` — the chunk_id from the Context block (each chunk is labeled
+    "[n] (chunk_id=<id>) (source: <url>)"). Copy this verbatim. NEVER invent.
+  - ``url`` — the same source_url shown for that chunk.
+  - ``span`` — optional excerpt (≤ 200 chars) of the cited passage.
+If you didn't use any ``[N]`` markers, emit ``citations: []``.
+
 Rules:
 - Every document MUST include at least one citation.
 - Every citation's source_url MUST be one of the URLs that appears in the
@@ -152,8 +175,8 @@ def _format_context(chunks: list[RagChunk]) -> str:
     if not chunks:
         return "(no indexed sources — generating from idea description only)"
     return "\n\n".join(
-        f"[{i}] (source: {c.source_url}) (chunk_index={c.chunk_index}, "
-        f"similarity={c.similarity:.3f})\n{c.text}"
+        f"[{i}] (chunk_id={c.chunk_id or 'n/a'}) (source: {c.source_url}) "
+        f"(chunk_index={c.chunk_index}, similarity={c.similarity:.3f})\n{c.text}"
         for i, c in enumerate(chunks, 1)
     )
 
@@ -828,6 +851,22 @@ async def generate(
 
     provider_mix_flag = audit_provider_mix(citations)
 
+    # S20-C-CITATION-CONTRACT-01 — parse the model's top-level `citations`
+    # field into structured CitationMarker objects, drop hallucinated
+    # doc_ids (chunk_ids not in the rag_context the model was shown),
+    # align with `[N]` prose markers, and propagate onto ResearchResult.
+    # Reachability: see judges/synth_citations.py top-level docstring.
+    allowed_doc_ids: set[str] = {c.chunk_id for c in chunks if c.chunk_id}
+    prose_surfaces: list[str | None] = [
+        out.validation_report.gap_explanation,
+        out.validation_report.gap_summary,
+    ]
+    markers, cited_doc_ids = extract_citation_markers(
+        raw_citations=out.citations,
+        allowed_doc_ids=allowed_doc_ids,
+        prose_surfaces=prose_surfaces,
+    )
+
     return ResearchResult(
         session_id=str(session_id),
         tier="basic",
@@ -839,6 +878,8 @@ async def generate(
         low_grounding=low_grounding,
         low_explanation=low_explanation,
         provider_mix_flag=provider_mix_flag,
+        cited_doc_ids=cited_doc_ids,
+        citation_markers=markers,
     )
 
 

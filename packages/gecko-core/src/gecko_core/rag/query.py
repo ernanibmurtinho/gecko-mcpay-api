@@ -14,7 +14,7 @@ import os
 from typing import Any, cast
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from gecko_core.db import get_chunk_store
 from gecko_core.ingestion.embedder import (
@@ -229,6 +229,25 @@ class RagChunk(BaseModel):
     # still validate. Consumers should prefer named keys over raw metadata
     # access, but this field keeps the plumbing generic.
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+    # S20-C-CITATION-CONTRACT-01 — stable per-chunk identifier sourced from
+    # the chunks store (Mongo `_id` as str on the Mongo path; Postgres path
+    # leaves this empty until match_chunks SQL is updated to project the row
+    # id). Optional/empty default keeps legacy callers and pre-S18 stores
+    # round-tripping; the synth-citation parser silently degrades when an
+    # empty chunk_id appears (the model has no doc_id to cite).
+    chunk_id: str = ""
+
+    @model_validator(mode="before")
+    @classmethod
+    def _alias_id_to_chunk_id(cls, data: Any) -> Any:
+        # Mongo/Supabase rows surface the chunk's stable id as ``id``
+        # (translated from Mongo ``_id`` in ``_row_from_doc``). Map onto
+        # ``chunk_id`` here so the public field name is descriptive while
+        # the underlying row shape doesn't have to change.
+        if isinstance(data, dict) and "chunk_id" not in data and data.get("id"):
+            data = {**data, "chunk_id": str(data["id"])}
+        return data
 
 
 async def rag_query(
