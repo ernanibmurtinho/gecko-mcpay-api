@@ -87,8 +87,8 @@ _EMBED_RATES_USD_PER_1M: dict[str, float] = {
     "text-embedding-3-large": 0.13,
     "text-embedding-ada-002": 0.10,
     "voyage-3": 0.06,  # Voyage published list price per 1M tokens
-    "voyage-context-3": 0.06,  # context-aware (RAG-optimal); same 1024 dim
-    "voyage-3-large": 0.12,
+    "voyage-3-large": 0.18,  # RAG-optimal default (S20-RAG-04 → voyage-3-large)
+    "voyage-context-3": 0.18,  # MongoDB-hosted only (ai.mongodb.com/v1/embeddings)
 }
 
 
@@ -232,7 +232,7 @@ async def _embed_voyage(
     texts: list[str],
     *,
     api_key: str,
-    model: str = "voyage-context-3",
+    model: str = "voyage-3-large",
     input_type: str | None = None,
     batch_size: int = EMBED_BATCH_SIZE,
 ) -> tuple[list[list[float]], int]:

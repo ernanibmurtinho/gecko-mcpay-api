@@ -76,7 +76,21 @@ def _validate_citation_uri(value: str) -> str:
     )
 
 
-SessionStatus = Literal["pending", "indexing", "generating", "complete", "failed"]
+SessionStatus = Literal["pending", "indexing", "generating", "complete", "failed", "interrupted"]
+"""Lifecycle status of a session row.
+
+Mirrors the CHECK constraint in
+`infra/supabase/migrations/20260506000000_session_status_interrupted.sql`.
+Drift is caught by `tests/test_session_status_consistency.py` (Pattern A —
+single source of truth for shared Literals).
+
+Terminal states: `complete`, `failed`, `interrupted`.
+- `interrupted` means the API container was shut down mid-flight (ECS
+  rolling deploy, autoscale drain) before the workflow could finish.
+  Distinct from `failed` (which means the workflow itself raised) so the
+  result route can return HTTP 410 Gone with a retry-recommended detail
+  instead of a generic 500.
+"""
 
 
 class SourceInfo(BaseModel):

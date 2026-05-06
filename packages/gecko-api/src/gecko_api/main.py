@@ -523,6 +523,30 @@ _resource_server = _build_resource_server(_facilitator)
 # remove themselves from the set in their done callback.
 _BACKGROUND_TASKS: set[asyncio.Task[None]] = set()
 
+# Parallel mapping task -> session_id for in-flight research workflows.
+# Used by the lifespan shutdown handler to stamp orphaned sessions as
+# `interrupted` when the container is drained mid-flight (ECS rolling
+# deploy, autoscale). Mutated under the same add/discard pattern as
+# _BACKGROUND_TASKS so the two sets stay consistent — an entry only
+# exists here while the task is still in _BACKGROUND_TASKS.
+_INFLIGHT_SESSIONS: dict[asyncio.Task[None], UUID] = {}
+
+
+def _track_inflight(task: asyncio.Task[None], session_id: UUID) -> None:
+    """Register a background research task with its session_id.
+
+    Wires up the done-callback that removes the entry. Callers should
+    use this helper instead of mutating _INFLIGHT_SESSIONS directly so
+    the cleanup contract stays in one place.
+    """
+    _INFLIGHT_SESSIONS[task] = session_id
+
+    def _drop(t: asyncio.Task[None]) -> None:
+        _INFLIGHT_SESSIONS.pop(t, None)
+        _BACKGROUND_TASKS.discard(t)
+
+    task.add_done_callback(_drop)
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -534,6 +558,15 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     level_name = (os.environ.get("LOG_LEVEL") or "INFO").upper()
     level = getattr(logging, level_name, logging.INFO)
     install_redaction(level=level)
+
+    # 2026-05-06 — downgrade `/sessions/{id}/result` 425 polls from INFO
+    # to DEBUG so a single 60s research session doesn't flood the access
+    # log with ~20 "still working" lines. The 425 IS the documented
+    # contract; this is log hygiene only. See gecko_api.access_log_filter.
+    from gecko_api.access_log_filter import install as install_access_filter
+
+    install_access_filter()
+
     logger.info("gecko-api starting (X402_MODE=%s)", _settings.x402_mode)
     # S23-FIX2 — TAVILY_API_KEY is optional in gecko-mcp but required here.
     # Without it the first research call burns session + embedding work then
@@ -547,7 +580,54 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         )
     else:
         logger.info("Privy configured: per-project wallet provisioning ON")
-    yield
+    try:
+        yield
+    finally:
+        # 2026-05-06 — ECS rolling-deploy / autoscale shutdown handler.
+        # Production logs showed two `Shutting down` events mid-session:
+        # the container's research workflow gets SIGTERMed, the session
+        # row is left at status='generating', and clients poll 425
+        # forever. Stamp every still-running session this worker is
+        # holding as 'interrupted' so the result route can answer
+        # 410 Gone instead. We do NOT wait for tasks to complete — they
+        # already lost their event loop; this is bookkeeping for the DB
+        # row, not a graceful drain. Full session-resume is a separate
+        # ticket; here we just stop the zombie state.
+        await _drain_inflight_sessions()
+
+
+async def _drain_inflight_sessions() -> None:
+    """Mark every in-flight session this worker holds as interrupted.
+
+    Called from the lifespan shutdown branch. Idempotent — `mark_interrupted`
+    only flips rows whose status is non-terminal, so a session that
+    raced to `complete`/`failed` between shutdown signal and this UPDATE
+    landing keeps its real terminal state.
+    """
+    if not _INFLIGHT_SESSIONS:
+        return
+    snapshot = list(_INFLIGHT_SESSIONS.values())
+    logger.warning(
+        "lifespan.shutdown.interrupting count=%d session_ids=%s",
+        len(snapshot),
+        [str(s) for s in snapshot],
+    )
+    try:
+        store = SessionStore.from_env()
+    except Exception as exc:  # pragma: no cover — store-init failure is rare
+        logger.error("lifespan.shutdown.store_init_failed err=%s", exc)
+        return
+    for sid in snapshot:
+        try:
+            await store.mark_interrupted(sid, reason="container_shutdown")
+        except Exception as exc:
+            # Best-effort: log and move on. Losing one stamp is better
+            # than hanging the whole shutdown handler on one bad row.
+            logger.error(
+                "lifespan.shutdown.mark_interrupted_failed sid=%s err=%s",
+                sid,
+                exc,
+            )
 
 
 # Rate limiter: prefer Authorization header as the bucket key (so a single
@@ -1248,7 +1328,7 @@ async def research(req: ResearchRequest, request: Request) -> Any:
 
     task = asyncio.create_task(_run_research_background(session_id, req))
     _BACKGROUND_TASKS.add(task)
-    task.add_done_callback(_BACKGROUND_TASKS.discard)
+    _track_inflight(task, session_id)
 
     return {
         "session_id": str(session_id),
@@ -1354,7 +1434,7 @@ async def research_pro(req: ResearchRequest, request: Request) -> Any:
 
     task = asyncio.create_task(_run_pro_background(session_id, req))
     _BACKGROUND_TASKS.add(task)
-    task.add_done_callback(_BACKGROUND_TASKS.discard)
+    _track_inflight(task, session_id)
 
     events_token = issue_token(session_id, _settings.events_secret)
     return {
@@ -1645,7 +1725,7 @@ async def research_pro_retry(
         )
     )
     _BACKGROUND_TASKS.add(task)
-    task.add_done_callback(_BACKGROUND_TASKS.discard)
+    _track_inflight(task, sid)
 
     # Issue a fresh events_token for the renewed SSE subscription.
     events_token = issue_token(sid, _settings.events_secret)
@@ -2403,11 +2483,34 @@ async def sources(session_id: str) -> list[SourceInfo]:
 async def session_result(session_id: str) -> Any:
     """Poll for the async ResearchResult.
 
-    Status semantics:
-        - 200 + ResearchResult JSON: workflow complete
-        - 425 Too Early: still processing — poll again in a few seconds
-        - 500 + {error}: workflow failed (see the `error` field)
-        - 404: session not found
+    Polling contract (this is the public contract for the CLI, the web
+    app, and any third-party consumer):
+
+      * Clients poll this endpoint after `POST /research` returns
+        `{"status": "processing", "poll_url": ...}`.
+      * The recommended retry interval is **3 seconds**. The CLI uses
+        3s; the body also surfaces `retry_after_seconds` as a hint when
+        we've decided a longer back-off is appropriate.
+      * The 425 response IS the documented "still working" signal — it
+        is NOT an error. A typical 60-second basic-tier session will
+        emit roughly 20 successive 425 responses before flipping to
+        200. Operators: those 425s are downgraded to DEBUG in the
+        access log by `gecko_api.access_log_filter`; if you're seeing
+        them flood INFO logs, that filter isn't installed.
+      * Stop polling on any of: 200, 4xx, 5xx, 410.
+
+    Status code semantics:
+        - 200 + ResearchResult JSON  : workflow complete (terminal)
+        - 425 Too Early              : still processing — retry in
+                                       ~`retry_after_seconds` seconds
+        - 500 + {status, error}      : workflow raised — terminal
+        - 410 Gone + {detail}        : session was killed by a
+                                       container shutdown mid-flight
+                                       (ECS rolling deploy / autoscale).
+                                       Re-submit the original request
+                                       to start a fresh session.
+        - 404                        : session not found / soft-deleted
+        - 400                        : session_id is not a UUID
     """
     try:
         sid = UUID(session_id)
@@ -2424,6 +2527,19 @@ async def session_result(session_id: str) -> Any:
         raise HTTPException(
             status_code=500,
             detail={"status": "failed", "error": msg or "unknown failure"},
+        )
+
+    if record.status == "interrupted":
+        # 2026-05-06 — the container that owned this session was drained
+        # mid-flight. Don't keep the client polling indefinitely; signal
+        # 410 Gone so they re-submit. Distinct from 500 (workflow bug)
+        # so the bridge / CLI can attach the right user-facing copy.
+        raise HTTPException(
+            status_code=410,
+            detail={
+                "status": "interrupted",
+                "detail": "session interrupted by container restart; please retry",
+            },
         )
 
     result = await store.get_result(sid)

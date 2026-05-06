@@ -367,6 +367,8 @@ async def discover(
     # S17-DISCOVERY-01 — drop dictionary / wordlist / raw-data URLs
     # before scoring. Logged at info so the post-S17 dashboard can
     # tune the heuristic from production traces.
+    from gecko_core.ingestion.blocklist import is_blocked
+
     filtered: list[dict[str, Any]] = []
     for item in raw:
         url_str = item.get("url") or ""
@@ -374,6 +376,17 @@ async def discover(
             continue
         if _is_blocked_dictionary_url(url_str):
             logger.info("discover: blocking dictionary-noise url=%s", url_str)
+            continue
+        # S20-INGEST-BLOCKLIST — name-collision + low-quality URL filter
+        # (e.g. academic-Gecko paper that pollutes every research run).
+        title_str = item.get("title") or ""
+        blocked, pattern = is_blocked(url_str, title=title_str)
+        if blocked:
+            logger.info(
+                "ingest.blocklist.match url=%s pattern=%s source_provider=tavily",
+                url_str,
+                pattern,
+            )
             continue
         filtered.append(item)
 

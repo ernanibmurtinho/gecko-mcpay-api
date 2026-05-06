@@ -93,6 +93,59 @@ def test_parse_atom_handles_malformed() -> None:
     assert _parse_atom("") == []
 
 
+def test_parse_atom_warns_with_url_on_empty_body(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """FIX-06 follow-up — empty Arxiv body must surface URL + body length.
+
+    Previously the parser logged only the bare `parse error: no element
+    found` line, which was indistinguishable from a code bug. The
+    structured WARN gives the operator the URL that returned non-XML so
+    they can replay it manually.
+    """
+    caplog.set_level("WARNING", logger="gecko_core.sources.arxiv.provider")
+    out = _parse_atom("", source_url="http://export.arxiv.org/api/query?x=1")
+    assert out == []
+    assert any(
+        "arxiv.parse.empty" in r.getMessage()
+        and "x=1" in r.getMessage()
+        and "body_len=0" in r.getMessage()
+        for r in caplog.records
+    )
+
+
+def test_parse_atom_warns_with_url_on_malformed_body(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level("WARNING", logger="gecko_core.sources.arxiv.provider")
+    out = _parse_atom("<not-xml", source_url="http://export.arxiv.org/api/query?x=2")
+    assert out == []
+    msgs = [r.getMessage() for r in caplog.records if "arxiv.parse.empty" in r.getMessage()]
+    assert msgs, "expected arxiv.parse.empty WARN"
+    assert "x=2" in msgs[0]
+    assert "body_len=" in msgs[0]
+
+
+@pytest.mark.asyncio
+async def test_fetch_swallows_empty_body_without_crashing() -> None:
+    """Mock the mirror returning an empty 200 — fetch must return [] cleanly."""
+
+    async def _handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text="")
+
+    transport = httpx.MockTransport(_handler)
+    client = httpx.AsyncClient(transport=transport)
+    src = make_arxiv_source(http_client=client)
+    result = await src.fetch(idea="agentic protocol research", categories=set())
+    await client.aclose()
+
+    assert result.fired is False
+    assert result.payload["chunks"] == []
+    # Empty body still propagates as `error="arxiv: empty result set"`
+    # so dispatcher attribution stays accurate.
+    assert result.error is not None
+
+
 def test_entry_to_chunk_shape() -> None:
     entries = _parse_atom(_FIXTURE_ATOM)
     chunk = _entry_to_chunk(entries[0])

@@ -18,7 +18,7 @@ class IngestionSettings(BaseSettings):
     # TAVILY_API_KEY. Server-side callers (gecko-api, bb CLI) still validate
     # at call time in discovery.py before invoking Tavily.
     tavily_api_key: SecretStr | None = Field(default=None, alias="TAVILY_API_KEY")
-    embed_model: str = Field("voyage-context-3", alias="EMBED_MODEL")
+    embed_model: str = Field("voyage-3-large", alias="EMBED_MODEL")
     embed_provider: str = Field("voyage", alias="EMBED_PROVIDER")
     voyage_api_key: SecretStr | None = Field(default=None, alias="VOYAGE_API_KEY")
     deepgram_api_key: SecretStr | None = Field(default=None, alias="DEEPGRAM_API_KEY")

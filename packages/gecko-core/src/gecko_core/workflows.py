@@ -684,6 +684,11 @@ async def _run_pro_debate(
     market_landscape = None
     surviving_dissent = None
     next_steps_with_falsifiers = None
+    # S20-FIX-05-FOLLOWUP / S20-OBS-01 — instantiate the pro tracker before
+    # NOTE: post-processor tracker plumbing is queued for a follow-up ticket
+    # (S21-FIX-07 below). For now, post_processors.py does not yet accept a
+    # tracker arg; the AI/ML follow-up batch will land tracker-marking for
+    # surviving_dissent + next_steps + market_landscape truncation events.
     try:
         from gecko_core.orchestration.pro.post_processors import run_post_processors
 

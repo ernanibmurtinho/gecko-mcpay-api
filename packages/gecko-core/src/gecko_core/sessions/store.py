@@ -518,6 +518,41 @@ class SessionStore:
 
         await asyncio.to_thread(_update)
 
+    async def mark_interrupted(
+        self,
+        session_id: UUID,
+        *,
+        reason: str = "container_shutdown",
+    ) -> None:
+        """Stamp a still-running session as interrupted with a typed reason.
+
+        Only flips rows whose status is non-terminal — a session that
+        already raced to `complete` / `failed` / `interrupted` between the
+        shutdown handler reading the in-flight set and this UPDATE landing
+        must NOT be reverted. Implemented as a `WHERE status IN (...)`
+        guard at the database layer so it's race-free across workers.
+
+        Sets `completed_at` so dashboards and economics queries that group
+        by terminal timestamp don't ignore interrupted runs.
+        """
+        non_terminal: tuple[SessionStatus, ...] = ("pending", "indexing", "generating")
+        patch: dict[str, Any] = {
+            "status": "interrupted",
+            "interrupted_reason": reason,
+            "completed_at": datetime.now().astimezone().isoformat(),
+        }
+
+        def _update() -> None:
+            (
+                self._client.table(self.SESSIONS_TABLE)
+                .update(patch)
+                .eq("id", str(session_id))
+                .in_("status", list(non_terminal))
+                .execute()
+            )
+
+        await asyncio.to_thread(_update)
+
     async def get(self, session_id: UUID) -> SessionRecord | None:
         """Fetch a single session row, or None if not found / soft-deleted."""
 

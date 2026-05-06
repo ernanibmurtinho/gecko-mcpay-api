@@ -635,6 +635,20 @@ async def ingest_provider_chunks(
     if not chunks:
         return 0
 
+    # S20-INGEST-BLOCKLIST — short-circuit before any store write if the
+    # synthetic URI matches a name-collision / low-quality pattern.
+    from gecko_core.ingestion.blocklist import is_blocked
+
+    blocked, pattern = is_blocked(synthetic_uri, title=None)
+    if blocked:
+        logger.info(
+            "ingest.blocklist.match url=%s pattern=%s source_provider=%s",
+            synthetic_uri,
+            pattern,
+            provider_kind,
+        )
+        return 0
+
     # Strip empties up-front — same contract as ``_filter_embeddable``.
     embeddable = [c for c in chunks if c.text and c.text.strip()]
     if not embeddable:

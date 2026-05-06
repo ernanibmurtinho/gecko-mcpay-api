@@ -179,17 +179,41 @@ def _build_query(idea: str, *, max_keywords: int = 5) -> str:
     return "+AND+".join(f"all:{quote_plus(t)}" for t in kept)
 
 
-def _parse_atom(xml_text: str) -> list[dict[str, Any]]:
+def _parse_atom(xml_text: str, *, source_url: str | None = None) -> list[dict[str, Any]]:
     """Parse an Arxiv Atom feed into a list of normalized entry dicts.
 
     Returns an empty list on parse error — Arxiv occasionally serves a
     truncated body during their index rebuild and we'd rather degrade
     silently than fail the dispatch.
+
+    On parse failure, emits a structured WARN (`arxiv.parse.empty`) with
+    the requesting URL, the body length, and a 200-char excerpt so the
+    operator can correlate the failure with what Arxiv actually returned.
+    On success, the caller emits an INFO (`arxiv.parse.success`) so the
+    failure rate is monitorable as a ratio of those two log keys.
     """
+    if not xml_text or not xml_text.strip():
+        # Arxiv occasionally returns a 200 with an empty body during
+        # index rebuilds. Treat as parse-empty rather than passing an
+        # empty string into ET.fromstring (which raises with a less
+        # informative "no element found" message).
+        logger.warning(
+            "arxiv.parse.empty url=%s body_len=0 excerpt=''",
+            source_url or "<unknown>",
+        )
+        return []
+
     try:
         root = ET.fromstring(xml_text)
     except ET.ParseError as exc:
-        logger.warning("arxiv: parse error: %s", exc)
+        excerpt = xml_text[:200].replace("\n", " ")
+        logger.warning(
+            "arxiv.parse.empty url=%s body_len=%d excerpt=%r error=%s",
+            source_url or "<unknown>",
+            len(xml_text),
+            excerpt,
+            exc,
+        )
         return []
 
     out: list[dict[str, Any]] = []
@@ -353,7 +377,7 @@ class ArxivSource:
                     error=f"arxiv: HTTP {resp.status_code}",
                 )
 
-            entries = _parse_atom(resp.text)
+            entries = _parse_atom(resp.text, source_url=url)
         finally:
             if owns_local:
                 await client.aclose()
@@ -367,6 +391,14 @@ class ArxivSource:
             )
 
         chunks = [_entry_to_chunk(e) for e in entries[: self._max_results]]
+        # Happy-path counterpart to `arxiv.parse.empty` so the operator can
+        # compute a parse-success ratio over a CloudWatch window.
+        logger.info(
+            "arxiv.parse.success url=%s entry_count=%d chunk_count=%d",
+            url,
+            len(entries),
+            len(chunks),
+        )
         return SourceResult(
             source_name=self.name,
             payload={
