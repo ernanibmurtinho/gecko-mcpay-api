@@ -43,7 +43,9 @@ COPY packages/gecko-mcp/src  ./packages/gecko-mcp/src
 # leaving gecko-core unimportable).
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --package gecko-api \
-            --reinstall-package gecko-core --reinstall-package gecko-api
+            --reinstall-package gecko-core \
+            --reinstall-package gecko-mcp \
+            --reinstall-package gecko-api
 
 # -----------------------------------------------------------------------------
 
