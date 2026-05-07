@@ -1,0 +1,22 @@
+{
+  "_comment": "S22-BAZAAR-INGEST-01 placeholder fixture. Operator re-records by running `pytest -m live_bazaar` against a funded buyer wallet. Replace `response.body` with the captured 200 response body and update tx_signature + cost_usd to the real settled values.",
+  "service_id": "exa-ai",
+  "endpoint_url": "https://api.exa.ai/search",
+  "query": "neobank market intelligence",
+  "response": {
+    "status_code": 200,
+    "cost_usd": 0.007,
+    "content_type": "application/json",
+    "tx_signature": "placeholder-not-real-signature",
+    "body": {
+      "results": [
+        {
+          "title": "Placeholder Exa search result",
+          "url": "https://example.com/placeholder",
+          "snippet": "This is a placeholder fixture body. Operator replaces with a recorded live response after a real x402 settle on Base."
+        }
+      ],
+      "queryType": "search"
+    }
+  }
+}

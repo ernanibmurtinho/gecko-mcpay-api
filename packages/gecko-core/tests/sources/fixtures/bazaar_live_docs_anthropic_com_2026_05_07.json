@@ -1,0 +1,22 @@
+{
+  "_comment": "S22-BAZAAR-INGEST-01 placeholder fixture for the Claude (docs-anthropic-com) Bazaar listing. Operator re-records on live spend.",
+  "service_id": "docs-anthropic-com",
+  "endpoint_url": "https://api.anthropic.com/v1/messages",
+  "query": "summarize neobank x402 market",
+  "response": {
+    "status_code": 200,
+    "cost_usd": 0.01,
+    "content_type": "application/json",
+    "tx_signature": "placeholder-not-real-signature",
+    "body": {
+      "id": "msg_placeholder",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Placeholder Claude response body. Operator replaces with a recorded live response after a real x402 settle on Base."
+        }
+      ]
+    }
+  }
+}

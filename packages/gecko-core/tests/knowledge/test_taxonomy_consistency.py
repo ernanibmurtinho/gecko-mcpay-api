@@ -67,12 +67,14 @@ def test_canonical_knowledge_sources_value() -> None:
         "tavily",
         "twit_sh",
         "bazaar",
+        "bazaar_manifest",
+        "bazaar_live",
         "paysh_manifest",
         "paysh_live",
         "user_query",
         "enriched_output",
     )
-    assert len(KNOWLEDGE_SOURCES) == 8
+    assert len(KNOWLEDGE_SOURCES) == 10
 
 
 def test_literal_get_args_matches_runtime_tuples() -> None:
@@ -124,13 +126,13 @@ def test_default_chunk_metadata_shape() -> None:
     assert before - timedelta(seconds=1) <= md["timestamp"] <= after + timedelta(seconds=1)
 
 
-def test_all_27_literal_values_via_constant_tuples() -> None:
+def test_all_29_literal_values_via_constant_tuples() -> None:
     """8 Categories (7 canonical + legacy_uncategorized) + 11 Verticals +
-    8 KnowledgeSources (S22-N1 split pay_sh into paysh_manifest +
-    paysh_live) = 27 values must be reachable via the public constant
-    tuples."""
+    10 KnowledgeSources (S22-N1 split pay_sh into paysh_manifest +
+    paysh_live; S22-BAZAAR-INGEST-01 added bazaar_manifest + bazaar_live)
+    = 29 values must be reachable via the public constant tuples."""
     total = len(CATEGORIES) + len(VERTICALS) + len(KNOWLEDGE_SOURCES)
-    assert total == 27
+    assert total == 29
     # And each constant tuple has no duplicates.
     assert len(set(CATEGORIES)) == len(CATEGORIES)
     assert len(set(VERTICALS)) == len(VERTICALS)
@@ -168,3 +170,24 @@ def test_coerce_legacy_source_passthrough_unknown_value() -> None:
     """Unknown values pass through — write-side validator is the gate."""
     assert _coerce_legacy_source("totally_made_up") == "totally_made_up"
     assert _coerce_legacy_source("") == ""
+
+
+# ---------------------------------------------------------------------------
+# S22-BAZAAR-INGEST-01 — bazaar_manifest / bazaar_live presence checks.
+# ---------------------------------------------------------------------------
+
+
+def test_bazaar_manifest_literal_present() -> None:
+    """The discovery literal for the Coinbase Agentic Wallet / Bazaar
+    catalog crawler is reachable both via the runtime tuple and via the
+    Literal alias."""
+    assert "bazaar_manifest" in KNOWLEDGE_SOURCES
+    assert "bazaar_manifest" in get_args(KnowledgeSource)
+
+
+def test_bazaar_live_literal_present() -> None:
+    """The execution literal for paid x402 calls against Bazaar catalog
+    providers is reachable both via the runtime tuple and via the Literal
+    alias."""
+    assert "bazaar_live" in KNOWLEDGE_SOURCES
+    assert "bazaar_live" in get_args(KnowledgeSource)

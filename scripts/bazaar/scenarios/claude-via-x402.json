@@ -1,0 +1,21 @@
+{
+  "_comment": "S22-BAZAAR-INGEST-01 Pattern B simulation scenario for the Claude (docs-anthropic-com) Bazaar listing. Used by future scripts/bazaar/simulate_call.py.",
+  "service_id": "docs-anthropic-com",
+  "endpoint_url": "https://api.anthropic.com/v1/messages",
+  "min_price_usd": 0.01,
+  "currency": "USDC",
+  "network": "Base",
+  "query": "summarize neobank x402 market",
+  "expected_response": {
+    "status_code": 200,
+    "cost_usd": 0.01,
+    "content_type": "application/json",
+    "body": {
+      "id": "msg_sim",
+      "role": "assistant",
+      "content": [
+        {"type": "text", "text": "Simulated Claude response."}
+      ]
+    }
+  }
+}

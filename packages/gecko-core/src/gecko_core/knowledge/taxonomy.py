@@ -111,6 +111,8 @@ KnowledgeSource = Literal[
     "tavily",
     "twit_sh",
     "bazaar",
+    "bazaar_manifest",
+    "bazaar_live",
     "paysh_manifest",
     "paysh_live",
     "user_query",
@@ -123,13 +125,21 @@ S22-N1 — ``pay_sh`` was split into two distinct sources:
 ``/.well-known/agent-skills/index.json``) and ``paysh_live`` (live
 x402-paid endpoint responses). Existing chunks persisted with the old
 ``pay_sh`` literal are coerced to ``paysh_live`` on read by
-:func:`_coerce_legacy_source`. Removed in S23 — see ``# S23 cleanup``."""
+:func:`_coerce_legacy_source`. Removed in S23 — see ``# S23 cleanup``.
+
+S22-BAZAAR-INGEST-01 — added ``bazaar_manifest`` (discovery from
+Coinbase Agentic Wallet / Bazaar's public ``/v1/services`` catalog) and
+``bazaar_live`` (paid x402 calls against catalog providers). The pre-
+existing ``bazaar`` literal is retained as a coarse-grained source label
+for legacy chunks; new ingestions MUST use the split literals."""
 
 KNOWLEDGE_SOURCES: Final[tuple[KnowledgeSource, ...]] = (
     "web",
     "tavily",
     "twit_sh",
     "bazaar",
+    "bazaar_manifest",
+    "bazaar_live",
     "paysh_manifest",
     "paysh_live",
     "user_query",

@@ -1,0 +1,23 @@
+{
+  "_comment": "S22-BAZAAR-INGEST-01 Pattern B simulation scenario for the Exa AI listing on Bazaar. Used by future scripts/bazaar/simulate_call.py (sibling of scripts/paysh/simulate_call.py). NO real spend, NO network, NO wallet env reads.",
+  "service_id": "exa-ai",
+  "endpoint_url": "https://api.exa.ai/search",
+  "min_price_usd": 0.007,
+  "currency": "USDC",
+  "network": "Base",
+  "query": "neobank market intelligence",
+  "expected_response": {
+    "status_code": 200,
+    "cost_usd": 0.007,
+    "content_type": "application/json",
+    "body": {
+      "results": [
+        {
+          "title": "Simulated Exa search result",
+          "url": "https://example.com/sim",
+          "snippet": "Simulator placeholder."
+        }
+      ]
+    }
+  }
+}
