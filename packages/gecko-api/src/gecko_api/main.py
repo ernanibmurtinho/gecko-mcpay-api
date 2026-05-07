@@ -38,6 +38,12 @@ from gecko_core.models import AskResult, ResearchResult, SourceInfo, Tier
 from gecko_core.payments.constants import STUB_WALLET_ADDRESS_NOT_FOR_LIVE
 from gecko_core.payments.factory import resolve_facilitator_client
 from gecko_core.sessions.store import SessionStore
+
+# S22-MCP-HOST-03 — FastMCP instance owned by gecko-mcp. We mount its
+# Streamable HTTP ASGI app at /mcp below and run its session manager
+# inside the existing lifespan. Same x402 PaymentMiddlewareASGI wraps it
+# automatically (see app.add_middleware(PaymentMiddlewareASGI, ...)).
+from gecko_mcp.server import mcp as _gecko_mcp
 from pydantic import BaseModel, Field
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import (
@@ -580,20 +586,43 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         )
     else:
         logger.info("Privy configured: per-project wallet provisioning ON")
+    # S22-MCP-HOST-03 — drive the FastMCP Streamable HTTP session manager
+    # for the lifetime of the FastAPI app. The session manager handles
+    # SSE keepalives + stateless POST routing for the /mcp mount.
+    #
+    # Caveat: `StreamableHTTPSessionManager.run()` is one-shot per instance
+    # (the SDK guards `_has_started`). Production hits lifespan exactly
+    # once at boot, so this is fine. Test harnesses (TestClient) spin up
+    # multiple lifespans against the module-level FastMCP singleton; we
+    # detect the "already started" path and treat it as a no-op so the
+    # existing gecko-api test suite keeps green without rebuilding the
+    # whole FastMCP instance per test.
+    mcp_cm: contextlib.AbstractAsyncContextManager[Any] | None = None
+    if not getattr(_gecko_mcp.session_manager, "_has_started", False):
+        mcp_cm = _gecko_mcp.session_manager.run()
+        await mcp_cm.__aenter__()
     try:
-        yield
+        try:
+            yield
+        finally:
+            # 2026-05-06 — ECS rolling-deploy / autoscale shutdown handler.
+            # Production logs showed two `Shutting down` events mid-session:
+            # the container's research workflow gets SIGTERMed, the session
+            # row is left at status='generating', and clients poll 425
+            # forever. Stamp every still-running session this worker is
+            # holding as 'interrupted' so the result route can answer
+            # 410 Gone instead. We do NOT wait for tasks to complete — they
+            # already lost their event loop; this is bookkeeping for the DB
+            # row, not a graceful drain. Full session-resume is a separate
+            # ticket; here we just stop the zombie state.
+            await _drain_inflight_sessions()
     finally:
-        # 2026-05-06 — ECS rolling-deploy / autoscale shutdown handler.
-        # Production logs showed two `Shutting down` events mid-session:
-        # the container's research workflow gets SIGTERMed, the session
-        # row is left at status='generating', and clients poll 425
-        # forever. Stamp every still-running session this worker is
-        # holding as 'interrupted' so the result route can answer
-        # 410 Gone instead. We do NOT wait for tasks to complete — they
-        # already lost their event loop; this is bookkeeping for the DB
-        # row, not a graceful drain. Full session-resume is a separate
-        # ticket; here we just stop the zombie state.
-        await _drain_inflight_sessions()
+        if mcp_cm is not None:
+            # Suppress shutdown errors — the test path may close the MCP
+            # session manager out of order; production only reaches this
+            # branch on container SIGTERM where best-effort is sufficient.
+            with contextlib.suppress(Exception):
+                await mcp_cm.__aexit__(None, None, None)
 
 
 async def _drain_inflight_sessions() -> None:
@@ -1065,6 +1094,30 @@ app.include_router(_verdict_router)
 from gecko_api.skills_router import router as _skills_router  # noqa: E402
 
 app.include_router(_skills_router)
+
+
+# ---------------------------------------------------------------------------
+# S22-MCP-HOST-03 — mount FastMCP Streamable HTTP at /mcp
+#
+# The mount has to happen at module import time (after `app` is built and
+# after middleware is registered) so the FastMCP session manager exists
+# before `lifespan` runs. The session manager is created lazily on the
+# first call to `streamable_http_app()`.
+#
+# The existing `PaymentMiddlewareASGI` (added at app.add_middleware above)
+# wraps the entire ASGI app, so /mcp inherits the same x402 paywall
+# treatment. Per the S22 deploy plan section 3, the **tool-level** paywall
+# is what we want — the inner HTTP calls each MCP tool makes (via
+# `GeckoAPIClient`) hit the per-route x402 gates (/research, /plan, ...)
+# and those 402 challenges bubble up through the MCP envelope. Routes
+# without a RouteConfig (i.e. /mcp itself) pass through unpaywalled, which
+# is the intended behaviour — the MCP transport itself stays free; paid
+# tools settle on the inner HTTP call.
+#
+# The web3-engineer audit (S22-MCP-HOST-06) verifies the WWW-Authenticate
+# propagation end-to-end; this commit just wires the mount.
+# ---------------------------------------------------------------------------
+app.mount("/mcp", _gecko_mcp.streamable_http_app())
 
 
 # ---------------------------------------------------------------------------

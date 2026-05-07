@@ -23,12 +23,36 @@ import json
 from typing import Any
 
 from mcp.server import Server
+from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.tools.base import Tool as FastMCPTool
+from mcp.server.fastmcp.utilities.func_metadata import func_metadata
 from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool
 
 from gecko_mcp.api_client import GeckoAPIClient
 
+# Legacy low-level Server kept for backwards-compat tests that import it.
+# Real serving (stdio + Streamable HTTP) goes through the FastMCP instance
+# below. Tool dispatch logic still lives in `call_tool()` / `_run_*` which
+# the FastMCP wrappers delegate to so existing monkeypatch-based tests
+# (`monkeypatch.setattr(server_module, "_run_classify", ...)`) continue
+# to work.
 server: Server = Server("gecko-mcp")
+
+# S22-MCP-HOST-02 — FastMCP instance carries the same 16 tools and serves
+# both `mcp.run(transport="stdio")` for `gecko-mcp serve` and
+# `mcp.streamable_http_app()` mounted at /mcp inside `gecko-api`.
+# `streamable_http_path="/"` is critical: when this app is mounted at
+# `/mcp` inside `gecko-api` (S22-MCP-HOST-03), FastMCP's internal route
+# defaults to `/mcp` *within its own sub-app*, which would expose the
+# Streamable HTTP endpoint at the parent path `/mcp/mcp`. Pinning it to
+# `/` puts the endpoint exactly at `/mcp` from the parent's view.
+mcp: FastMCP = FastMCP(
+    name="gecko",
+    json_response=True,
+    stateless_http=True,
+    streamable_http_path="/",
+)
 
 # Lazy module-level client — built on first tool call so server startup
 # succeeds even if the API is down or env is incomplete (Claude Code's MCP
@@ -1344,8 +1368,116 @@ def _run_available_sources() -> list[dict[str, Any]]:
     return [asdict(e) for e in available_sources()]
 
 
+def _register_tools_on_fastmcp() -> None:
+    """Mirror the 16 low-level tools onto the FastMCP instance.
+
+    Why this shape: the existing tests import `list_tools` / `call_tool`
+    from this module and monkeypatch module-level `_run_*` helpers. We
+    keep that surface intact for the stdio backwards-compat path AND
+    register identical (name, description, inputSchema) tuples on
+    `mcp` so the Streamable HTTP transport advertises the exact same
+    contract. Each FastMCP wrapper calls back into `call_tool(name, ...)`
+    so tool logic lives in exactly one place.
+
+    The `parameters` field on `FastMCPTool` is taken VERBATIM from the
+    existing `inputSchema` dicts — preserving descriptions, enums, and
+    defaults that the skill manifest at `app.geckovision.tech/skill.md`
+    will pin (per the S22 deploy plan, section 4).
+    """
+    # NB: avoid calling `await list_tools()` at import time — it's a
+    # coroutine. Inline the schemas via a sync helper instead.
+    tools = _list_tools_sync()
+    for tool in tools:
+        wrapper = _make_fastmcp_wrapper(tool.name)
+        fm_tool = FastMCPTool(
+            fn=wrapper,
+            name=tool.name,
+            title=None,
+            description=tool.description or "",
+            parameters=tool.inputSchema,
+            fn_metadata=func_metadata(wrapper),
+            is_async=True,
+            context_kwarg=None,
+            annotations=None,
+            icons=None,
+            meta=None,
+        )
+        mcp._tool_manager._tools[tool.name] = fm_tool
+
+
+def _list_tools_sync() -> list[Tool]:
+    """Sync mirror of `list_tools()` for FastMCP registration at import time.
+
+    `list_tools` is async only because the MCP SDK's decorator demands an
+    awaitable; the body is pure data. We rebuild the list synchronously
+    here to register on FastMCP without bouncing through an event loop.
+    """
+    import asyncio
+
+    # `list_tools()` is a closure-bound coroutine returned by the
+    # @server.list_tools() decorator; call it via asyncio.run is unsafe
+    # at import time if a loop is already running. Instead, pull the
+    # list directly: the registered handler is stored on the low-level
+    # server's request_handlers under the ListToolsRequest type.
+    from mcp.types import ListToolsRequest
+
+    handler = server.request_handlers.get(ListToolsRequest)
+    if handler is None:  # pragma: no cover — defensive
+        return []
+    # The handler is async; call it with a synthetic request.
+    req = ListToolsRequest(method="tools/list")
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+    if loop is not None and loop.is_running():
+        # Importing in an already-running loop (e.g. test harness): not
+        # supported — but in practice we register at module import which
+        # happens before any loop spins up.
+        return []
+    result: Any = asyncio.run(handler(req))  # type: ignore[arg-type]
+    # `result` is a ServerResult wrapping a ListToolsResult; the inner
+    # `.tools` is the list we want.
+    return list(result.root.tools)
+
+
+def _make_fastmcp_wrapper(tool_name: str) -> Any:
+    """Build an async FastMCP-compatible wrapper that defers to `call_tool`.
+
+    The wrapper takes `**kwargs` so FastMCP's auto-generated arg model
+    accepts any payload; argument *validation* happens against the
+    `parameters` JSON schema we pinned on the `FastMCPTool` (clients see
+    that schema in `tools/list`). The wrapper unwraps the `[TextContent]`
+    list returned by `call_tool` into a plain dict, which FastMCP then
+    re-wraps in the Streamable HTTP envelope.
+    """
+
+    async def _wrapper(**kwargs: Any) -> Any:
+        out = await call_tool(tool_name, dict(kwargs))
+        if not out:
+            return None
+        text = out[0].text
+        try:
+            return json.loads(text)
+        except (TypeError, ValueError):
+            return text
+
+    _wrapper.__name__ = f"_fastmcp_{tool_name}"
+    return _wrapper
+
+
+# Register at import time so both `mcp.run(transport="stdio")` and
+# `mcp.streamable_http_app()` see the full 16-tool catalog.
+_register_tools_on_fastmcp()
+
+
 async def serve() -> None:
-    """Run the MCP server over stdio."""
+    """Run the MCP server over stdio.
+
+    S22-MCP-HOST-02: now delegates to the FastMCP instance so stdio and
+    Streamable HTTP share one tool registry. The redaction filter
+    installation matches the previous low-level path.
+    """
     # S8-LOG-01 — install the redaction filter at MCP startup so DEBUG
     # logs from the API client / supabase / openai clients don't leak
     # auth tokens to stderr (which Claude Code surfaces in its UI).
@@ -1358,5 +1490,9 @@ async def serve() -> None:
     level = getattr(logging, level_name, logging.WARNING)
     install_redaction(level=level)
 
-    async with stdio_server() as (read, write):
-        await server.run(read, write, server.create_initialization_options())
+    await mcp.run_stdio_async()
+
+
+# Suppress unused-import warning — `stdio_server` is part of the public
+# surface for any caller that wants the legacy low-level transport.
+_ = stdio_server

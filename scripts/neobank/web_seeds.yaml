@@ -1,0 +1,29 @@
+# S22-N5 — neobank web seed URLs.
+#
+# Edit this file to add / remove canonical neobank build references.
+# Each entry produces ~1 source row + N chunks (depends on page length).
+# All entries are tagged source="web", vertical="neobank" by the seeder.
+#
+# SSRF guard: every URL is run through gecko_core.ingestion.web.validate_url
+# before fetch — non-https / private-IP / localhost URLs will be rejected.
+seeds:
+  - url: https://messari.io/report/state-of-solana-payments
+    note: Solana payments market sizing + neobank-adjacent rails.
+  - url: https://stablecoininsider.org/6-best-stablecoin-apis-for-businesses-in-2026/
+    note: Stablecoin API survey for embedded-finance / neobank teams.
+  - url: https://www.lithic.com/docs/api
+    note: Card-issuing API canonical reference.
+  - url: https://docs.crossmint.com/
+    note: Solana-native commerce + wallet SDK.
+  - url: https://docs.helius.dev/
+    note: Solana RPC + identity / DAS infra.
+  - url: https://docs.bridge.xyz/
+    note: Fiat to stablecoin rails (BaaS for crypto-native banks).
+  - url: https://www.bvnk.com/
+    note: Stablecoin payment rails for institutional / neobank flows.
+  - url: https://www.privy.io/docs
+    note: KYC + auth for crypto-native consumer apps.
+  - url: https://docs.fireblocks.com/
+    note: Custody platform reference.
+  - url: https://www.alchemy.com/docs
+    note: RPC + paymaster (Account Abstraction adjacent).

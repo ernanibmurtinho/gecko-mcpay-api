@@ -5,6 +5,10 @@ description = "FastAPI service for Gecko — wraps gecko-core for the V2 web app
 requires-python = ">=3.11"
 dependencies = [
     "gecko-core",
+    # S22-MCP-HOST-03 — mount FastMCP Streamable HTTP at /mcp. Workspace
+    # sibling, not a new external package; the MCP SDK is already a
+    # transitive dep via gecko-mcp.
+    "gecko-mcp",
     "fastapi>=0.110",
     "uvicorn[standard]>=0.27",
     "python-dotenv>=1.0",

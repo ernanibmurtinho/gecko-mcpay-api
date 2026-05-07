@@ -1,0 +1,97 @@
+[
+  {
+    "description_hash": "bd38a90ce741b16f5f46af7ebfd617f05520ee58244a353eca51cfffb7b48b9f",
+    "input_schema_hash": "da50f9fb4a052ecf22430b37f404dd8c8b1b112598e12264c9d33214768b49eb",
+    "name": "gecko_advise"
+  },
+  {
+    "description_hash": "e0ea53ceb519e04147c42a52ca869e0c4e3f897a88bc3361e9ea0420ed7e2b48",
+    "input_schema_hash": "27bd621fd582bf36873c6668e19825b06f1baa6832de49f21e9aa6dcab9bb83c",
+    "name": "gecko_ask"
+  },
+  {
+    "description_hash": "15e05298159cb7d1cd1b0e92fd8e06a0486d8690693a50de5ef47f5b582f3d48",
+    "input_schema_hash": "9e2fcd061b033258d31fc0f42563ff024009ee9307c7cb2bb3f9911422010efb",
+    "name": "gecko_available_sources"
+  },
+  {
+    "description_hash": "5bacbbf90a15959521dbdcc02bae525791fb5e220b62b761008f13ef5e7e7615",
+    "input_schema_hash": "c0b02c1f7661640cba63bf4b5e71e6adf171bf006e678e0dda04e633b6e678bf",
+    "name": "gecko_classify"
+  },
+  {
+    "description_hash": "c5e48d213f090adf6659923f5e73765459281fe518db9cd1d024f51842a83d5d",
+    "input_schema_hash": "e57a61a060effc8c364cf3f34ed6623c0d62562c612536d75883f13ed6854ccd",
+    "name": "gecko_memory_query"
+  },
+  {
+    "description_hash": "18458ad1805e760ef4a00fc021629f7343122511664bbb11b6d0cce1245ccba8",
+    "input_schema_hash": "b62db2ba136d755306e6360cca05655555a98a8ca5392bd69d8daa426e369e05",
+    "name": "gecko_memory_recall"
+  },
+  {
+    "description_hash": "99e4e4972967af924576373875e0fc08758cb846b57a8464cd24e193e51328d3",
+    "input_schema_hash": "15e648034b24c4198ca29bbdda815ec263c34f5253791ba11d001df40bd6bb98",
+    "name": "gecko_memory_save"
+  },
+  {
+    "description_hash": "fa518d4ae393dca59b2e849692190bc3ce1c9586012c1008991baf854af15a4f",
+    "input_schema_hash": "4cb05eb859487115fabf33107394b90db8b795012c4d008e529a7aefba4ec2a2",
+    "name": "gecko_memory_search"
+  },
+  {
+    "description_hash": "80b354864255f542fa486ba67231e83d9d0a3226add4850964d1c84d29e6c769",
+    "input_schema_hash": "37539ed1e449950fc7410f1f9f66c4419fbe9988c9becb454dbb531c4890fc59",
+    "name": "gecko_plan"
+  },
+  {
+    "description_hash": "4106ecb5c1a5285e5306e018aba3ec4ae794f11ac2fac53f6e659cadeb48f7ce",
+    "input_schema_hash": "8b0c95f4798e63eab37ac0cf62e0197c791eadac82f3f291cd109daccf46b887",
+    "name": "gecko_precedents"
+  },
+  {
+    "description_hash": "683b412a70051b58a2714e341f2b734da9df83bb1185c83c4f1ead52f5124841",
+    "input_schema_hash": "610a8b136ba1a6838a47a5896754b04eadcb6dc5b842e0f9b5ce0cabd5dbb17b",
+    "name": "gecko_project_economics"
+  },
+  {
+    "description_hash": "0f7f536485e876a703b832e9b60b33dacacf33dc68756ce25bd076f1ca433dae",
+    "input_schema_hash": "d336f8bb07551b5f0a1bf2b6afd055d0786fde7723266badd1dc4e6bbb88bb00",
+    "name": "gecko_pulse"
+  },
+  {
+    "description_hash": "de3c7ae146d41c498d2756b543bf9c9b10733329081d1a90f9b3f7b37d373735",
+    "input_schema_hash": "b0343108791a3f3b7d2f727923d88e9263b3c1909deeab13c65f9183c3ef69d3",
+    "name": "gecko_report"
+  },
+  {
+    "description_hash": "802616e56c12c7dda21cd0592d97db5404bf9313a8862a582fcdfde9c58db69b",
+    "input_schema_hash": "51f14af9387ec553105d049db80b9c6843de253189646abce43ad22f5824f252",
+    "name": "gecko_research"
+  },
+  {
+    "description_hash": "3cceb6483fe5f12de32f1fdb1082ca8fcab24eaafdbdf97f2669536c2fdbbfc6",
+    "input_schema_hash": "0089304db3227c58f216e4f466f3cd7779381357868f3a6bceb73ef179559ba1",
+    "name": "gecko_resume"
+  },
+  {
+    "description_hash": "418f5151cd6f1a099dc9ebf50ef53eb43a6707cdeb73d00db5b9c69e666e6897",
+    "input_schema_hash": "9649499b7f6ba3a0bbc5fd376aab774a167d04e5350dfc513797080f7387d3d8",
+    "name": "gecko_review"
+  },
+  {
+    "description_hash": "4d927f2423da0966670ff18ac129c223303fdf8ad3d6eebefc651400173bfe01",
+    "input_schema_hash": "f27caedb53ac8989f1b9aff8989bac7369bdeed83ba1f742c2452174f4bd3cbb",
+    "name": "gecko_route"
+  },
+  {
+    "description_hash": "da999aebd471df661f3e003428c87283b5927908e9ef80ca297f2d5f61c8c3d5",
+    "input_schema_hash": "8eecdde1cb915f5a79ef3f6177be0e58a71dd1c647634e7bbaf7ce550f2fc6dc",
+    "name": "gecko_scaffold"
+  },
+  {
+    "description_hash": "d33616515a3efc0dbcfd00ab04c2b2f2c15b6154e68642d162d8d2950f082cbc",
+    "input_schema_hash": "5257389f797cbce6630de7b668baa88fd6d83c9686d5c19fa595867995719c51",
+    "name": "gecko_sources"
+  }
+]
