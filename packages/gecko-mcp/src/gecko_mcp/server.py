@@ -20,14 +20,17 @@ Environment:
 from __future__ import annotations
 
 import json
+import os
 from typing import Any
 
 from mcp.server import Server
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.tools.base import Tool as FastMCPTool
-from mcp.server.fastmcp.utilities.func_metadata import func_metadata
+from mcp.server.fastmcp.utilities.func_metadata import ArgModelBase, FuncMetadata
 from mcp.server.stdio import stdio_server
+from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import TextContent, Tool
+from pydantic import ConfigDict
 
 from gecko_mcp.api_client import GeckoAPIClient
 
@@ -47,11 +50,25 @@ server: Server = Server("gecko-mcp")
 # defaults to `/mcp` *within its own sub-app*, which would expose the
 # Streamable HTTP endpoint at the parent path `/mcp/mcp`. Pinning it to
 # `/` puts the endpoint exactly at `/mcp` from the parent's view.
+_MCP_ALLOWED_HOSTS_ENV = os.environ.get(
+    "MCP_ALLOWED_HOSTS",
+    "api.geckovision.tech,mcp.geckovision.tech,localhost,127.0.0.1",
+)
+_MCP_ALLOWED_ORIGINS_ENV = os.environ.get(
+    "MCP_ALLOWED_ORIGINS",
+    "https://api.geckovision.tech,https://mcp.geckovision.tech,http://localhost:*,null",
+)
+
 mcp: FastMCP = FastMCP(
     name="gecko",
     json_response=True,
     stateless_http=True,
     streamable_http_path="/",
+    transport_security=TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=[h.strip() for h in _MCP_ALLOWED_HOSTS_ENV.split(",") if h.strip()],
+        allowed_origins=[o.strip() for o in _MCP_ALLOWED_ORIGINS_ENV.split(",") if o.strip()],
+    ),
 )
 
 # Lazy module-level client — built on first tool call so server startup
@@ -1395,7 +1412,7 @@ def _register_tools_on_fastmcp() -> None:
             title=None,
             description=tool.description or "",
             parameters=tool.inputSchema,
-            fn_metadata=func_metadata(wrapper),
+            fn_metadata=_passthrough_fn_metadata(),
             is_async=True,
             context_kwarg=None,
             annotations=None,
@@ -1441,15 +1458,67 @@ def _list_tools_sync() -> list[Tool]:
     return list(result.root.tools)
 
 
+class _PassthroughArgModel(ArgModelBase):
+    """Permissive ArgModel for FastMCP wrappers.
+
+    The wrapper signature is `**kwargs`, so the default `func_metadata()`
+    introspection produces an arg_model with a single required `kwargs`
+    field — which makes `tool.run(arguments={"idea": "X"})` raise
+    `Field required: kwargs`. We bypass that here: any extra keys are
+    accepted as-is. Per-tool input validation is the caller's job (the
+    `parameters` JSON schema we pin on `FastMCPTool` is what clients
+    validate against in `tools/list`); runtime defaulting still happens
+    inside the legacy `call_tool` dispatcher (`arguments.get(...)`).
+    """
+
+    model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
+
+    def model_dump_one_level(self) -> dict[str, Any]:
+        # `extra="allow"` stashes unknown keys on `__pydantic_extra__`.
+        # Return them verbatim so the wrapper sees the original arg dict
+        # (no synthesized `None` defaults that would clobber `.get(k, default)`
+        # branches inside `call_tool`).
+        return dict(self.__pydantic_extra__ or {})
+
+
+class _PassthroughFuncMetadata(FuncMetadata):
+    """FuncMetadata that skips pydantic validation for the `**kwargs` wrapper.
+
+    The wrapper forwards everything to the legacy `call_tool` dispatcher
+    which already does the explicit type coercion (`str(arguments["idea"])`,
+    enum checks, etc.). Re-validating here against a synthetic schema only
+    duplicates work and risks divergence. We *do* keep `pre_parse_json`
+    because some clients (Claude Desktop) JSON-encode list/dict args.
+    """
+
+    async def call_fn_with_arg_validation(
+        self,
+        fn: Any,
+        fn_is_async: bool,
+        arguments_to_validate: dict[str, Any],
+        arguments_to_pass_directly: dict[str, Any] | None,
+    ) -> Any:
+        parsed = self.pre_parse_json(arguments_to_validate)
+        # No pydantic validation — pass straight through. Tools encapsulate
+        # their own arg coercion in the legacy `call_tool` body.
+        if arguments_to_pass_directly:
+            parsed = {**parsed, **arguments_to_pass_directly}
+        if fn_is_async:
+            return await fn(**parsed)
+        return fn(**parsed)
+
+
 def _make_fastmcp_wrapper(tool_name: str) -> Any:
     """Build an async FastMCP-compatible wrapper that defers to `call_tool`.
 
-    The wrapper takes `**kwargs` so FastMCP's auto-generated arg model
-    accepts any payload; argument *validation* happens against the
-    `parameters` JSON schema we pinned on the `FastMCPTool` (clients see
-    that schema in `tools/list`). The wrapper unwraps the `[TextContent]`
-    list returned by `call_tool` into a plain dict, which FastMCP then
-    re-wraps in the Streamable HTTP envelope.
+    The wrapper takes `**kwargs` so FastMCP can call it with any subset
+    of fields from the per-tool input schema. Argument *validation*
+    happens against the `parameters` JSON schema we pin on the
+    `FastMCPTool` (clients see that schema in `tools/list`); we override
+    `fn_metadata` with `_PassthroughFuncMetadata` so the FastMCP runtime
+    doesn't re-validate against the wrapper's `**kwargs` signature
+    (which would otherwise demand a literal `kwargs` field — see
+    S22-FIX-13).
     """
 
     async def _wrapper(**kwargs: Any) -> Any:
@@ -1464,6 +1533,11 @@ def _make_fastmcp_wrapper(tool_name: str) -> Any:
 
     _wrapper.__name__ = f"_fastmcp_{tool_name}"
     return _wrapper
+
+
+def _passthrough_fn_metadata() -> FuncMetadata:
+    """Build a permissive FuncMetadata shared across all FastMCP wrappers."""
+    return _PassthroughFuncMetadata(arg_model=_PassthroughArgModel)
 
 
 # Register at import time so both `mcp.run(transport="stdio")` and
