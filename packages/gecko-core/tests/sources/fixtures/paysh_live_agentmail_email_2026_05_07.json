@@ -1,0 +1,22 @@
+{
+  "fqn": "agentmail/email",
+  "recorded_at": "2026-05-07",
+  "fixture_kind": "placeholder",
+  "fixture_note": "PLACEHOLDER fixture pinned at S22-N4 ship-time. Operator overwrites with the real recorded response by running `pytest -m live_paysh -k agentmail`. Until then the contract test exercises the chunking + ledger path against this synthetic body.",
+  "request": {
+    "url": "https://x402.api.agentmail.to",
+    "query": "neobank kyc verification inbox"
+  },
+  "response": {
+    "status_code": 200,
+    "cost_usd": 0.05,
+    "content_type": "application/json",
+    "tx_signature": "<redacted-by-default>",
+    "body": {
+      "skill": "agentmail/email",
+      "result": "inbox_provisioned",
+      "inbox_address": "agent-FIXTURE@inbox.agentmail.to",
+      "narrative": "AgentMail provisioned a dedicated inbox address backed by an x402-priced inbound + outbound gateway. For neobank KYC flows the recommended integration is to spin a fresh inbox per customer-onboarding session, route the verification email through it, and tear the inbox down once the verification token has been claimed."
+    }
+  }
+}

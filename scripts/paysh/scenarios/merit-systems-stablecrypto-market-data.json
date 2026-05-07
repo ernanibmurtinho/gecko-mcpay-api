@@ -1,0 +1,42 @@
+{
+  "skill_id": "merit-systems-stablecrypto-market-data",
+  "fqn": "merit-systems/stablecrypto/market-data",
+  "vertical": "neobank",
+  "category": "finance",
+  "provider": "merit-systems",
+  "default_cost_usd": 0.01,
+  "network": "solana-mainnet",
+  "asset": "usdc",
+  "fixture_note": "FIXTURE — synthetic shape modeled on StableCrypto market-data x402 responses. NO real treasury balances. Used by N3 sim AND as the placeholder for the N4 paysh_live recorded fixture (overwritten when operator runs pytest -m live_paysh).",
+  "challenge": {
+    "status": 402,
+    "headers": {
+      "X-Payment-Required": "x402; network=solana-mainnet; asset=usdc; amount=0.01; recipient=<provider_pubkey>; nonce=<server_nonce>",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "error": "payment_required",
+      "accepts": [
+        {
+          "scheme": "x402",
+          "network": "solana-mainnet",
+          "asset": "usdc",
+          "amount": "0.01",
+          "recipient": "<provider_pubkey>"
+        }
+      ]
+    }
+  },
+  "paid_response": {
+    "status": 200,
+    "headers": {
+      "X-Payment-Receipt": "<tx_signature>",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "skill": "merit-systems/stablecrypto/market-data",
+      "result": "market_data_returned",
+      "narrative": "StableCrypto returned a unified treasury and market-data view aggregating CoinGecko prices, DefiLlama TVL/yield, Alchemy chain telemetry, and Etherscan transfer history under a single x402-priced call. For neobank treasury operations the most relevant fields are: spot price for the held basket (USDC, USDT, DAI), 24h DEX pool depth on the venues the neobank routes through, and stablecoin issuer treasury holdings as a proxy for redemption-risk. The reference call returned a 142-element series across the 14 stablecoin pairs the neobank tracks; the recommended treasury cadence is one priced call per minute per pair during US business hours, dropping to per-five-minutes overnight, which keeps total per-day spend below 30 USDC for a 14-pair basket while still tightening the risk-window on a depeg event to a 60-second worst case. Edge cases observed: Alchemy gas estimates are stale by ~15s during chain congestion which matters for any auto-rebalance routine that picks gas budgets dynamically; prefer Etherscan's gas oracle as a tie-breaker. The endpoint cost is fixed at 0.01 USDC regardless of payload size which makes it materially cheaper than Tavily's text-based equivalents for structured numeric series. For Solana-native neobanks specifically, the on-chain DEX-pool slice covers Raydium, Orca, and Meteora — sufficient for the top-of-book pricing question; for L2 routing decisions you'd still need a separate provider."
+    }
+  }
+}

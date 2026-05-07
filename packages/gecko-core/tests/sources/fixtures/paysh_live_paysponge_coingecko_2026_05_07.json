@@ -1,0 +1,22 @@
+{
+  "fqn": "paysponge/coingecko",
+  "recorded_at": "2026-05-07",
+  "fixture_kind": "placeholder",
+  "fixture_note": "PLACEHOLDER fixture pinned at S22-N4 ship-time. Operator overwrites with the real recorded response by running `pytest -m live_paysh -k coingecko`. paysponge/coingecko has min_price_usd=0 (free tier) so cost may settle to 0; the contract test asserts cost_usd >= 0 rather than > 0 for this provider.",
+  "request": {
+    "url": "https://pro-api.coingecko.com/api/v3/x402/onchain",
+    "query": "trending pools solana usdc"
+  },
+  "response": {
+    "status_code": 200,
+    "cost_usd": 0.001,
+    "content_type": "application/json",
+    "tx_signature": "<redacted-by-default>",
+    "body": {
+      "skill": "paysponge/coingecko",
+      "result": "trending_pools_returned",
+      "narrative": "CoinGecko Onchain DEX returned the top trending pools across the requested network slice. For a Solana-native neobank the relevant frame is the USDC-paired top-10 by 24h volume on Raydium and Orca; that pool list anchors the market-making surface a neobank's swap product would sit on top of.",
+      "trending_pools": []
+    }
+  }
+}

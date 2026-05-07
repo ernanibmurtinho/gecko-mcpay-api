@@ -84,7 +84,7 @@ def build_kwargs(model: str, with_extra_body: bool) -> dict[str, Any]:
 
 
 async def run_one(label: str, kwargs: dict[str, Any], client: AsyncOpenAI) -> None:
-    print(f"\n{'='*70}\n{label}\n{'='*70}")
+    print(f"\n{'=' * 70}\n{label}\n{'=' * 70}")
     print(f"model         = {kwargs['model']}")
     print(f"max_tokens    = {kwargs['max_tokens']}")
     print(f"extra_body    = {kwargs.get('extra_body', '<absent>')}")
@@ -100,8 +100,10 @@ async def run_one(label: str, kwargs: dict[str, Any], client: AsyncOpenAI) -> No
         print(f"provider      = {provider}")
         print(f"finish_reason = {finish}")
         print(f"gen_id        = {gen_id}")
-        print(f"usage         = prompt={usage.prompt_tokens if usage else None} "
-              f"completion={usage.completion_tokens if usage else None}")
+        print(
+            f"usage         = prompt={usage.prompt_tokens if usage else None} "
+            f"completion={usage.completion_tokens if usage else None}"
+        )
         print(f"content len   = {len(content) if content else 0}")
         if content:
             print(f"content[:200] = {content[:200]!r}")

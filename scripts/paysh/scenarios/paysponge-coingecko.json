@@ -1,0 +1,43 @@
+{
+  "skill_id": "paysponge-coingecko",
+  "fqn": "paysponge/coingecko",
+  "vertical": "neobank",
+  "category": "finance",
+  "provider": "paysponge",
+  "default_cost_usd": 0.0,
+  "network": "solana-mainnet",
+  "asset": "usdc",
+  "fixture_note": "FIXTURE — synthetic shape modeled on the paysponge/coingecko onchain DEX API x402 responses. NO real market data. Used by N3 sim AND as the placeholder for the N4 paysh_live recorded fixture (overwritten when operator runs pytest -m live_paysh). Min price USD is 0 (free tier) — the live caller's budget cap still applies but this provider may not actually settle a USDC charge.",
+  "challenge": {
+    "status": 402,
+    "headers": {
+      "X-Payment-Required": "x402; network=solana-mainnet; asset=usdc; amount=0.001; recipient=<provider_pubkey>; nonce=<server_nonce>",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "error": "payment_required",
+      "accepts": [
+        {
+          "scheme": "x402",
+          "network": "solana-mainnet",
+          "asset": "usdc",
+          "amount": "0.001",
+          "recipient": "<provider_pubkey>"
+        }
+      ]
+    }
+  },
+  "paid_response": {
+    "status": 200,
+    "headers": {
+      "X-Payment-Receipt": "<tx_signature>",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "skill": "paysponge/coingecko",
+      "result": "trending_pools_returned",
+      "narrative": "CoinGecko Onchain DEX returned the top trending pools across the requested network slice. For a Solana-native neobank the relevant frame is the USDC-paired top-10 by 24h volume on Raydium and Orca; that pool list anchors the market-making surface a neobank's swap product would sit on top of. Pool metadata returned per entry: token address, paired-token address, fee tier, 24h volume USD, 24h price change, 1h price change, market cap, FDV, and liquidity USD. The trending heuristic CoinGecko uses is a hybrid of volume-velocity and address-uniqueness; this catches new launches faster than pure-volume rankings but introduces noise on tokens with airdrop-driven address counts. For the neobank use-case the recommended filter post-fetch is: liquidity_usd > $250k AND fee_tier in {0.01%, 0.05%}, which removes the long tail of memecoin pools that aren't routable for neobank-grade swap quotes. Latency: 380ms p50, 920ms p99 against the Solana slice. The free-tier cap on this endpoint applies per-IP rather than per-wallet so high-frequency callers should bind to a residential proxy pool or upgrade. For neobanks doing on-chain settlement of card authorizations, this endpoint is sufficient to run the FX-routing decision without a paid CoinGecko Pro key.",
+      "trending_pools": []
+    }
+  }
+}

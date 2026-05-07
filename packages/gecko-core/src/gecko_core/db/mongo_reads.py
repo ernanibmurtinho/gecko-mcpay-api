@@ -44,6 +44,7 @@ from gecko_core.db.mongo import (
     VECTOR_INDEX_NAME,
     chunks_collection,
 )
+from gecko_core.knowledge.taxonomy import _coerce_legacy_source
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,10 @@ _HYBRID_NUM_CANDIDATES_OVERFETCH = 15  # ANN candidate width
 
 def _row_from_doc(doc: dict[str, Any], score: float) -> dict[str, Any]:
     """Translate a Mongo chunk doc + $meta score to the RPC return shape."""
+    # S22-N1 — coerce legacy ``pay_sh`` source values on read so old chunks
+    # surface as ``paysh_live`` to all downstream consumers. # S23 cleanup.
+    raw_source = doc.get("source")
+    raw_provider_kind = doc.get("provider_kind", "web")
     return {
         "id": str(doc.get("_id", "")),
         "source_id": doc.get("source_id"),
@@ -71,7 +76,8 @@ def _row_from_doc(doc: dict[str, Any], score: float) -> dict[str, Any]:
         # path returns ``1 - cosine_distance``, which is in the same
         # range, so callers receive identical semantics.
         "similarity": float(score),
-        "provider_kind": doc.get("provider_kind", "web"),
+        "source": _coerce_legacy_source(raw_source) if raw_source is not None else None,
+        "provider_kind": _coerce_legacy_source(raw_provider_kind),
         # S26-CITE-03 — per-chunk provider metadata (e.g. tweet_url).
         "metadata": doc.get("metadata") or {},
     }
@@ -121,6 +127,7 @@ async def match_chunks_mongo(
                 "source_url": 1,
                 "chunk_index": 1,
                 "text": 1,
+                "source": 1,
                 "provider_kind": 1,
                 "metadata": 1,
                 "score": {"$meta": "vectorSearchScore"},
@@ -184,6 +191,7 @@ async def match_chunks_windowed_mongo(
                 "chunk_index": 1,
                 "text": 1,
                 "captured_at": 1,
+                "source": 1,
                 "provider_kind": 1,
                 "metadata": 1,
                 "score": {"$meta": "vectorSearchScore"},
@@ -254,6 +262,7 @@ async def match_chunks_hybrid_mongo(
                 "source_url": 1,
                 "chunk_index": 1,
                 "text": 1,
+                "source": 1,
                 "provider_kind": 1,
                 "metadata": 1,
                 "score": {"$meta": "vectorSearchScore"},

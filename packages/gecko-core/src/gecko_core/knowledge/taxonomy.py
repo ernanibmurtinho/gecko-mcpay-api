@@ -111,22 +111,55 @@ KnowledgeSource = Literal[
     "tavily",
     "twit_sh",
     "bazaar",
-    "pay_sh",
+    "paysh_manifest",
+    "paysh_live",
     "user_query",
     "enriched_output",
 ]
-"""Static type alias. Keep in sync with KNOWLEDGE_SOURCES manually."""
+"""Static type alias. Keep in sync with KNOWLEDGE_SOURCES manually.
+
+S22-N1 — ``pay_sh`` was split into two distinct sources:
+``paysh_manifest`` (discovery from pay.sh's
+``/.well-known/agent-skills/index.json``) and ``paysh_live`` (live
+x402-paid endpoint responses). Existing chunks persisted with the old
+``pay_sh`` literal are coerced to ``paysh_live`` on read by
+:func:`_coerce_legacy_source`. Removed in S23 — see ``# S23 cleanup``."""
 
 KNOWLEDGE_SOURCES: Final[tuple[KnowledgeSource, ...]] = (
     "web",
     "tavily",
     "twit_sh",
     "bazaar",
-    "pay_sh",
+    "paysh_manifest",
+    "paysh_live",
     "user_query",
     "enriched_output",
 )
 """Runtime tuple — used by Mongo validators."""
+
+
+# ---------------------------------------------------------------------------
+# Legacy source coercion — S22-N1 one-sprint deprecation alias.
+# ---------------------------------------------------------------------------
+
+# S23 cleanup — remove this map and the helper after one full sprint.
+_LEGACY_SOURCE_ALIASES: Final[dict[str, KnowledgeSource]] = {
+    "pay_sh": "paysh_live",
+}
+
+
+def _coerce_legacy_source(value: str) -> str:
+    """Coerce legacy ``KnowledgeSource`` values on read.
+
+    S22-N1 split ``pay_sh`` into ``paysh_manifest`` / ``paysh_live``.
+    Chunks persisted before the split carry the old literal; this helper
+    is wired into the Mongo deserialization path so reads transparently
+    return the new literal. Unknown values pass through unchanged — the
+    validator on the write path is the enforcement point.
+
+    # S23 cleanup — remove after one sprint of soak time.
+    """
+    return _LEGACY_SOURCE_ALIASES.get(value, value)
 
 
 # ---------------------------------------------------------------------------
@@ -207,6 +240,7 @@ __all__ = [
     "ChunkMetadata",
     "KnowledgeSource",
     "Vertical",
+    "_coerce_legacy_source",
     "default_chunk_metadata",
     "is_valid_subcategory",
 ]

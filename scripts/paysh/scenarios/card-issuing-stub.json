@@ -1,0 +1,49 @@
+{
+  "skill_id": "card-issuing-stub",
+  "vertical": "neobank",
+  "category": "card-issuing",
+  "provider": "stub-card-issuer",
+  "default_cost_usd": 0.10,
+  "network": "solana-mainnet",
+  "asset": "usdc",
+  "fixture_note": "FIXTURE — synthetic shape modeled on pay.sh card-issuing provider responses. NO real card numbers.",
+  "challenge": {
+    "status": 402,
+    "headers": {
+      "X-Payment-Required": "x402; network=solana-mainnet; asset=usdc; amount=0.10; recipient=<provider_pubkey>; nonce=<server_nonce>",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "error": "payment_required",
+      "accepts": [
+        {
+          "scheme": "x402",
+          "network": "solana-mainnet",
+          "asset": "usdc",
+          "amount": "0.10",
+          "recipient": "<provider_pubkey>"
+        }
+      ]
+    }
+  },
+  "paid_response": {
+    "status": 200,
+    "headers": {
+      "X-Payment-Receipt": "<tx_signature>",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "skill": "card-issuing-stub",
+      "result": "card_issued",
+      "card_token": "tok_FIXTURE_REDACTED",
+      "network": "Visa",
+      "form_factor": "virtual",
+      "spend_controls": {
+        "daily_cap_usd": 1000,
+        "monthly_cap_usd": 10000,
+        "mcc_blocklist": ["7995"]
+      },
+      "narrative": "Virtual Visa card provisioned against the customer's USDC balance held on the neobank's program-controlled treasury PDA. Issuance flow: the provider authorizes a card token tied to the wallet pubkey, registers default spend controls with the BIN sponsor bank, and emits a webhook event the neobank backend subscribes to for authorization decisions. For Solana-native neobanks, the recommended pattern is to settle authorizations T+1 against USDC reserves rather than pre-funding a fiat float account; this keeps capital efficiency high but requires a real-time auth service that can deny transactions in under 200ms. The card token returned here is a fixture and contains no real PAN. In production, PCI scope is contained to the issuing provider's vault — your neobank backend never touches PAN, only the token. Decline routing: MCC 7995 (gambling) is pre-blocked per default policy. To enable cross-border POS without FX surprises, attach a USDC→merchant-currency conversion route through your liquidity provider; without this, declines on dynamic currency conversion authorizations will spike. Settlement reconciliation: each authorization emits an on-chain memo program write referencing the card_token so reconciliation against USDC outflows is deterministic."
+    }
+  }
+}

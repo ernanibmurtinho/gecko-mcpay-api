@@ -56,6 +56,18 @@ markers = [
     # live re-record requires GECKO_VERDICT_X402_LIVE=1 + a funded
     # buyer wallet. See tests/payments/test_verdict_settle_contract.py.
     "live_x402_verdict: gated verdict-paywall x402 contract test (cassette replay by default)",
+    # S22-N2: gated drift-detector against the live pay.sh manifest at
+    # https://pay.sh/.well-known/agent-skills/index.json. Default test
+    # run skips this; invoke explicitly with `-m live` (or run from a
+    # weekly job) to catch contract drift in the manifest schema.
+    "live: integration test that hits a live external endpoint (skipped by default)",
+    # S22-N4: gated live-spend test that issues real x402-paid calls to
+    # pay.sh providers and burns USDC from the configured wallet. Default
+    # `pytest` run skips these; operator opts in with `pytest -m live_paysh`
+    # after verifying budget envelope + wallet balance. See
+    # packages/gecko-core/tests/sources/test_paysh_live.py and the
+    # `paysh_live_<fqn>_2026_05_07.json` recorded fixtures.
+    "live_paysh: gated live-spend test against real pay.sh x402 providers (manual operator opt-in)",
 ]
 
 [dependency-groups]

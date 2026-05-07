@@ -1,0 +1,21 @@
+{
+  "fqn": "merit-systems/stablecrypto/market-data",
+  "recorded_at": "2026-05-07",
+  "fixture_kind": "placeholder",
+  "fixture_note": "PLACEHOLDER fixture pinned at S22-N4 ship-time. Operator overwrites with the real recorded response by running `pytest -m live_paysh -k stablecrypto`. Until then the contract test exercises the chunking + ledger path against this synthetic body.",
+  "request": {
+    "url": "https://stablecrypto.dev",
+    "query": "neobank treasury basket usdc usdt dai market data"
+  },
+  "response": {
+    "status_code": 200,
+    "cost_usd": 0.01,
+    "content_type": "application/json",
+    "tx_signature": "<redacted-by-default>",
+    "body": {
+      "skill": "merit-systems/stablecrypto/market-data",
+      "result": "market_data_returned",
+      "narrative": "StableCrypto returned a unified treasury and market-data view aggregating CoinGecko prices, DefiLlama TVL/yield, Alchemy chain telemetry, and Etherscan transfer history under a single x402-priced call. For a neobank treasury operation the most relevant fields are spot price for the held basket, 24h DEX pool depth on the venues the neobank routes through, and stablecoin issuer treasury holdings as a proxy for redemption-risk."
+    }
+  }
+}

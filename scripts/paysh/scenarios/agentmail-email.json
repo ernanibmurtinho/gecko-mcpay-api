@@ -1,0 +1,47 @@
+{
+  "skill_id": "agentmail-email",
+  "fqn": "agentmail/email",
+  "vertical": "neobank",
+  "category": "messaging",
+  "provider": "agentmail",
+  "default_cost_usd": 0.05,
+  "network": "solana-mainnet",
+  "asset": "usdc",
+  "fixture_note": "FIXTURE — synthetic shape modeled on AgentMail x402 inbox responses. NO real customer mailboxes. Used by N3 sim AND as the placeholder for the N4 paysh_live recorded fixture (overwritten when operator runs pytest -m live_paysh).",
+  "challenge": {
+    "status": 402,
+    "headers": {
+      "X-Payment-Required": "x402; network=solana-mainnet; asset=usdc; amount=0.05; recipient=<provider_pubkey>; nonce=<server_nonce>",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "error": "payment_required",
+      "accepts": [
+        {
+          "scheme": "x402",
+          "network": "solana-mainnet",
+          "asset": "usdc",
+          "amount": "0.05",
+          "recipient": "<provider_pubkey>"
+        }
+      ]
+    }
+  },
+  "paid_response": {
+    "status": 200,
+    "headers": {
+      "X-Payment-Receipt": "<tx_signature>",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "skill": "agentmail/email",
+      "result": "inbox_provisioned",
+      "inbox_address": "agent-FIXTURE@inbox.agentmail.to",
+      "narrative": "AgentMail provisioned a dedicated inbox address backed by an x402-priced inbound + outbound gateway. For neobank KYC flows the recommended integration is to spin a fresh inbox per customer-onboarding session, route the verification email through it, and tear the inbox down once the verification token has been claimed. Inbound retrieval polls every 5 seconds against the agent-scoped mailbox, returning structured JSON for the message envelope, headers, and body. Latency for receipt of typical 6-digit OTPs from KYC vendors averaged 8.2s end-to-end during AgentMail's reference benchmarks. Edge cases observed during integration: some KYC providers (notably Onfido and Persona) deliver verification links rather than codes, so the inbox consumer must extract anchor hrefs from the HTML body rather than regex-matching against the plaintext part. Spam-folder routing is not a concern because the agent-mail subdomain is not enrolled in the typical mailbox-provider reputation graphs. For high-volume neobank onboarding, batch inbox creation rather than serializing it — the API tolerates 50 inboxes-per-second comfortably and amortizes the x402 settle-to-create overhead across a session.",
+      "endpoints_used": [
+        "POST /inboxes",
+        "GET /inboxes/{id}/messages"
+      ]
+    }
+  }
+}

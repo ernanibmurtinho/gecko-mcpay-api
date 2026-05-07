@@ -46,10 +46,9 @@ async def test_serve_subprocess_exposes_all_tools() -> None:
         env={"GECKO_API_URL": "https://api.geckovision.tech"},
     )
 
-    async with stdio_client(params) as (read, write):
-        async with ClientSession(read, write) as session:
-            await session.initialize()
-            result = await session.list_tools()
+    async with stdio_client(params) as (read, write), ClientSession(read, write) as session:
+        await session.initialize()
+        result = await session.list_tools()
 
     names = {t.name for t in result.tools}
     missing = EXPECTED_TOOLS - names
@@ -64,13 +63,12 @@ async def test_serve_subprocess_no_unexpected_tool_removals() -> None:
         env={"GECKO_API_URL": "https://api.geckovision.tech"},
     )
 
-    async with stdio_client(params) as (read, write):
-        async with ClientSession(read, write) as session:
-            await session.initialize()
-            result = await session.list_tools()
+    async with stdio_client(params) as (read, write), ClientSession(read, write) as session:
+        await session.initialize()
+        result = await session.list_tools()
 
     names = {t.name for t in result.tools}
     # All expected tools must be present — extras are fine (new tools are additive).
-    assert EXPECTED_TOOLS <= names, (
+    assert names >= EXPECTED_TOOLS, (
         f"Breaking tool removal detected: {sorted(EXPECTED_TOOLS - names)}"
     )

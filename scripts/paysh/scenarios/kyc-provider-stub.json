@@ -1,0 +1,48 @@
+{
+  "skill_id": "kyc-provider-stub",
+  "vertical": "neobank",
+  "category": "kyc",
+  "provider": "stub-kyc-provider",
+  "default_cost_usd": 0.05,
+  "network": "solana-mainnet",
+  "asset": "usdc",
+  "fixture_note": "FIXTURE — synthetic shape modeled on pay.sh KYC provider responses. NO real customer data.",
+  "challenge": {
+    "status": 402,
+    "headers": {
+      "X-Payment-Required": "x402; network=solana-mainnet; asset=usdc; amount=0.05; recipient=<provider_pubkey>; nonce=<server_nonce>",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "error": "payment_required",
+      "accepts": [
+        {
+          "scheme": "x402",
+          "network": "solana-mainnet",
+          "asset": "usdc",
+          "amount": "0.05",
+          "recipient": "<provider_pubkey>"
+        }
+      ]
+    }
+  },
+  "paid_response": {
+    "status": 200,
+    "headers": {
+      "X-Payment-Receipt": "<tx_signature>",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "skill": "kyc-provider-stub",
+      "result": "verified",
+      "score": 0.92,
+      "checks": {
+        "document": "passport",
+        "liveness": "passed",
+        "sanctions": "clear",
+        "pep": "clear"
+      },
+      "narrative": "KYC verification completed for the submitted identity payload. Document authenticity validated via OCR and microfeature analysis. Liveness challenge passed with a 0.92 confidence score using passive selfie capture. Sanctions screening checked OFAC, UN, EU consolidated, and HMT lists with no hits. PEP screening returned clear across the major political-exposure datasets. Recommended outbound action: provision the customer for tier-1 onboarding with daily transfer cap of 5,000 USDC and monthly aggregate cap of 25,000 USDC. For neobank flows on Solana, attach the resulting verification token to the user's wallet PDA so that downstream card-issuing and BaaS calls can short-circuit re-verification within the 12-month KYC validity window. Edge cases observed in production: passport MRZ checksum mismatches occur on ~3% of LATAM-issued documents and should be retried via manual review queue rather than auto-rejected. Latency budget for this provider averages 1.8 seconds end-to-end including OCR, sanctions cascade, and PEP cross-reference. The verification artifact is signed with the provider's Ed25519 key and can be replayed on-chain as a verifiable credential if the consuming neobank chooses to anchor identity proofs to its own program."
+    }
+  }
+}

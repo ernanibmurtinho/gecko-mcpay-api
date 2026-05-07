@@ -19,6 +19,7 @@ from gecko_core.knowledge.taxonomy import (
     Category,
     KnowledgeSource,
     Vertical,
+    _coerce_legacy_source,
     default_chunk_metadata,
     is_valid_subcategory,
 )
@@ -66,11 +67,12 @@ def test_canonical_knowledge_sources_value() -> None:
         "tavily",
         "twit_sh",
         "bazaar",
-        "pay_sh",
+        "paysh_manifest",
+        "paysh_live",
         "user_query",
         "enriched_output",
     )
-    assert len(KNOWLEDGE_SOURCES) == 7
+    assert len(KNOWLEDGE_SOURCES) == 8
 
 
 def test_literal_get_args_matches_runtime_tuples() -> None:
@@ -122,13 +124,47 @@ def test_default_chunk_metadata_shape() -> None:
     assert before - timedelta(seconds=1) <= md["timestamp"] <= after + timedelta(seconds=1)
 
 
-def test_all_26_literal_values_via_constant_tuples() -> None:
+def test_all_27_literal_values_via_constant_tuples() -> None:
     """8 Categories (7 canonical + legacy_uncategorized) + 11 Verticals +
-    7 KnowledgeSources = 26 values must be reachable via the public
-    constant tuples."""
+    8 KnowledgeSources (S22-N1 split pay_sh into paysh_manifest +
+    paysh_live) = 27 values must be reachable via the public constant
+    tuples."""
     total = len(CATEGORIES) + len(VERTICALS) + len(KNOWLEDGE_SOURCES)
-    assert total == 26
+    assert total == 27
     # And each constant tuple has no duplicates.
     assert len(set(CATEGORIES)) == len(CATEGORIES)
     assert len(set(VERTICALS)) == len(VERTICALS)
     assert len(set(KNOWLEDGE_SOURCES)) == len(KNOWLEDGE_SOURCES)
+
+
+# ---------------------------------------------------------------------------
+# S22-N1 — paysh_manifest / paysh_live split + legacy coercion.
+# ---------------------------------------------------------------------------
+
+
+def test_paysh_split_present_old_literal_absent() -> None:
+    """The S22-N1 split: pay_sh is gone, paysh_manifest + paysh_live are in."""
+    assert "paysh_manifest" in KNOWLEDGE_SOURCES
+    assert "paysh_live" in KNOWLEDGE_SOURCES
+    assert "pay_sh" not in KNOWLEDGE_SOURCES
+    # Literal alias must agree with the runtime tuple.
+    assert "paysh_manifest" in get_args(KnowledgeSource)
+    assert "paysh_live" in get_args(KnowledgeSource)
+    assert "pay_sh" not in get_args(KnowledgeSource)
+
+
+def test_coerce_legacy_source_pay_sh_to_paysh_live() -> None:
+    """Legacy chunks persisted with pay_sh coerce to paysh_live on read."""
+    assert _coerce_legacy_source("pay_sh") == "paysh_live"
+
+
+def test_coerce_legacy_source_passthrough_known_values() -> None:
+    """Every current canonical value passes through unchanged."""
+    for value in KNOWLEDGE_SOURCES:
+        assert _coerce_legacy_source(value) == value
+
+
+def test_coerce_legacy_source_passthrough_unknown_value() -> None:
+    """Unknown values pass through — write-side validator is the gate."""
+    assert _coerce_legacy_source("totally_made_up") == "totally_made_up"
+    assert _coerce_legacy_source("") == ""

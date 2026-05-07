@@ -1,0 +1,58 @@
+{
+  "skill_id": "baas-rails-stub",
+  "vertical": "neobank",
+  "category": "baas",
+  "provider": "stub-baas-rails",
+  "default_cost_usd": 0.08,
+  "network": "solana-mainnet",
+  "asset": "usdc",
+  "fixture_note": "FIXTURE — synthetic shape modeled on pay.sh BaaS rail provider responses. NO real account numbers.",
+  "challenge": {
+    "status": 402,
+    "headers": {
+      "X-Payment-Required": "x402; network=solana-mainnet; asset=usdc; amount=0.08; recipient=<provider_pubkey>; nonce=<server_nonce>",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "error": "payment_required",
+      "accepts": [
+        {
+          "scheme": "x402",
+          "network": "solana-mainnet",
+          "asset": "usdc",
+          "amount": "0.08",
+          "recipient": "<provider_pubkey>"
+        }
+      ]
+    }
+  },
+  "paid_response": {
+    "status": 200,
+    "headers": {
+      "X-Payment-Receipt": "<tx_signature>",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "skill": "baas-rails-stub",
+      "result": "rail_quoted",
+      "supported_rails": ["ach", "wire", "rtp", "fednow", "sepa", "pix"],
+      "fees_usd": {
+        "ach": 0.25,
+        "wire": 12.0,
+        "rtp": 0.45,
+        "fednow": 0.40,
+        "sepa": 0.35,
+        "pix": 0.10
+      },
+      "settlement_window_seconds": {
+        "ach": 86400,
+        "wire": 14400,
+        "rtp": 10,
+        "fednow": 10,
+        "sepa": 86400,
+        "pix": 10
+      },
+      "narrative": "BaaS rails quote returned for the requested neobank corridor. The provider operates as a sponsor-bank intermediary with direct access to ACH, FedWire, RTP, FedNow, SEPA, and Pix rails. For a USDC-native neobank, the typical pattern is: customer initiates an off-ramp from their USDC wallet, the orchestration layer mints a sponsored bank instruction against the rail with the lowest settlement cost that meets the customer's speed requirement, and the provider returns a signed acknowledgment that gets persisted as a memo against the originating Solana transaction. Pix in particular is interesting for LATAM neobanks: 24/7 settlement, sub-10-second finality, and operator fees a fraction of ACH. The trade-off is that Pix counterparty risk is concentrated at the Brazilian Central Bank's settlement layer, so reserves held on rail must be sized to the largest expected per-day outflow. For US neobanks targeting payroll use cases, RTP+FedNow combined coverage now exceeds 70% of receiving deposit institutions, making it viable as a primary rail with ACH only as a fallback for edge banks. Compliance: every rail call here requires the customer's KYC artifact (per the kyc-provider-stub skill) and an OFAC re-screen at the time of instruction submission."
+    }
+  }
+}

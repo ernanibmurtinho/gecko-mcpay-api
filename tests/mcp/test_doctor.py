@@ -563,7 +563,9 @@ def test_check_mcp_registered_gecko_listed(monkeypatch: pytest.MonkeyPatch) -> N
     """S25-DOC-04: claude mcp list contains gecko → PASS."""
     import shutil
 
-    monkeypatch.setattr("shutil.which", lambda cmd: "/usr/bin/claude" if cmd == "claude" else shutil.which(cmd))
+    monkeypatch.setattr(
+        "shutil.which", lambda cmd: "/usr/bin/claude" if cmd == "claude" else shutil.which(cmd)
+    )
     monkeypatch.setattr("gecko_mcp.doctor._run_claude_mcp_list", lambda: "gecko  gecko-mcp serve\n")
     result = check_mcp_registered()
     assert result.ok is True
@@ -575,7 +577,9 @@ def test_check_mcp_registered_gecko_not_listed(monkeypatch: pytest.MonkeyPatch) 
     """S25-DOC-04: claude found but gecko not in list → INFO with hint."""
     import shutil
 
-    monkeypatch.setattr("shutil.which", lambda cmd: "/usr/bin/claude" if cmd == "claude" else shutil.which(cmd))
+    monkeypatch.setattr(
+        "shutil.which", lambda cmd: "/usr/bin/claude" if cmd == "claude" else shutil.which(cmd)
+    )
     monkeypatch.setattr("gecko_mcp.doctor._run_claude_mcp_list", lambda: "some-other-server\n")
     result = check_mcp_registered()
     assert result.ok is True
