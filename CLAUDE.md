@@ -8,7 +8,7 @@ You are working on **gecko-mcpay-api**, the Python backend for the Builder Boots
 |---|---|---|
 | `gecko-mcpay-api` (this) | Python uv workspace | SDK, MCP server, FastAPI, CLI |
 | `gecko-mcpay-app` | Next.js | V2 frontend at `app.geckovision.tech` |
-| `gecko-mcpay-skills` | Markdown | Public skills served at `app.geckovision.tech/skill.md` |
+| `gecko-claude` | Markdown + Vercel | Public `skill.md` + `install.sh` + example apps; serves `app.geckovision.tech/skill.md` |
 
 Cross-repo work goes through `staff-engineer`. Most changes are contained in one repo.
 
@@ -29,7 +29,7 @@ uv workspace monorepo (single repo, multiple packages — that's normal Python p
 | `packages/gecko-mcp` | MCP server wrapping `gecko-core`. The frames-style surface for Claude Code. |
 | `packages/gecko-api` | FastAPI service. What `gecko-mcpay-app` calls. Deploys independently. |
 | `apps/cli` | The `bb` / `gecko` CLI. Wraps `gecko-core`. |
-| `skills/` | DOES NOT EXIST HERE — skills live in the `gecko-mcpay-skills` repo |
+| `skills/` | DOES NOT EXIST HERE — skill.md + install.sh live in the `gecko-claude` repo |
 | `apps/web/` | DOES NOT EXIST HERE — web app lives in the `gecko-mcpay-app` repo |
 | `infra/supabase/migrations` | DB schema, including pgvector setup |
 | `docs/` | PRD.md, product-story.md, design specs |
@@ -156,4 +156,4 @@ Before merging:
 
 ---
 
-**Sister repos**: [`gecko-mcpay-app`](https://github.com/<owner>/gecko-mcpay-app) | [`gecko-mcpay-skills`](https://github.com/<owner>/gecko-mcpay-skills) | **Domain**: `app.geckovision.tech`
+**Sister repos**: [`gecko-mcpay-app`](https://github.com/<owner>/gecko-mcpay-app) | [`gecko-claude`](https://github.com/ernanibmurtinho/gecko-claude) | **Domain**: `app.geckovision.tech`
