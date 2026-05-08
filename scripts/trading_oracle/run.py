@@ -617,7 +617,7 @@ def main(cap_usd: str, dry_run: bool, source: str, listings_json: Path | None) -
             plan,
             charge_and_fetch=_charge_and_fetch,
             write_chunk=_write_chunk,
-            vertical="defi-trading",
+            vertical="dex",
         )
         log.info(
             "DONE: spent $%s, wrote %d chunks, %d failures",
