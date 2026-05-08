@@ -11,7 +11,7 @@ funded.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
@@ -67,3 +67,46 @@ def plan_ingest(
         skipped=tuple(skipped),
         projected_total_usd=guard.spent(),
     )
+
+
+@dataclass(frozen=True)
+class IngestReport:
+    spent_usd: Decimal
+    chunks_written: int
+    failures: tuple[str, ...]
+
+
+async def execute_plan(
+    plan: IngestPlan,
+    *,
+    charge_and_fetch: Callable[[PlannedCall], Awaitable[Mapping[str, Any]]],
+    write_chunk: Callable[..., Awaitable[None]],
+    vertical: str,
+) -> IngestReport:
+    """Execute a planned ingest. DI'd for testing.
+
+    `charge_and_fetch(call)` performs the live x402 call.
+    `write_chunk(...)` writes one chunk to MongoDB with freshness_tier="daily".
+    """
+    written = 0
+    failures: list[str] = []
+    spent = Decimal("0")
+    for call in plan.calls:
+        try:
+            response = await charge_and_fetch(call)
+            text = response.get("body") if isinstance(response, Mapping) else None
+            if not isinstance(text, str) or not text.strip():
+                failures.append(f"{call.name}: empty body")
+                continue
+            await write_chunk(
+                text=text,
+                provider_kind=call.listing.get("provider_kind", "paysh_live"),
+                vertical=vertical,
+                freshness_tier="daily",
+                source_url=call.listing.get("fqn", ""),
+            )
+            written += 1
+            spent += call.price_usd
+        except Exception as exc:
+            failures.append(f"{call.name}: {type(exc).__name__}: {exc}")
+    return IngestReport(spent_usd=spent, chunks_written=written, failures=tuple(failures))
