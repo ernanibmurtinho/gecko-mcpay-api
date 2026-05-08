@@ -615,13 +615,18 @@ async def run_trade_panel_with_retrieval(
     from gecko_core.orchestration.trade_panel.backtest import (
         backtest_intent as _backtest_intent,
     )
+
+    # Phase 9.5: default history source flipped from Pyth to CoinGecko.
+    # Pyth Hermes does not expose OHLCV; CoinGecko's free `/coins/{id}/ohlc`
+    # does. Callers that explicitly pass `history_source=PythHermesHistorySource()`
+    # still get the cache-only path — only the implicit default changed.
     from gecko_core.orchestration.trade_panel.backtest.history_source import (
-        PythHermesHistorySource,
+        CoinGeckoOhlcHistorySource,
     )
 
     strategist_turn = next((t for t in verdict.turns if t.agent == STRATEGIST), None)
     intent_dict = _strategist_intent_from_turn(strategist_turn, protocol)
-    source = history_source if history_source is not None else PythHermesHistorySource()
+    source = history_source if history_source is not None else CoinGeckoOhlcHistorySource()
     try:
         report = await _backtest_intent(intent_dict, source)
     except Exception as exc:  # pragma: no cover - defensive; backtest never raises

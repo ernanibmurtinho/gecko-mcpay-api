@@ -38,7 +38,9 @@ import time
 from typing import Any
 
 from gecko_core.orchestration.trade_panel.backtest.history_source import (
+    COINGECKO_OHLC_BASE_URL,
     PYTH_HERMES_BASE_URL,
+    CoinGeckoOhlcHistorySource,
     HistorySource,
     PythHermesHistorySource,
 )
@@ -183,12 +185,14 @@ async def backtest_intent(
 
 
 __all__ = [
+    "COINGECKO_OHLC_BASE_URL",
     "PYTH_HERMES_BASE_URL",
     "BacktestGranularity",
     "BacktestIntent",
     "BacktestReport",
     "BacktestSource",
     "Candle",
+    "CoinGeckoOhlcHistorySource",
     "HistorySource",
     "PythHermesHistorySource",
     "TradeDirection",

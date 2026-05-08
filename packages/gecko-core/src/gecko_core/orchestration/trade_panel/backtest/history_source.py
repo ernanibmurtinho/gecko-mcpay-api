@@ -39,8 +39,9 @@ This degrades gracefully and avoids a fake "we backtested it" report.
 
 from __future__ import annotations
 
+import asyncio
 import logging
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from gecko_core.orchestration.trade_panel.backtest.models import (
     BacktestGranularity,
@@ -161,8 +162,177 @@ class PythHermesHistorySource:
         return []
 
 
+# ---------------------------------------------------------------------------
+# Phase 9.5 — CoinGecko OHLC history source.
+#
+# CoinGecko's free `/v3/coins/{id}/ohlc` returns OHLC bars without an API
+# key (subject to a 5-15 calls/min rate limit). Pyth Hermes does NOT
+# expose historical OHLCV (Phase 9 finding); this is the swap. Volume is
+# not in the free tier, so emitted candles carry vol_usd=0.0.
+#
+# Response shape (per CoinGecko docs):
+#   [[timestamp_ms, open, high, low, close], ...]
+# ---------------------------------------------------------------------------
+
+# Pinned protocol → CoinGecko coin id mapping. Touch this dict to add a
+# protocol; do not look up ids dynamically (a CoinGecko rename would
+# silently re-route lookups).
+_PROTOCOL_TO_COINGECKO_ID: dict[str, str] = {
+    "jupiter": "jupiter-exchange-solana",  # JUP
+    "kamino": "kamino",  # KMNO
+    "pyth": "pyth-network",  # PYTH
+    "drift": "drift-protocol",  # DRIFT
+    "jito": "jito-governance-token",  # JTO
+}
+
+COINGECKO_OHLC_BASE_URL = "https://api.coingecko.com/api/v3"
+
+
+def _granularity_to_days(granularity: BacktestGranularity, *, ts_start: int, ts_end: int) -> int:
+    """Map (granularity, window) → CoinGecko `days` param.
+
+    Free tier emits daily candles for `days >= 90` and hourly for
+    `1 <= days <= 30`. We pick the smallest `days` value that covers the
+    requested window AND lands in the right bucket for the requested
+    granularity. v1 doesn't backfill mid-bucket.
+    """
+    span_seconds = max(1, ts_end - ts_start)
+    span_days = max(1, (span_seconds + 86_399) // 86_400)
+    if granularity == "1h":
+        # Hourly bucket: 1, 7, 14, 30 are the supported steps.
+        for step in (1, 7, 14, 30):
+            if span_days <= step:
+                return step
+        return 30
+    # Daily bucket: 90, 180, 365 are the supported steps for daily candles.
+    for step in (90, 180, 365):
+        if span_days <= step:
+            return step
+    return 365
+
+
+class CoinGeckoOhlcHistorySource:
+    """OHLC source backed by CoinGecko's free `/coins/{id}/ohlc` endpoint.
+
+    Drops in for ``PythHermesHistorySource`` — implements the same
+    ``HistorySource`` Protocol surface. Caller code does not change.
+
+    Volume is not in the free tier; emitted candles carry ``vol_usd=0.0``.
+    Unknown protocols return ``[]`` (graceful — caller emits
+    ``unbacktestable=True, reason="no_candles"``). 429 responses retry once
+    after a short backoff.
+    """
+
+    def __init__(
+        self,
+        *,
+        http_client: httpx.AsyncClient | None = None,
+        base_url: str = COINGECKO_OHLC_BASE_URL,
+        max_retries: int = 1,
+        backoff_seconds: float = 1.0,
+    ) -> None:
+        self._http = http_client
+        self._base_url = base_url.rstrip("/")
+        self._max_retries = max(0, int(max_retries))
+        self._backoff_seconds = max(0.0, float(backoff_seconds))
+
+    async def fetch(
+        self,
+        protocol: str,
+        *,
+        granularity: BacktestGranularity,
+        ts_start: int,
+        ts_end: int,
+    ) -> list[Candle]:
+        proto = (protocol or "").strip().lower()
+        if not proto:
+            return []
+        coin_id = _PROTOCOL_TO_COINGECKO_ID.get(proto)
+        if coin_id is None:
+            # Unknown-to-us protocol → empty list. Caller maps to
+            # unbacktestable=True, reason="no_candles".
+            _log.info(
+                "backtest.history.coingecko_unknown_protocol protocol=%s",
+                proto,
+            )
+            return []
+
+        days = _granularity_to_days(granularity, ts_start=ts_start, ts_end=ts_end)
+        url = f"{self._base_url}/coins/{coin_id}/ohlc"
+        params = {"vs_currency": "usd", "days": str(days)}
+        rows = await self._fetch_with_retry(url, params=params)
+        if not rows:
+            return []
+        return [
+            row
+            for row in (_row_to_candle(r, protocol=proto, granularity=granularity) for r in rows)
+            if row is not None
+        ]
+
+    async def _fetch_with_retry(self, url: str, *, params: dict[str, str]) -> list[list[Any]]:
+        """GET ``url`` with one retry on 429. Owns the httpx client lifecycle."""
+        import httpx
+
+        attempt = 0
+        client_owned = self._http is None
+        client = self._http or httpx.AsyncClient(timeout=10.0)
+        try:
+            while True:
+                resp = await client.get(url, params=params)
+                if resp.status_code == 429 and attempt < self._max_retries:
+                    attempt += 1
+                    if self._backoff_seconds > 0:
+                        await asyncio.sleep(self._backoff_seconds)
+                    continue
+                if resp.status_code != 200:
+                    _log.warning(
+                        "backtest.history.coingecko_http_error status=%s url=%s",
+                        resp.status_code,
+                        url,
+                    )
+                    return []
+                data = resp.json()
+                if not isinstance(data, list):
+                    return []
+                return data  # type: ignore[no-any-return]
+        finally:
+            if client_owned:
+                await client.aclose()
+
+
+def _row_to_candle(row: Any, *, protocol: str, granularity: BacktestGranularity) -> Candle | None:
+    """Map a single ``[ts_ms, o, h, l, c]`` row into ``Candle``.
+
+    Returns ``None`` on a malformed row rather than raising — bad rows
+    should be dropped, not blow up the whole window.
+    """
+    if not isinstance(row, list | tuple) or len(row) < 5:
+        return None
+    try:
+        ts_ms = int(row[0])
+        o = float(row[1])
+        h = float(row[2])
+        low = float(row[3])
+        c = float(row[4])
+    except (TypeError, ValueError):
+        return None
+    return Candle(
+        protocol=protocol,
+        ts=ts_ms // 1000,
+        granularity=granularity,
+        source="coingecko",
+        open=o,
+        high=h,
+        low=low,
+        close=c,
+        vol_usd=0.0,
+    )
+
+
 __all__ = [
+    "COINGECKO_OHLC_BASE_URL",
     "PYTH_HERMES_BASE_URL",
+    "CoinGeckoOhlcHistorySource",
     "HistorySource",
     "PythHermesHistorySource",
 ]
