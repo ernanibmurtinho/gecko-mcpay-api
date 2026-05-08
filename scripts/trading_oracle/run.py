@@ -43,7 +43,7 @@ import json
 import logging
 import os
 import sys
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -302,6 +302,40 @@ class _LiveX402PaidRequester:
         self._payer_address = payer_address
         self._network = network
 
+    def _build_request_for_service(
+        self,
+        *,
+        url: str,
+        prompt: str,
+    ) -> tuple[str, str, dict[str, Any] | None]:
+        """Resolve (url, method, body) for this listing.
+
+        Consults ``service_call_specs.find_spec_for`` against a synthetic
+        endpoints list (one entry, method=POST) — the registry's predicates
+        match on URL path substrings, so this is sufficient for the cases
+        we care about (chat completions, exa search, anthropic messages).
+
+        Falls back to ``(url, "GET", None)`` when no spec matches — the
+        legacy paysh-style REST behavior.
+        """
+        from urllib.parse import urlparse
+
+        # Sibling-module import: run.py is executed as a script, so
+        # scripts/trading_oracle/ is on sys.path[0]. The test suite loads
+        # service_call_specs directly via importlib.
+        from service_call_specs import find_spec_for  # type: ignore[import-not-found]
+
+        host = urlparse(url).hostname or ""
+        # Synthesize a service_id from the host; specs match URL substrings
+        # via their endpoint_predicate so the id is rarely the deciding factor.
+        service_id = host
+        synthetic_endpoints: list[Mapping[str, Any]] = [{"url": url, "method": "POST"}]
+        spec, _ep = find_spec_for(service_id, synthetic_endpoints)
+        if spec is None or spec.body_builder is None:
+            return url, "GET", None
+        body = spec.body_builder(prompt, {})
+        return url, spec.method, body
+
     async def request(
         self,
         *,
@@ -327,10 +361,23 @@ class _LiveX402PaidRequester:
         # empty accepts[] and the buyer dance aborts before any payment fires.
         url = _substitute_url_template(url, wallet_address=self._payer_address)
 
+        # Resolve method + body from the per-service registry. Default is
+        # GET-with-?q= (legacy paysh REST). POST listings (chat completions,
+        # Exa search, Anthropic /v1/messages) get a JSON body shaped per the
+        # service.
+        url, method, body = self._build_request_for_service(url=url, prompt=query)
+
         async with httpx.AsyncClient(timeout=timeout_seconds) as client:
             # Step 1: probe for 402.
-            params = {"q": query}
-            probe = await client.get(url, params=params)
+            params: dict[str, str] = {"q": query} if method == "GET" else {}
+            if method == "GET":
+                probe = await client.get(url, params=params)
+            else:
+                probe = await client.post(
+                    url,
+                    json=body,
+                    headers={"Content-Type": "application/json"},
+                )
             if probe.status_code == 200:
                 # Free endpoint — should not happen for a paid listing,
                 # but degrade gracefully by returning the body unpaid.
@@ -388,15 +435,21 @@ class _LiveX402PaidRequester:
             ).encode("utf-8")
             x_payment = base64.b64encode(payload_bytes).decode("ascii")
 
-            # Step 4: re-GET with X-PAYMENT.
-            paid = await client.get(
-                url,
-                params=params,
-                headers={"X-PAYMENT": x_payment, "Accept": "application/json"},
-            )
+            # Step 4: re-issue with X-PAYMENT, preserving the original
+            # method and body so signed requirements still bind to the
+            # exact request shape the seller authorized.
+            paid_headers = {"X-PAYMENT": x_payment, "Accept": "application/json"}
+            if method == "GET":
+                paid = await client.get(url, params=params, headers=paid_headers)
+            else:
+                paid = await client.post(
+                    url,
+                    json=body,
+                    headers={**paid_headers, "Content-Type": "application/json"},
+                )
             if paid.status_code != 200:
                 raise RuntimeError(
-                    f"paid GET {url!r} returned {paid.status_code}: {paid.text[:256]!r}"
+                    f"paid {method} {url!r} returned {paid.status_code}: {paid.text[:256]!r}"
                 )
             tx_signature: str | None = None
             settle_header = paid.headers.get("X-PAYMENT-RESPONSE")
