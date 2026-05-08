@@ -454,18 +454,23 @@ _CURRENT_QUERY: str | None = None
 def _build_paid_requester() -> Any:
     """Construct a live x402 ``PaidRequester`` from env. Raises if config missing.
 
-    Reads (in priority order):
-        TWITSH_WALLET_ADDRESS, TWITSH_WALLET_PRIVATE_KEY  (existing prod path)
-        GECKO_BUYER_WALLET_ADDRESS, GECKO_BUYER_WALLET_PRIVATE_KEY  (new path)
-        X402_NETWORK            (default base-mainnet)
-        GECKO_X402_MODE         (must be 'live')
+    Branches on ``X402_NETWORK``:
 
-    Returns a ``_LiveX402PaidRequester`` — the concrete adapter that
-    conforms to ``gecko_core.sources.paysh_live.PaidRequester`` /
-    ``bazaar_live.PaidRequester``. The adapter performs the x402 v2 buyer
-    dance (GET → 402 → sign X-PAYMENT → GET) using
-    ``cdp_x402_client._build_payment_payload`` so the EIP-3009 vs Permit2
-    signing path matches the seller-side fix in 19d0a83.
+      * ``solana-*`` / ``solana:<hash>`` → ``LiveSolanaPaidRequester``
+        (Phase 7). Reads ``GECKO_SOLANA_WALLET_ADDRESS`` +
+        ``GECKO_SOLANA_WALLET_PRIVATE_KEY`` (base58 keypair). Signs SPL
+        ``TransferChecked`` via ``x402[svm]``; CDP Solana facilitator
+        pays gas (relayer pattern).
+      * ``base-*`` / anything else (default) → ``_LiveX402PaidRequester``
+        (Phase 6). Reads ``TWITSH_WALLET_*`` or ``GECKO_BUYER_WALLET_*``.
+        Signs EIP-3009 ``transferWithAuthorization`` via the EVM SDK.
+
+    The branch is the ONLY shape difference. Both adapters expose
+    ``set_listing_context`` + ``request`` and produce ``PaidResponse``
+    so the dispatcher (``_charge_and_fetch``) treats them identically.
+
+    ``GECKO_X402_MODE`` must be ``live`` — checked before any wallet
+    parsing so misconfigured envs fail fast with a clear message.
     """
     global _PAID_REQUESTER_SINGLETON
     if _PAID_REQUESTER_SINGLETON is not None:
@@ -477,6 +482,35 @@ def _build_paid_requester() -> Any:
             f"GECKO_X402_MODE={mode!r}; live x402 requester requires "
             "GECKO_X402_MODE=live. Aborting before any network call."
         )
+
+    network = os.environ.get("X402_NETWORK", "base-mainnet")
+
+    # Sibling-module import: ``solana_buyer`` lives next to this script.
+    # Importing here (lazy) keeps dry-run / EVM-only paths off the
+    # solders/x402[svm] import chain.
+    from solana_buyer import (  # type: ignore[import-not-found]
+        LiveSolanaPaidRequester,
+        is_solana_network_env,
+    )
+
+    if is_solana_network_env(network):
+        sol_private_key = os.environ.get("GECKO_SOLANA_WALLET_PRIVATE_KEY")
+        sol_address = os.environ.get("GECKO_SOLANA_WALLET_ADDRESS")
+        if not sol_private_key or not sol_address:
+            raise click.ClickException(
+                f"X402_NETWORK={network!r} routes to the Solana buyer; "
+                "GECKO_SOLANA_WALLET_ADDRESS + GECKO_SOLANA_WALLET_PRIVATE_KEY "
+                "(base58 keypair, ~88 chars) must be set. See .env.add."
+            )
+        rpc_url = os.environ.get("SOLANA_RPC_URL") or None
+        _PAID_REQUESTER_SINGLETON = LiveSolanaPaidRequester(
+            payer_private_key_b58=sol_private_key,
+            payer_address=sol_address,
+            network=network,
+            per_call_hard_limit_usd=_PER_CALL_HARD_LIMIT_USD,
+            rpc_url=rpc_url,
+        )
+        return _PAID_REQUESTER_SINGLETON
 
     private_key = os.environ.get("TWITSH_WALLET_PRIVATE_KEY") or os.environ.get(
         "GECKO_BUYER_WALLET_PRIVATE_KEY"
@@ -491,8 +525,6 @@ def _build_paid_requester() -> Any:
             "(TWITSH_WALLET_ADDRESS + TWITSH_WALLET_PRIVATE_KEY) or "
             "(GECKO_BUYER_WALLET_ADDRESS + GECKO_BUYER_WALLET_PRIVATE_KEY)."
         )
-
-    network = os.environ.get("X402_NETWORK", "base-mainnet")
 
     _PAID_REQUESTER_SINGLETON = _LiveX402PaidRequester(
         payer_private_key=private_key,
