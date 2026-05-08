@@ -87,25 +87,41 @@ def is_solana_network_env(value: str | None) -> bool:
 # ---------------------------------------------------------------------------
 
 
+class NoSolanaAcceptsError(RuntimeError):
+    """Raised when a 402 challenge advertised no Solana network entry.
+
+    Carries the list of advertised networks so the caller can decide
+    whether to fall back to an EVM buyer (when an EVM-capable wallet is
+    configured) or surface a clear configuration error. Subclasses
+    ``RuntimeError`` for backwards compatibility — pre-Phase 10A code
+    caught the bare ``RuntimeError`` it used to raise.
+    """
+
+    def __init__(self, advertised_networks: list[str]) -> None:
+        self.advertised_networks = advertised_networks
+        super().__init__(
+            f"402 challenge advertised no Solana network; got "
+            f"{advertised_networks!r}. Cannot route through the Solana buyer."
+        )
+
+
 def pick_solana_accepts_entry(accepts: Sequence[Mapping[str, Any]]) -> Mapping[str, Any]:
     """Return the first Solana entry from a multi-network ``accepts[]`` list.
 
     paysh sellers advertise EVM (Base, Avalanche, X-Layer) AND Solana
     options in one 402 challenge. The EVM buyer in ``run.py`` blindly picks
     ``accepts[0]``; on the Solana branch we must filter to the Solana
-    entry instead. Raises ``RuntimeError`` when no Solana option is
-    advertised — the listing is EVM-only and the buyer should fall back
-    or fail loudly rather than silently sign against the wrong network.
+    entry instead. Raises :class:`NoSolanaAcceptsError` (a ``RuntimeError``
+    subclass carrying the advertised networks) when no Solana option is
+    advertised — the listing is EVM-only and the caller decides whether
+    to fall back to an EVM buyer or fail loudly.
     """
     for entry in accepts:
         net = str(entry.get("network", ""))
         if _is_solana_caip2(net):
             return entry
-    raise RuntimeError(
-        f"402 challenge advertised no Solana network; got "
-        f"{[a.get('network') for a in accepts]!r}. Cannot route through "
-        "the Solana buyer."
-    )
+    advertised = [str(a.get("network", "")) for a in accepts]
+    raise NoSolanaAcceptsError(advertised)
 
 
 # ---------------------------------------------------------------------------

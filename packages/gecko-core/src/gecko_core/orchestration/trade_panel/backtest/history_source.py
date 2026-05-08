@@ -294,7 +294,7 @@ class CoinGeckoOhlcHistorySource:
                 data = resp.json()
                 if not isinstance(data, list):
                     return []
-                return data  # type: ignore[no-any-return]
+                return data
         finally:
             if client_owned:
                 await client.aclose()

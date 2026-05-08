@@ -870,6 +870,85 @@ class _LiveX402PaidRequester:
             )
 
 
+# ---------------------------------------------------------------------------
+# Phase 10A — EVM-buyer fallback for paysh providers that advertise
+# EVM-only 402 challenges (e.g. paysponge/perplexity is Base-only). The
+# Solana buyer raises ``NoSolanaAcceptsError``; we walk the wrapped
+# exception chain and, when found, reissue via the EVM buyer.
+# ---------------------------------------------------------------------------
+
+
+def _is_no_solana_accepts(exc: BaseException) -> bool:
+    """Walk ``exc.__cause__`` chain looking for ``NoSolanaAcceptsError``.
+
+    paysh_live wraps requester errors in ``ProviderUnreachableError`` so
+    the original typed exception is buried under ``__cause__``. We unwind
+    one level at a time rather than relying on string matching.
+    """
+    from solana_buyer import NoSolanaAcceptsError  # type: ignore[import-not-found]
+
+    cur: BaseException | None = exc
+    seen: set[int] = set()
+    while cur is not None and id(cur) not in seen:
+        if isinstance(cur, NoSolanaAcceptsError):
+            return True
+        seen.add(id(cur))
+        cur = cur.__cause__ or cur.__context__
+    return False
+
+
+def _advertised_from_cause(exc: BaseException) -> list[str]:
+    """Extract ``advertised_networks`` from the wrapped NoSolanaAcceptsError."""
+    from solana_buyer import NoSolanaAcceptsError  # type: ignore[import-not-found]
+
+    cur: BaseException | None = exc
+    seen: set[int] = set()
+    while cur is not None and id(cur) not in seen:
+        if isinstance(cur, NoSolanaAcceptsError):
+            return list(cur.advertised_networks)
+        seen.add(id(cur))
+        cur = cur.__cause__ or cur.__context__
+    return []
+
+
+def _build_evm_requester_for_fallback(*, advertised: list[str]) -> Any:
+    """Build a one-shot EVM ``_LiveX402PaidRequester`` for the fallback path.
+
+    Reads ``TWITSH_WALLET_*`` (or ``GECKO_BUYER_WALLET_*``) directly so
+    this works even when the run was started with ``X402_NETWORK=solana-*``
+    (the singleton is bound to Solana). When no EVM wallet env is set we
+    raise a clear ``RuntimeError`` naming the missing env vars — the
+    caller surfaces it as a per-call failure, not a hard crash.
+    """
+    private_key = os.environ.get("TWITSH_WALLET_PRIVATE_KEY") or os.environ.get(
+        "GECKO_BUYER_WALLET_PRIVATE_KEY"
+    )
+    address = os.environ.get("TWITSH_WALLET_ADDRESS") or os.environ.get(
+        "GECKO_BUYER_WALLET_ADDRESS"
+    )
+    if not private_key or not address:
+        raise RuntimeError(
+            f"paysh provider advertised EVM-only accepts ({advertised!r}); "
+            "configure TWITSH_WALLET_* (or GECKO_BUYER_WALLET_*) to allow "
+            "the EVM-buyer fallback. Aborting this call."
+        )
+    # Pick a reasonable EVM network for the requester. paysh providers
+    # tend to advertise eip155:8453 (Base mainnet); fall back to that
+    # when the advertised list is mixed-EVM. The requester only uses
+    # the network token for diagnostics — the actual chain is read from
+    # the seller's accepts[] entry at sign time.
+    network = next(
+        (n for n in advertised if n.startswith("eip155:") or n.startswith("base-")),
+        "base-mainnet",
+    )
+    return _LiveX402PaidRequester(
+        payer_private_key=private_key,
+        payer_address=address,
+        network=network,
+        per_call_hard_limit_usd=_PER_CALL_HARD_LIMIT_USD,
+    )
+
+
 async def _charge_and_fetch(call: PlannedCall) -> dict[str, Any]:
     """Issue one paid x402 call against the listing's source.
 
@@ -930,12 +1009,35 @@ async def _charge_and_fetch(call: PlannedCall) -> dict[str, Any]:
             min_price_usd=float(call.listing.get("price_usd", 0.0)),
             service_url=service_url,
         )
-        result = await paysh_fetch_paid(
-            fqn,
-            query,
-            x402_client=requester,
-            catalog_providers=[provider],
-        )
+        try:
+            result = await paysh_fetch_paid(
+                fqn,
+                query,
+                x402_client=requester,
+                catalog_providers=[provider],
+            )
+        except Exception as exc:
+            # Phase 10A — paysponge/perplexity-style providers advertise
+            # Base (eip155:8453) only in their 402; the Solana buyer
+            # raises NoSolanaAcceptsError. Walk the __cause__ chain and
+            # if the root is "EVM-only accepts", re-issue via the EVM
+            # buyer when TWITSH_WALLET_* (or GECKO_BUYER_WALLET_*) is set.
+            if _is_no_solana_accepts(exc):
+                evm_requester = _build_evm_requester_for_fallback(
+                    advertised=_advertised_from_cause(exc)
+                )
+                evm_requester.set_listing_context(
+                    service_id=fqn,
+                    endpoints=listing_endpoints,
+                )
+                result = await paysh_fetch_paid(
+                    fqn,
+                    query,
+                    x402_client=evm_requester,
+                    catalog_providers=[provider],
+                )
+            else:
+                raise
     elif pk == "bazaar_live":
         from gecko_core.sources.bazaar_live import fetch_paid as bazaar_fetch_paid
         from gecko_core.sources.bazaar_manifest import (
