@@ -446,8 +446,14 @@ class LiveSolanaPaidRequester:
             return url, "GET", None
 
         spec, ep = find_spec_for(service_id, endpoints_for_lookup)
-        if spec is None or ep is None or spec.body_builder is None:
+        if spec is None or ep is None:
             return url, "GET", None
-        chosen_url = str(ep.get("url") or url)
-        body = spec.body_builder(prompt, {})
+        # Honor spec.url_override when set (Phase 7.5: per-service URL rewrites
+        # for paysponge/coingecko + paysponge/perplexity). Fall back to the
+        # registry endpoint URL otherwise.
+        if getattr(spec, "url_override", None) is not None:
+            chosen_url = spec.url_override(prompt, {})
+        else:
+            chosen_url = str(ep.get("url") or url)
+        body = spec.body_builder(prompt, {}) if spec.body_builder is not None else None
         return chosen_url, spec.method, body
