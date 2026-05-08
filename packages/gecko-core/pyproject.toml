@@ -1,6 +1,6 @@
 [project]
 name = "gecko-core"
-version = "0.2.24"
+version = "0.2.25"
 description = "Builder Bootstrap Platform SDK — pure business logic. CLI, MCP, and API import this."
 requires-python = ">=3.11"
 dependencies = [
