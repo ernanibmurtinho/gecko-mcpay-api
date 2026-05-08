@@ -16,38 +16,33 @@ This is the operator runbook to ship Phase 6 + 7 + 7.5 + 8 + 9 to production. **
 
 ---
 
-## Step 1 — Schema migrations (DB)
+## Step 1 — Schema (MongoDB Atlas only — Supabase chunks are gone)
 
-Two new migrations on this branch:
+**Important correction:** The two SQL files on this branch (`infra/supabase/migrations/20260508130000_*.sql`, `..._20260508140000_*.sql`) are **not actually applied at deploy time**. The `chunks` table no longer lives in Supabase — per `memory/project_s18_scope_mongo_migration.md` and `project_mongo_cutover_no_backfill.md`, chunks were cut over to MongoDB Atlas in Sprint 18 and the Supabase `chunks` table was revoked-write then dropped in Sprint 19.
 
-| File | What |
-|---|---|
-| `infra/supabase/migrations/20260508130000_chunk_freshness_tier.sql` | Adds `chunks.freshness_tier` (`static`/`daily`/`live_only`) + CHECK + index |
-| `infra/supabase/migrations/20260508140000_chunk_protocol_content_kind.sql` | Adds `chunks.protocol text[]`, `content_kind`, `is_stale` + indexes |
+The SQL files exist as **Pattern A schema contracts** — the drift test in `tests/test_provider_kind_consistency.py` reads them to verify the Python literal types stay in sync with the documented schema shape. They run zero ALTER TABLE statements against any live database.
 
-### Action
+So Step 1 is effectively MongoDB-only:
 
-```bash
-# In your prod DB shell (or via Supabase SQL editor):
-\i infra/supabase/migrations/20260508130000_chunk_freshness_tier.sql
-\i infra/supabase/migrations/20260508140000_chunk_protocol_content_kind.sql
-```
+### MongoDB Atlas Search index update (the only DB action that matters)
 
-**Falsifier:** if `gecko_research` errors with `PGRST204` for an unknown column on next call, the migration didn't apply. Re-run.
-
-### MongoDB Atlas Search index update (NON-AUTOMATIC)
-
-The `chunks_vector` Atlas Search index needs three new filter fields. **This is a manual operator action via Atlas UI or API** — documented at the bottom of `20260508140000_chunk_protocol_content_kind.sql`:
+The `chunks_vector` Atlas Search index needs new filter fields so retrieval queries scoped by these axes don't fall back to collection scans:
 
 ```jsonc
 // Add to chunks_vector index definition.fields:
+{ "type": "filter", "path": "freshness_tier" },
 { "type": "filter", "path": "protocol" },
 { "type": "filter", "path": "content_kind" },
 { "type": "filter", "path": "is_stale" }
-// (freshness_tier was already added; reconfirm it's present.)
 ```
 
-Without this, retrieval queries with these filters fall back to collection scans. **Non-blocking for ingest, blocking for retrieval performance at scale.** Schedule within 24h of code deploy.
+Manual operator action via the Atlas UI or `mongosh` admin API. Docs reference: bottom comment of `20260508140000_chunk_protocol_content_kind.sql`.
+
+**Falsifier**: if retrieval queries with `protocol=jupiter` are slow (>500ms p50) after deploy, the index update didn't land — re-do it.
+
+### MongoDB chunks collection: NO schema migration needed
+
+MongoDB is schemaless. `insert_chunks_mongo` just gains the new fields on insert; existing chunks lack them and get the default values (`protocol=[]`, `content_kind="unknown"`, `is_stale=false`, `freshness_tier="static"`) per Pydantic default coercion at read time. **No backfill required**, no down-migration risk.
 
 ---
 
