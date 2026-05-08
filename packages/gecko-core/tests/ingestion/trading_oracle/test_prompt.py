@@ -54,3 +54,33 @@ def test_filter_rejects_evm_only():
         )
         is False
     )
+
+
+def test_filter_rejects_email_service():
+    """AgentMail-style listing — paysh email service that substring-matches
+    "oracle" via vendor description. Should reject regardless of solana tag."""
+    assert (
+        is_solana_defi_relevant(
+            {
+                "name": "AgentMail",
+                "description": "Email inbox + SMTP for agents",
+                "tags": ["solana"],
+            }
+        )
+        is False
+    )
+
+
+def test_filter_rejects_air_quality():
+    """Air Quality API — paysh environmental data tagged with "oracle" but
+    irrelevant to Solana DeFi. Should reject before the DeFi-token path."""
+    assert (
+        is_solana_defi_relevant(
+            {
+                "name": "Air Quality API",
+                "description": "AQI readings by city",
+                "tags": ["solana", "oracle"],
+            }
+        )
+        is False
+    )

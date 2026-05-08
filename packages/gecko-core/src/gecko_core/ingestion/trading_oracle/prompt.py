@@ -57,6 +57,21 @@ _EVM_REJECT_TOKENS = (
     "avalanche",
 )
 
+# Known false-positive tokens. These listings substring-match the DeFi
+# token list (e.g. AirQuality "AQI" + tag "oracle") but have nothing to
+# do with Solana DeFi. Anything matching here short-circuits to reject
+# before the DeFi-substring path runs.
+_REJECT_TOKENS = (
+    "email",
+    "inbox",
+    "smtp",
+    "air quality",
+    "weather",
+    "captcha",
+    "screenshot",
+    "domain",
+)
+
 
 def _haystack(listing: Mapping[str, object]) -> str:
     parts: list[str] = []
@@ -75,6 +90,12 @@ def _haystack(listing: Mapping[str, object]) -> str:
 
 def is_solana_defi_relevant(listing: Mapping[str, object]) -> bool:
     h = _haystack(listing)
+    # Reject known false-positives BEFORE the DeFi-substring path runs.
+    # AgentMail (email) matches "oracle" via vendor description; AirQuality
+    # API matches via "AQI"-adjacent description. Both are paysh-only and
+    # irrelevant to Solana DeFi trading.
+    if any(t in h for t in _REJECT_TOKENS):
+        return False
     if any(t in h for t in _EVM_REJECT_TOKENS) and not any(s in h for s in _SOLANA_TOKENS):
         return False
     if "__protocol_match__" in h:

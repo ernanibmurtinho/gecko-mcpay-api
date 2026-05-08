@@ -38,8 +38,10 @@ Flags:
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
+import os
 import sys
 from collections.abc import Sequence
 from decimal import Decimal
@@ -181,59 +183,291 @@ def _load_listings_from_file(path: Path) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 
+# Module-level memo so _build_paid_requester returns the same object every
+# time within a run (the underlying httpx client is reusable, and the buyer
+# nonce semantics are intent-id scoped, not requester-instance scoped).
+_PAID_REQUESTER_SINGLETON: Any | None = None
+
+
 def _build_paid_requester() -> Any:
-    """Construct the live ``PaidRequester`` (Solana + Base buyer wallets).
+    """Construct a live x402 ``PaidRequester`` from env. Raises if config missing.
 
-    GAP: a concrete ``PaidRequester`` implementation is not yet shipped in
-    ``gecko-core``. The buyer-wallet plumbing (SSM SecureString → ECS task
-    env → x402 consumer client) is itself the operator-gated piece per
-    ``project_buyer_wallet_blocker_2026_05_08.md``. Once that lands, swap
-    the ``NotImplementedError`` for a concrete construction (likely a thin
-    adapter over ``gecko_core.payments.x402_consumer``).
+    Reads (in priority order):
+        TWITSH_WALLET_ADDRESS, TWITSH_WALLET_PRIVATE_KEY  (existing prod path)
+        GECKO_BUYER_WALLET_ADDRESS, GECKO_BUYER_WALLET_PRIVATE_KEY  (new path)
+        X402_NETWORK            (default base-mainnet)
+        GECKO_X402_MODE         (must be 'live')
 
-    Until then, the live path raises here — the dry-run path never calls
-    this function.
+    Returns a ``_LiveX402PaidRequester`` — the concrete adapter that
+    conforms to ``gecko_core.sources.paysh_live.PaidRequester`` /
+    ``bazaar_live.PaidRequester``. The adapter performs the x402 v2 buyer
+    dance (GET → 402 → sign X-PAYMENT → GET) using
+    ``cdp_x402_client._build_payment_payload`` so the EIP-3009 vs Permit2
+    signing path matches the seller-side fix in 19d0a83.
     """
-    raise NotImplementedError(
-        "Live PaidRequester not wired. Operator gate: fund the buyer wallet "
-        "(see memory/project_buyer_wallet_blocker_2026_05_08.md) and ship a "
-        "concrete PaidRequester before flipping --dry-run off."
+    global _PAID_REQUESTER_SINGLETON
+    if _PAID_REQUESTER_SINGLETON is not None:
+        return _PAID_REQUESTER_SINGLETON
+
+    mode = os.environ.get("GECKO_X402_MODE", "stub")
+    if mode != "live":
+        raise click.ClickException(
+            f"GECKO_X402_MODE={mode!r}; live x402 requester requires "
+            "GECKO_X402_MODE=live. Aborting before any network call."
+        )
+
+    private_key = os.environ.get("TWITSH_WALLET_PRIVATE_KEY") or os.environ.get(
+        "GECKO_BUYER_WALLET_PRIVATE_KEY"
     )
+    address = os.environ.get("TWITSH_WALLET_ADDRESS") or os.environ.get(
+        "GECKO_BUYER_WALLET_ADDRESS"
+    )
+    if not private_key or not address:
+        raise click.ClickException(
+            "buyer wallet env not set. Export one of these pairs before "
+            "running live: "
+            "(TWITSH_WALLET_ADDRESS + TWITSH_WALLET_PRIVATE_KEY) or "
+            "(GECKO_BUYER_WALLET_ADDRESS + GECKO_BUYER_WALLET_PRIVATE_KEY)."
+        )
+
+    network = os.environ.get("X402_NETWORK", "base-mainnet")
+
+    _PAID_REQUESTER_SINGLETON = _LiveX402PaidRequester(
+        payer_private_key=private_key,
+        payer_address=address,
+        network=network,
+    )
+    return _PAID_REQUESTER_SINGLETON
+
+
+class _LiveX402PaidRequester:
+    """Adapter: ``PaidRequester`` Protocol over the x402 v2 buyer dance.
+
+    Why this lives here and not in ``gecko-core``: there is exactly one
+    consumer (this CLI) and the buyer dance is a few dozen lines once you
+    reuse ``cdp_x402_client._build_payment_payload``. Promoting it to core
+    can wait until a second caller appears (per CLAUDE.md "split when there
+    are 2 callers").
+
+    Wire flow per ``request(url, query, max_cost_usd, timeout_seconds)``:
+
+      1. GET url with query as ``?q=`` — expect 402.
+      2. Parse ``accepts[]`` from the 402 body. Pick the first whose
+         ``maxAmountRequired`` (USDC atomic) is ≤ ``max_cost_usd``.
+      3. Build a signed X-PAYMENT header via ``_build_payment_payload``.
+      4. Re-issue the GET with X-PAYMENT. Resource server settles via its
+         own facilitator and returns 200 + body + ``X-PAYMENT-RESPONSE``.
+      5. Wrap in ``PaidResponse`` for the caller.
+    """
+
+    def __init__(
+        self,
+        *,
+        payer_private_key: str,
+        payer_address: str,
+        network: str,
+    ) -> None:
+        self._payer_private_key = payer_private_key
+        self._payer_address = payer_address
+        self._network = network
+
+    async def request(
+        self,
+        *,
+        url: str,
+        query: str,
+        max_cost_usd: float,
+        timeout_seconds: float,
+    ) -> Any:
+        # Lazy imports — keep this module importable in dry-run mode
+        # without dragging in the x402 SDK.
+        import base64
+
+        import httpx
+        from gecko_core.payments.cdp_x402_client import (
+            _build_payment_payload,
+            _build_payment_requirements,
+        )
+        from gecko_core.sources.paysh_live import PaidResponse
+
+        async with httpx.AsyncClient(timeout=timeout_seconds) as client:
+            # Step 1: probe for 402.
+            params = {"q": query}
+            probe = await client.get(url, params=params)
+            if probe.status_code == 200:
+                # Free endpoint — should not happen for a paid listing,
+                # but degrade gracefully by returning the body unpaid.
+                text = probe.text
+                content_type = probe.headers.get("content-type", "text/plain")
+                body: Any = probe.json() if "json" in content_type else text
+                return PaidResponse(
+                    status_code=200,
+                    cost_usd=0.0,
+                    response_body=body,
+                    response_text=text,
+                    content_type=content_type,
+                    tx_signature=None,
+                    response_sha=hashlib.sha256(text.encode()).hexdigest(),
+                    headers=dict(probe.headers),
+                )
+            if probe.status_code != 402:
+                raise RuntimeError(
+                    f"expected 402 challenge from {url!r}, got {probe.status_code}: "
+                    f"{probe.text[:256]!r}"
+                )
+
+            challenge = probe.json()
+            accepts = challenge.get("accepts") or []
+            if not accepts:
+                raise RuntimeError(f"402 from {url!r} carried empty accepts[]")
+            chosen = accepts[0]
+            advertised_atomic = int(chosen.get("maxAmountRequired") or chosen.get("amount") or "0")
+            advertised_usd = Decimal(advertised_atomic) / Decimal(10**6)
+            if advertised_usd > Decimal(str(max_cost_usd)):
+                raise RuntimeError(
+                    f"advertised price {advertised_usd} USD exceeds caller cap {max_cost_usd} USD"
+                )
+
+            sdk_requirements = _build_payment_requirements(
+                amount_usd=advertised_usd,
+                pay_to=chosen["payTo"],
+                network=chosen.get("network", self._network),
+                asset=chosen["asset"],
+                resource_url=url,
+                max_timeout_seconds=int(chosen.get("maxTimeoutSeconds", 60)),
+            )
+            from uuid import uuid4
+
+            intent_id = f"trading-oracle-{uuid4().hex[:16]}"
+            sdk_payload = _build_payment_payload(
+                intent_id=intent_id,
+                requirements=sdk_requirements,
+                payer_private_key=self._payer_private_key,
+                resource_url=url,
+            )
+            payload_bytes = json.dumps(
+                sdk_payload.model_dump(by_alias=True, mode="json"),
+                separators=(",", ":"),
+            ).encode("utf-8")
+            x_payment = base64.b64encode(payload_bytes).decode("ascii")
+
+            # Step 4: re-GET with X-PAYMENT.
+            paid = await client.get(
+                url,
+                params=params,
+                headers={"X-PAYMENT": x_payment, "Accept": "application/json"},
+            )
+            if paid.status_code != 200:
+                raise RuntimeError(
+                    f"paid GET {url!r} returned {paid.status_code}: {paid.text[:256]!r}"
+                )
+            tx_signature: str | None = None
+            settle_header = paid.headers.get("X-PAYMENT-RESPONSE")
+            if settle_header:
+                try:
+                    decoded = base64.b64decode(settle_header).decode("utf-8")
+                    settle = json.loads(decoded)
+                    tx_signature = settle.get("transaction") or settle.get("txHash")
+                except Exception:
+                    tx_signature = None
+
+            text = paid.text
+            content_type = paid.headers.get("content-type", "text/plain")
+            try:
+                body = paid.json() if "json" in content_type else text
+            except Exception:
+                body = text
+            return PaidResponse(
+                status_code=200,
+                cost_usd=float(advertised_usd),
+                response_body=body,
+                response_text=text,
+                content_type=content_type,
+                tx_signature=tx_signature,
+                response_sha=hashlib.sha256(text.encode()).hexdigest(),
+                headers=dict(paid.headers),
+            )
 
 
 async def _charge_and_fetch(call: PlannedCall) -> dict[str, Any]:
     """Issue one paid x402 call against the listing's source.
 
     Routes to ``paysh_live.fetch_paid`` or ``bazaar_live.fetch_paid`` based
-    on ``provider_kind``. Both shipped in S22 (per the live_paysh /
-    live_bazaar markers in the source modules) and accept a ``PaidRequester``
-    for the wire seam.
+    on ``provider_kind``. Both accept a ``PaidRequester`` for the wire
+    seam; we build it lazily once per run via ``_build_paid_requester``.
+
+    Returns the dict shape ``execute_plan`` expects:
+    ``{"body": <text>, "fqn": <fqn>}``. On a non-text response or
+    upstream error, raises — ``execute_plan`` collects into the failure
+    list rather than crashing the run.
     """
+    # Import the planner-listing lookup helpers + the prompt lazily so
+    # dry-run never drags them into the import path.
+    from gecko_core.ingestion.trading_oracle.prompt import TRADING_ORACLE_PROMPT
+
     pk = call.listing.get("provider_kind", "paysh_live")
-    requester = _build_paid_requester()  # raises until live wallet is wired
+    fqn = call.listing.get("fqn", "")
+    service_url = call.listing.get("service_url", "")
+    requester = _build_paid_requester()
+
     if pk == "paysh_live":
         from gecko_core.sources.paysh_live import fetch_paid as paysh_fetch_paid
+        from gecko_core.sources.paysh_manifest import PayshCatalogProvider
 
+        # Reconstruct the minimum PayshCatalogProvider the live module
+        # expects, from the planner-listing dict (we drop the catalog
+        # passthrough from CLI → dispatcher).
+        provider = PayshCatalogProvider(
+            fqn=fqn,
+            title=str(call.listing.get("name", "")),
+            description=str(call.listing.get("description", "")),
+            category=str(call.listing.get("category", "")),
+            min_price_usd=float(call.listing.get("price_usd", 0.0)),
+            service_url=service_url,
+        )
         result = await paysh_fetch_paid(
-            call.listing.get("fqn", ""),
-            "Solana DeFi trading oracle ingest",
+            fqn,
+            TRADING_ORACLE_PROMPT,
             x402_client=requester,
-            catalog_providers=[],  # plumbed by the operator at flip-time
+            catalog_providers=[provider],
         )
     elif pk == "bazaar_live":
         from gecko_core.sources.bazaar_live import fetch_paid as bazaar_fetch_paid
+        from gecko_core.sources.bazaar_manifest import (
+            BazaarEndpoint,
+            BazaarPricing,
+            BazaarService,
+        )
 
+        price = Decimal(str(call.listing.get("price_usd", 0.0)))
+        endpoint = BazaarEndpoint(
+            url=service_url,
+            pricing=BazaarPricing(amount=str(price)),
+        )
+        service = BazaarService(
+            id=fqn,
+            name=str(call.listing.get("name", "")),
+            description=str(call.listing.get("description", "")),
+            category=str(call.listing.get("category", "")),
+            networks=[],
+            endpoints=[endpoint],
+        )
         result = await bazaar_fetch_paid(
-            call.listing.get("fqn", ""),
-            "Solana DeFi trading oracle ingest",
+            fqn,
+            TRADING_ORACLE_PROMPT,
             x402_client=requester,
-            catalog_services=[],
+            catalog_services=[service],
         )
     else:
         raise ValueError(f"unknown provider_kind {pk!r}")
+
     chunks = (result.payload or {}).get("chunks", []) if result else []
-    body = chunks[0]["text"] if chunks else ""
-    return {"body": body, "fqn": call.listing.get("fqn", "")}
+    if not chunks:
+        raise RuntimeError(f"{pk} fetch_paid for {fqn!r} returned 0 chunks")
+    body = chunks[0].get("text") if isinstance(chunks[0], dict) else None
+    if not isinstance(body, str) or not body:
+        raise RuntimeError(f"{pk} fetch_paid for {fqn!r} returned non-text first chunk")
+    return {"body": body, "fqn": fqn}
 
 
 async def _write_chunk(
