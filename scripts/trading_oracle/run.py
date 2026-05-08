@@ -172,17 +172,49 @@ def _extract_payment_required(response: Any) -> dict[str, Any]:
     return body if isinstance(body, dict) else {}
 
 
-def _build_paid_request_headers(payment_payload: Mapping[str, Any]) -> dict[str, str]:
+def _encode_payment_signature_canonical(payment_payload: Any) -> str:
+    """Encode a Pydantic ``PaymentPayload`` exactly the way the x402 SDK does.
+
+    The canonical encoding is ``base64(model_dump_json(by_alias=True,
+    exclude_none=True))`` — see ``x402.http.utils.encode_payment_signature_header``.
+
+    Why this matters: strict v2 sellers (Exa's TypeScript zod parser) reject
+    payloads carrying ``null`` for optional fields like ``resource.description``,
+    ``resource.mimeType``, and the top-level ``extensions``. Our previous
+    encoding round-tripped through ``model_dump(mode="json")`` + ``json.dumps``
+    which preserves those ``None``→``null`` cells, producing a payload Exa
+    rejects with HTTP 400 ``X402_INVALID_SIGNATURE`` (signature payload
+    parses but the SHAPE is wrong). Zerion's parser is permissive and accepts
+    the nulls, which is why the same buyer code worked there.
+    """
+    # ``payment_payload`` is a x402.schemas.PaymentPayload pydantic model.
+    json_str = payment_payload.model_dump_json(by_alias=True, exclude_none=True)
+    return base64.b64encode(json_str.encode("utf-8")).decode("ascii")
+
+
+def _build_paid_request_headers(payment_payload: Any) -> dict[str, str]:
     """Encode the signed payment payload and emit BOTH v1 and v2 headers.
 
     Coinbase x402 v2 expects ``PAYMENT-SIGNATURE``; older v1 servers (and
     our own current seller path) expect ``X-PAYMENT``. Send both for
     maximum gateway compatibility — the seller ignores the header it
     doesn't recognize.
+
+    Accepts either a Pydantic ``PaymentPayload`` model (canonical, no-null
+    encoding via the x402 SDK helper) or a plain ``Mapping`` (legacy path
+    used by the v1-shape unit tests). The Pydantic path is REQUIRED for
+    strict v2 sellers like Exa; ``model_dump_json(exclude_none=True)``
+    drops optional fields that are unset (``resource.description``,
+    ``resource.mimeType``, ``extensions``) which strict zod parsers reject.
     """
-    encoded = base64.b64encode(
-        json.dumps(dict(payment_payload), separators=(",", ":")).encode("utf-8")
-    ).decode("ascii")
+    if hasattr(payment_payload, "model_dump_json"):
+        encoded = _encode_payment_signature_canonical(payment_payload)
+    else:
+        # Legacy dict path: kept for the v1-shape unit tests that pass a
+        # raw dict. Real buyer code now always passes a Pydantic model.
+        encoded = base64.b64encode(
+            json.dumps(dict(payment_payload), separators=(",", ":")).encode("utf-8")
+        ).decode("ascii")
     return {
         "PAYMENT-SIGNATURE": encoded,  # Coinbase x402 v2 canonical
         "X-PAYMENT": encoded,  # v1 backward-compat
@@ -678,7 +710,6 @@ class _LiveX402PaidRequester:
                 payer_private_key=self._payer_private_key,
                 resource_url=url,
             )
-            payload_dict = sdk_payload.model_dump(by_alias=True, mode="json")
 
             # Step 4: re-issue carrying BOTH v2 (PAYMENT-SIGNATURE) and v1
             # (X-PAYMENT) headers so we work against modern Coinbase x402
@@ -687,7 +718,47 @@ class _LiveX402PaidRequester:
             # bytes are identical — only the header name differs. Preserve
             # method+body so signed requirements still bind to the exact
             # request shape the seller authorized.
-            paid_headers = _build_paid_request_headers(payload_dict)
+            #
+            # Pass the Pydantic ``sdk_payload`` (NOT a model_dump dict) so
+            # the canonical SDK encoding (``model_dump_json(exclude_none=
+            # True)``) is used. Strict v2 sellers like Exa 400 with
+            # X402_INVALID_SIGNATURE when optional fields are serialized
+            # as ``null`` (description, mimeType, extensions). See
+            # _encode_payment_signature_canonical for the diagnosis.
+            paid_headers = _build_paid_request_headers(sdk_payload)
+
+            # Diagnostic logging — do not print full signature bytes; just
+            # the shape and prefix so a future failure can be triaged
+            # without an additional spend. Nonce is a 32-byte hex.
+            sig_header = paid_headers["PAYMENT-SIGNATURE"]
+            try:
+                inner_payload = getattr(sdk_payload, "payload", None)
+                auth = (
+                    (inner_payload or {}).get("authorization", {})
+                    if isinstance(inner_payload, dict)
+                    else {}
+                )
+                nonce = auth.get("nonce", "")
+            except Exception:
+                nonce = ""
+            domain_version = ""
+            try:
+                extra = chosen.get("extra") or {}
+                if isinstance(extra, Mapping):
+                    domain_version = str(extra.get("version", ""))
+            except Exception:
+                pass
+            log.info(
+                "x402 paid retry %s %s: resource_url=%r domain_version=%r "
+                "nonce_len=%d sig_len=%d sig_prefix=%r",
+                method,
+                url,
+                url,
+                domain_version,
+                len(nonce),
+                len(sig_header),
+                sig_header[:20],
+            )
             if method == "GET":
                 paid = await client.get(url, params=params, headers=paid_headers)
             else:
