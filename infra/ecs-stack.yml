@@ -191,6 +191,13 @@ Resources:
       LoadBalancerAttributes:
         - Key: routing.http2.enabled
           Value: 'false'
+        # Issue #16: cold-start 7-agent panel runs land in a 30-60s wall-clock
+        # window; the AWS default ALB idle timeout (60s) was 504-ing roughly
+        # 1-in-3 cold basic-tier calls. Bumped to 120s to cover the upper tail
+        # without masking a deeper perf regression — anything longer should
+        # be treated as a perf bug, not a timeout knob to widen further.
+        - Key: idle_timeout.timeout_seconds
+          Value: '120'
 
   ALBTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
