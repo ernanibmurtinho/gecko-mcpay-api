@@ -2142,10 +2142,26 @@ async def trade_research(req: TradeResearchRequest, request: Request) -> TradeRe
     invocation in one round trip; payload is JSON in / JSON out, no
     streaming in v1.
     """
+    from uuid import uuid4
+
     from gecko_core.orchestration.settings import get_orchestration_settings
     from gecko_core.orchestration.trade_panel import run_trade_panel_with_retrieval
 
     _ = getattr(request.state, "payment_payload", None)
+
+    # Issue #12 — diagnostic instrumentation. Per-request trace_id flows
+    # into retrieval + panel logs so a single user-reported empty-citations
+    # call can be reconstructed end-to-end from the access log.
+    trace_id = uuid4().hex[:12]
+    request.state.trade_research_trace_id = trace_id
+    logger.info(
+        "trade_research.handler_entry trace_id=%s tier=%s vertical=%s protocol=%s question_len=%d",
+        trace_id,
+        req.tier,
+        req.vertical,
+        req.protocol,
+        len(req.idea),
+    )
 
     orch = get_orchestration_settings()
     llm_config: dict[str, Any] = {
@@ -2189,10 +2205,24 @@ async def trade_research_pro(req: TradeResearchRequest, request: Request) -> Tra
     ``tier`` field is forced to ``"pro"`` here so callers can't pay the
     pro price for a basic run.
     """
+    from uuid import uuid4
+
     from gecko_core.orchestration.settings import get_orchestration_settings
     from gecko_core.orchestration.trade_panel import run_trade_panel_with_retrieval
 
     _ = getattr(request.state, "payment_payload", None)
+
+    # Issue #12 — see /trade_research handler above for rationale.
+    trace_id = uuid4().hex[:12]
+    request.state.trade_research_trace_id = trace_id
+    logger.info(
+        "trade_research_pro.handler_entry trace_id=%s tier=pro vertical=%s "
+        "protocol=%s question_len=%d",
+        trace_id,
+        req.vertical,
+        req.protocol,
+        len(req.idea),
+    )
 
     orch = get_orchestration_settings()
     llm_config: dict[str, Any] = {
