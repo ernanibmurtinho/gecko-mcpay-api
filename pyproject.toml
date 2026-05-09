@@ -68,6 +68,11 @@ markers = [
     # packages/gecko-core/tests/sources/test_paysh_live.py and the
     # `paysh_live_<fqn>_2026_05_07.json` recorded fixtures.
     "live_paysh: gated live-spend test against real pay.sh x402 providers (manual operator opt-in)",
+    # Task 8 (trading-oracle plan): end-to-end smoke against a deployed gecko-api
+    # surface (or a locally-running instance in stub mode). Skipped unless
+    # GECKO_E2E_BASE_URL is set so a default `pytest` run never hits the network.
+    # Pairs with scripts/falsifier_tavily.py, the manual Gecko-vs-Tavily probe.
+    "e2e_smoke: end-to-end smoke against a live HTTP gecko-api (skipped unless GECKO_E2E_BASE_URL is set)",
 ]
 
 [dependency-groups]

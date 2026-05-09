@@ -51,3 +51,7 @@ gecko_pitch/
 
 # Context-mode local session telemetry
 .github/context-mode/sessions/
+
+# Task 8 — Tavily falsifier writes manual-judging artifacts here.
+# Grading is private; we don't want noisy diffs on every probe run.
+docs/superpowers/falsifier-results/
