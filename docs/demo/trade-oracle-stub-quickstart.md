@@ -4,6 +4,8 @@ For partners and skill authors who want to call `gecko_trade_research` against t
 
 > Live-mode flip happens later, on explicit founder go-ahead. Until then, the prod MCP runs `X402_MODE=stub` and every call is free in practice.
 
+**Familiar pattern.** This is the same shape as `pay --sandbox claude` in [pay.sh](https://pay.sh/docs/get-started/agent-quickstart) — Solana Foundation's Pay CLI ships a sandbox flag that swaps in an ephemeral funded wallet so first-call testing doesn't burn USDC. We do the same thing server-side via `X402_MODE=stub`, so partners don't need a CLI install or wallet at all to validate the integration.
+
 ---
 
 ## Prerequisites
@@ -82,6 +84,10 @@ Without spending $1, a partner skill can:
 ## Going live (later)
 
 When founder flips `X402_MODE=live`, the same `.mcp.json` keeps working. The only change a partner makes is provisioning a buyer wallet that can sign the 402 challenge and hold ~$1 USDC for a handful of calls. No code change in the skill.
+
+Two wallet paths a partner can use:
+- **Bring-your-own** — any x402-capable Solana wallet (frames.ag, awal, etc.). Per our wallet/facilitator neutrality rule, Gecko works above whichever the partner picks.
+- **pay.sh CLI** — `brew install pay && pay setup && pay topup` provisions a self-custody wallet stored in OS keystore (macOS Keychain / GNOME Keyring / Windows Hello / 1Password). See [pay.sh install docs](https://pay.sh/docs/get-started/install). The same wallet then signs Gecko's 402 challenges.
 
 See `memory/project_x402_stub_then_live.md` for the flip checklist.
 
