@@ -1350,6 +1350,16 @@ class TradeResearchResponse(BaseModel):
     dissent_count: int = Field(default=0, ge=0)
     blocker_questions: list[str] = Field(default_factory=list)
     turns: list[dict[str, Any]] = Field(default_factory=list)
+    citations: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description=(
+            "Issue #15: structured cite list. Each entry: "
+            "{id, source, url, chunk_id, provider_kind, freshness_tier, snippet}. "
+            "Sibling to inline [N] markers in turns[].content; id links the two. "
+            "Empty list when the panel ran without retrieval. provider_kind / "
+            "freshness_tier mirror gecko_core.sources.types Literals."
+        ),
+    )
     backtest: dict[str, Any] | None = Field(
         default=None,
         description=(

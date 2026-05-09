@@ -13,6 +13,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from gecko_core.orchestration.trade_panel.backtest.models import BacktestReport
+from gecko_core.sources.types import FreshnessTier, ProviderKind
 
 # Final-verdict tokens. Mirrors the coordinator's closing-line regex.
 TradeVerdictLiteral = Literal["act", "pass", "defer"]
@@ -34,6 +35,44 @@ class TradePanelTurn(BaseModel):
     parsed_verdict: dict[str, Any] | None = Field(
         default=None,
         description="Structured extraction from the closing line, or None if unparsed.",
+    )
+
+
+class Citation(BaseModel):
+    """A single retrieved-chunk citation surfaced on the verdict envelope.
+
+    Issue #15: previously, citations were exposed only as inline ``[N]``
+    markers inside ``turns[].content``. Skill authors and demo UIs had to
+    regex-extract from prose to render or audit. This model is the
+    structured wire surface — the ``id`` field links each entry to the
+    inline marker (1-indexed, matches ``_format_chunks`` in the panel
+    driver). Additive only; the inline markers keep working.
+
+    ``provider_kind`` and ``freshness_tier`` re-export the canonical
+    Literals from :mod:`gecko_core.sources.types` (Pattern A — single
+    source of truth). When a chunk is missing either column, defaults
+    fall through to ``"web"`` / ``"static"`` so the wire shape never
+    breaks on partial Mongo rows.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: int = Field(..., ge=1, description="1-indexed marker that matches inline [N] in turns.")
+    source: str = Field(..., description="Catalog name (e.g. 'paysh', 'bazaar', 'tavily').")
+    url: str = Field(..., description="Full URL when available, else hash-of-chunk_id fallback.")
+    chunk_id: str = Field(..., description="Mongo _id (or empty string when ephemeral).")
+    provider_kind: ProviderKind = Field(
+        default="web",
+        description="Canonical chunks.provider_kind — gecko_core.sources.types.ProviderKind.",
+    )
+    freshness_tier: FreshnessTier = Field(
+        default="static",
+        description="Canonical chunks.freshness_tier — gecko_core.sources.types.FreshnessTier.",
+    )
+    snippet: str = Field(
+        default="",
+        max_length=240,
+        description="First 240 chars of the cited chunk content.",
     )
 
 
@@ -66,6 +105,14 @@ class TradePanelVerdict(BaseModel):
         default_factory=list,
         description="Full transcript in canonical agent order.",
     )
+    citations: list[Citation] = Field(
+        default_factory=list,
+        description=(
+            "Issue #15: structured cite list — sibling to inline [N] markers "
+            "in turns[].content. id field links entry to marker index. "
+            "Empty list when the panel ran without retrieval (legacy callers)."
+        ),
+    )
     backtest: BacktestReport | None = Field(
         default=None,
         description=(
@@ -78,6 +125,7 @@ class TradePanelVerdict(BaseModel):
 
 __all__ = [
     "BacktestReport",
+    "Citation",
     "TradePanelTurn",
     "TradePanelVerdict",
     "TradeVerdictLiteral",

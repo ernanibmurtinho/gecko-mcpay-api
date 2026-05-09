@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hashlib
 import json
 import logging
 import re
@@ -34,6 +35,7 @@ from typing import Any, Protocol, cast
 
 from gecko_core.orchestration.trade_panel.agents import build_groupchat
 from gecko_core.orchestration.trade_panel.models import (
+    Citation,
     TradePanelTurn,
     TradePanelVerdict,
     TradeVerdictLiteral,
@@ -53,6 +55,12 @@ from gecko_core.orchestration.trade_panel.prompts import (
     TradePanelPromptsConfigError,
     load_prompts,
 )
+from gecko_core.sources.types import (
+    FRESHNESS_TIER_VALUES,
+    PROVIDER_KINDS,
+    FreshnessTier,
+    ProviderKind,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -65,10 +73,12 @@ __all__ = [
     "SENTIMENT_ANALYST",
     "STRATEGIST",
     "TECHNICAL_ANALYST",
+    "Citation",
     "TradePanelPromptsConfigError",
     "TradePanelTurn",
     "TradePanelVerdict",
     "TradeVerdictLiteral",
+    "build_citations_from_chunks",
     "build_groupchat",
     "load_prompts",
     "retrieve_trade_corpus_chunks",
@@ -513,6 +523,7 @@ async def retrieve_trade_corpus_chunks(
                 "vertical": 1,
                 "protocol": 1,
                 "provider_kind": 1,
+                "freshness_tier": 1,
                 "source": 1,
                 "metadata": 1,
                 "score": {"$meta": "vectorSearchScore"},
@@ -532,6 +543,7 @@ async def retrieve_trade_corpus_chunks(
                     # "paysh"); fall back to the legacy provider_kind tag.
                     "source": (doc.get("source") or doc.get("provider_kind") or "unknown"),
                     "provider_kind": doc.get("provider_kind") or "web",
+                    "freshness_tier": doc.get("freshness_tier") or "static",
                     "protocol": doc.get("protocol") or proto_norm,
                     "vertical": doc.get("vertical") or vertical,
                     "score": float(doc.get("score") or 0.0),
@@ -602,6 +614,64 @@ def _strategist_intent_from_turn(turn: TradePanelTurn | None, protocol: str) -> 
     return intent
 
 
+_CITATION_SNIPPET_LIMIT: int = 240
+
+
+def _coerce_provider_kind(raw: Any) -> ProviderKind:
+    """Whitelist a chunk's provider_kind to the canonical Literal.
+
+    Pattern A: anything not in PROVIDER_KINDS falls back to ``"web"`` so
+    we don't leak adapter-internal tags (e.g. ``"bazaar:dataset"``) onto
+    the wire. The ingest path is responsible for translating those at
+    write time; this is the read-side defensive backstop.
+    """
+    if isinstance(raw, str) and raw in PROVIDER_KINDS:
+        return cast(ProviderKind, raw)
+    return "web"
+
+
+def _coerce_freshness_tier(raw: Any) -> FreshnessTier:
+    if isinstance(raw, str) and raw in FRESHNESS_TIER_VALUES:
+        return raw
+    return "static"
+
+
+def build_citations_from_chunks(chunks: list[dict[str, Any]]) -> list[Citation]:
+    """Project retrieved chunks into the wire-shape :class:`Citation` list.
+
+    Issue #15. The 1-indexed ``id`` matches the inline ``[N]`` markers
+    that ``_format_chunks`` injects into the opening prompt — that's the
+    contract callers rely on to link prose to the cite array.
+
+    URL fallback: when ``source_url`` is empty (e.g. live-only chunks
+    with no canonical URL), we synthesize ``gecko://chunk/<sha256[:16]>``
+    keyed off ``chunk_id``. This keeps the wire field non-empty and
+    deterministic without inventing a fake http URL.
+    """
+    out: list[Citation] = []
+    for idx, chunk in enumerate(chunks, start=1):
+        chunk_id = str(chunk.get("id") or "")
+        url = str(chunk.get("source_url") or "").strip()
+        if not url:
+            digest = hashlib.sha256(chunk_id.encode("utf-8")).hexdigest()[:16]
+            url = f"gecko://chunk/{digest}"
+        snippet = (chunk.get("text") or chunk.get("content") or "").strip()
+        if len(snippet) > _CITATION_SNIPPET_LIMIT:
+            snippet = snippet[:_CITATION_SNIPPET_LIMIT]
+        out.append(
+            Citation(
+                id=idx,
+                source=str(chunk.get("source") or chunk.get("provider_kind") or "unknown"),
+                url=url,
+                chunk_id=chunk_id,
+                provider_kind=_coerce_provider_kind(chunk.get("provider_kind")),
+                freshness_tier=_coerce_freshness_tier(chunk.get("freshness_tier")),
+                snippet=snippet,
+            )
+        )
+    return out
+
+
 async def run_trade_panel_with_retrieval(
     idea: str,
     protocol: str,
@@ -655,6 +725,14 @@ async def run_trade_panel_with_retrieval(
         llm_config=llm_config,
         agent_factory=agent_factory,
     )
+
+    # Issue #15: attach the structured citation list sourced from the same
+    # chunks the panel saw. The 1-indexed ids match the inline [N] markers
+    # the personas cite in their turns, so consumers can render cite chips
+    # without regex-extracting from prose.
+    citations = build_citations_from_chunks(chunks)
+    if citations:
+        verdict = verdict.model_copy(update={"citations": citations})
 
     if not enable_backtest:
         return verdict

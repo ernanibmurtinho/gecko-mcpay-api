@@ -36,6 +36,12 @@ memory ``project_x402_stub_then_live``). The tests therefore submit a
 stub payment payload; a live-mode flip would require regenerating the
 header against the facilitator and is explicitly out of scope here.
 
+Issue #15 (2026-05-09): both basic and pro must carry a top-level
+``citations`` array with structured ``{id, source, url, chunk_id,
+provider_kind, freshness_tier, snippet}`` entries. The inline ``[N]``
+markers inside ``turns[].content`` keep working — the ``id`` field
+links the two surfaces. ``_assert_verdict_shape`` enforces this.
+
 Issue #14 (2026-05-09): the pro envelope MUST carry a ``backtest``
 field that the basic envelope does not. The dogfood that surfaced the
 regression showed pro returning structurally identical wire envelopes
@@ -130,6 +136,19 @@ def _paid_post(client: httpx.Client, *, path: str, body: dict) -> httpx.Response
     return client.post(path, json=body, headers={"PAYMENT-SIGNATURE": payment_header})
 
 
+_REQUIRED_CITATION_KEYS: frozenset[str] = frozenset(
+    {"id", "source", "url", "chunk_id", "provider_kind", "freshness_tier", "snippet"}
+)
+
+
+def _assert_citation_shape(citations: list[dict]) -> None:
+    """Issue #15 — every entry must carry the structured citation contract."""
+    for entry in citations:
+        assert isinstance(entry, dict), f"non-dict citation: {entry!r}"
+        missing = _REQUIRED_CITATION_KEYS - set(entry.keys())
+        assert not missing, f"citation missing keys {missing!r}: {entry!r}"
+
+
 def _assert_verdict_shape(body: dict) -> None:
     """Common shape assertions for both basic and pro responses."""
     assert body.get("verdict") in _VALID_DECISIONS, (
@@ -149,6 +168,20 @@ def _assert_verdict_shape(body: dict) -> None:
     assert isinstance(body.get("key_drivers"), list)
     assert isinstance(body.get("blocker_questions"), list)
     assert isinstance(body.get("dissent_count"), int)
+
+    # Issue #15: structured citations[] sibling to inline [N] markers in
+    # turns[].content. Each entry carries id/source/url/chunk_id/
+    # provider_kind/freshness_tier/snippet so skill authors can render
+    # cite chips without regex-extracting from prose. Empty list is only
+    # acceptable on a corpus-empty run; the kamino+dex smoke is expected
+    # to land >= 1 hit post-#16 ingest backfill.
+    citations = body.get("citations")
+    assert isinstance(citations, list), f"missing citations[]: {citations!r}"
+    assert len(citations) >= 1, (
+        "expected >= 1 structured citation on the wire; "
+        f"got {citations!r} — issue #15 regression or empty corpus"
+    )
+    _assert_citation_shape(citations)
 
 
 def test_basic_route_serves_402_and_settles_in_stub(http_client: httpx.Client) -> None:
