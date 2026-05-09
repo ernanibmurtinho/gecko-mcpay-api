@@ -131,3 +131,62 @@ jobs:
           # means we forgot to bump pyproject.toml before tagging. The silent
           # skip on v0.1.2 (where versions stayed at 0.1.1) cost a few hours.
           skip-existing: false
+
+  dispatch-installer-bump:
+    # GC-03: notify gecko-claude that a new gecko-mcp version is on PyPI so its
+    # installer pin (install.sh GECKO_MCP_VERSION) gets auto-bumped via PR.
+    # Receiver workflow lives in ernanibmurtinho/gecko-claude (issue #6 there).
+    #
+    # Required secret: GECKO_CLAUDE_DISPATCH_TOKEN
+    #   Fine-grained PAT scoped to ernanibmurtinho/gecko-claude with:
+    #     - "Contents: Read and write" (to push the bump branch)
+    #     - "Pull requests: Read and write" (to open the PR)
+    #     - "Metadata: Read"
+    #   Set in repo Settings → Secrets and variables → Actions.
+    name: Dispatch installer-version bump to gecko-claude
+    needs: publish-mcp
+    if: needs.build.outputs.target == 'all' || needs.build.outputs.target == 'gecko-mcp'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve published version
+        id: ver
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            # Manual re-publish — pull version from gecko-mcp/pyproject.toml on the default branch.
+            version=$(curl -fsSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/packages/gecko-mcp/pyproject.toml" \
+              | grep -E '^version\s*=' | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+          else
+            tag="${GITHUB_REF#refs/tags/}"
+            # Strip leading v and any -mcp / -core suffix
+            version="${tag#v}"
+            version="${version%-mcp}"
+            version="${version%-core}"
+          fi
+          if [[ -z "$version" ]]; then
+            echo "::error::Could not resolve gecko-mcp version" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Dispatching version=$version"
+
+      - name: repository_dispatch → gecko-claude
+        env:
+          DISPATCH_TOKEN: ${{ secrets.GECKO_CLAUDE_DISPATCH_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${DISPATCH_TOKEN:-}" ]]; then
+            echo "::warning::GECKO_CLAUDE_DISPATCH_TOKEN not set; skipping dispatch (release succeeded but installer pin won't auto-bump)."
+            exit 0
+          fi
+          curl -fsSL -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${DISPATCH_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/ernanibmurtinho/gecko-claude/dispatches" \
+            -d "$(jq -nc \
+                --arg version "${{ steps.ver.outputs.version }}" \
+                --arg tag "${GITHUB_REF#refs/tags/}" \
+                --arg sha "${{ github.sha }}" \
+                '{event_type: "gecko-mcp-released", client_payload: {version: $version, tag: $tag, source_sha: $sha}}')"
+          echo "Dispatched gecko-mcp-released v${{ steps.ver.outputs.version }} to gecko-claude"
