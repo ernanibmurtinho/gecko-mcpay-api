@@ -94,6 +94,8 @@ Eight specialists. Seven own work in this repo; `frontend-engineer` is a cross-r
 |---|---|
 | `business-manager` | PRD updates, pricing, GTM, success metrics |
 | `product-designer` | Terminal output styling, UX flows, web app screen specs |
+| `product-manager` | ICP definition, user journey mapping, outcome-driven prioritization |
+| `trading-strategist` | Trade-vertical: financial data sources, investor-canon corpus, backtest design, execution-venue tradeoffs, competition diagnostics. Owns "does this trade make money." |
 | `frontend-engineer` | Cross-repo stub. Invoke when API or model changes here affect `gecko-mcpay-app`. Real implementation agent lives in that repo. |
 
 Default to `staff-engineer` for any change that touches more than one package, more than one repo, or crosses engineering lanes.
@@ -153,6 +155,28 @@ Before merging:
 - **Pattern C — Tests that exercise stubs, not real wires.** Sprint 12 CDP tests passed in stub mode and on `/verify`; `/settle` failed because verify is a pure signature check that doesn't exercise the dispatch branch. **Encoding:** for payment-touching code, every `X402Client` conformer ships with a recorded-fixture contract test (vcr-style) against the real facilitator's relevant endpoints. Adding a new client is gated on the contract test passing. The `live_cdp` marker pattern in S12.5-TEST-04 is the template.
 
 - **Pattern D — "Orchestration" claims need defensibility checks against Perplexity.** When a thesis adds "orchestration + context" as a wedge claim, ask the AI/ML lens whether that's actually defensible against Perplexity / ChatGPT / Bazaar's own discovery. **Orchestration is table stakes; the wedge is rarely orchestration.** Find the actual moat (verdict shape, dissent quality, settlement layer, contributor reputation, etc.) and lead with it. The 2026-05-01 profile-thesis synthesis hit this — AI/ML pushed back on the "orchestration + context" framing and reframed the wedge as the adversarial-debate verdict + grounded dissent.
+
+- **Pattern E — "Wired" ≠ "reaches the model" — every retrieval claim needs an end-to-end probe.** 2026-05-11: the `gecko_trade_research` envelope shipped with structured `citations[]` (issue #15 fix). Per-layer unit tests passed. Live API responses returned `citations: []`. Root cause: TWO independent retrieval paths existed — `rag_query` (session-scoped filter) and `retrieve_trade_corpus_chunks` (protocol-equality `$match`). Both filtered out the 4,733-chunk permanent canon corpus before the panel saw it. Per-layer test reachability is necessary but not sufficient. **Encoding:** for any new "the corpus reaches the panel" claim, ship a direct end-to-end test that calls the actual production retrieval path with a question whose expected citations include the new corpus tag, and asserts ≥1 chunk per new `provider_kind`. The retrieval-wedge sprint doc at `docs/strategy/2026-05-11-retrieval-wedge-sprint.md` is the template.
+
+- **Pattern F — Permanent corpus + session-scoped retrieval is structurally broken.** Same 2026-05-11 root cause. Session-scoped filters work for ephemeral per-request chunks; they silently exclude any chunk written under a *different* session_id. **Encoding:** when corpus has a permanent dimension (canon literature, vendor docs, anything reused across sessions), retrieval filters MUST tolerate "session_id != current_request" via global scoping or explicit `freshness_tier=static` bypass. session_id may stay as provenance metadata; it must NOT be a retrieval gate. See the Option C fix in `docs/strategy/2026-05-11-retrieval-wedge-sprint.md`.
+
+### Trade-vertical conventions (2026-05-11)
+
+- **Three-layer trade architecture: coach → oracle → execution.** Per `memory/project_three_layer_architecture_2026_05_11`: `gecko-trade-coach` (conversational strategy builder) emits a schema-validated spec; `gecko_trade_research` MCP tool produces grounded verdicts with surviving dissent + citations; `gecko-trade-agent` runtime executes the spec locally (advisor mode in v0.1, trader mode in v0.2); execution dispatches through neutral adapters (`okx`, `sendai`, `backpack`). Never collapse layers. The agent runtime never reads the corpus directly — it calls the oracle.
+
+- **Cache-then-charge oracle invocation.** The trade-agent runtime invokes `gecko_trade_research` on cadence + triggers, not per-trade. Cache lookup on `idea_hash` precedes any network call. Stampede protection via per-key `asyncio.Lock`. Cost math: a naive per-trade oracle call would burn ~$12.50/day per agent; cache-then-charge brings it to ~$1.50/day. The cache pattern is non-negotiable for any high-frequency consumer of the oracle. See `packages/gecko-core/src/gecko_core/trade_agent/oracle.py`.
+
+- **Hotpath isolation.** Anything that touches Helius / Pyth / live RPC lives under `packages/gecko-core/src/gecko_core/trade_agent/hotpath/`. The hotpath package depends ONLY on `httpx`, `websockets`, `pydantic` — it does NOT import `gecko_core.db`, `gecko_core.rag`, `gecko_core.orchestration`. This keeps the runtime's data layer testable + swappable + small. The retrieval / oracle / orchestration layers do not call the hotpath either; the runtime owns the bridge.
+
+- **General-knowledge chunks (canon) carry `protocol=[]`.** Protocol-specific chunks (`paysh_live`, `bazaar_live`) carry exact protocol tags. Canon investor literature is cross-cutting and surfaces for ALL protocols. The trade-panel retrieval `$match` accepts `protocol == proto_norm` OR `protocol == []` OR `protocol` missing — never exact-match-only on the protocol field, or canon never reaches the panel. See `packages/gecko-core/src/gecko_core/orchestration/trade_panel/__init__.py` line ~516.
+
+- **Investor-canon corpus: free + public-domain only (v0.1).** Marks (Oaktree memos), Damodaran (NYU Stern PDFs), Berkshire (shareholder letters 1977-2024) — all free + public-domain. Licensed sources (O'Reilly, Perlego) are deferred to v0.2. Founder cash constraint per `memory/feedback_okx_no_funding_pressure`. Ingest scripts live under `scripts/canon/`; the canonical URL list per source lives under `packages/gecko-core/src/gecko_core/sources/canon_*.py`. New canon source = new file + new `ProviderKind` value (Pattern A) + drift test update.
+
+- **Re-verdict triggers, not per-trade verdicts.** The agent calls `gecko_trade_research` only on: (1) scheduled basic refresh every 24h, (2) startup pro-tier on agent boot, (3) circuit-breaker trip at ≤1x/h while halted, (4) manual user prompt rate-limited ≤1x/15min, (5) entry-gate where cached verdict is stale or idea_hash differs, (6) spec change mid-flight. Anything more frequent is a config bug. See `docs/strategy/2026-05-11-trade-vertical-expansion.md` §5.
+
+- **Hot-swap ECS-style for spec updates.** Per founder decision: when a user edits a strategy spec mid-flight, the runtime supports new-version-runs-in-parallel → drain old → atomic cutover. NOT in-place mutation. The runtime exposes `hot_swap_to(new_spec)` which compare-and-swaps `agent_state.spec_version` under a Mongo transaction. Persistence wins races. Daemon-mode parallel cutover (separate processes) lands in v1.0.
+
+- **`X402_MODE=stub` is intentional during user-testing.** Production endpoints accept stub-signature payments without settling real money — the buyer-side flag matches. **Do NOT flip to live without explicit founder go-ahead** per `memory/project_x402_stub_then_live`. Stub-mode smoke calls against `api.geckovision.tech` cost $0 and validate the full code path.
 
 ---
 
