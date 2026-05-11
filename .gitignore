@@ -48,6 +48,7 @@ docs/external/
 
 # Pitch deck working files (Notion exports + .pptx; tracked separately if needed)
 gecko_pitch/
+apps/
 
 # Context-mode local session telemetry
 .github/context-mode/sessions/
@@ -55,3 +56,11 @@ gecko_pitch/
 # Task 8 — Tavily falsifier writes manual-judging artifacts here.
 # Grading is private; we don't want noisy diffs on every probe run.
 docs/superpowers/falsifier-results/
+
+# Skill installs from `npx skills add okx/...` and `okx/plugin-store`.
+# Per-machine install state — reproducible via the npx command, not
+# source we maintain. Same shape as node_modules / .venv.
+.agents/
+.claude/skills/okx-*/
+.claude/skills/starter-coach/
+skills-lock.json
