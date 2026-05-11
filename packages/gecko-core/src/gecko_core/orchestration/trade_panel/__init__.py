@@ -513,7 +513,17 @@ async def retrieve_trade_corpus_chunks(
                 },
             }
         },
-        {"$match": {"protocol": proto_norm}},
+        # Protocol-tagged chunks (paysh_live, bazaar_live) match exact;
+        # general investor-canon chunks (canon_marks/berkshire/damodaran,
+        # tagged protocol=[]) surface for ALL protocols since they're
+        # cross-cutting frameworks. See docs/strategy/2026-05-11-
+        # retrieval-wedge-sprint.md — this is the wedge: canon corpus
+        # must reach the panel regardless of named protocol.
+        {"$match": {"$or": [
+            {"protocol": proto_norm},
+            {"protocol": {"$size": 0}},
+            {"protocol": {"$exists": False}},
+        ]}},
         {"$limit": top_k},
         {
             "$project": {
