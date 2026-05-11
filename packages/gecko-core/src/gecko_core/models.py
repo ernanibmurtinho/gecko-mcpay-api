@@ -6,6 +6,7 @@ Keep them stable — breaking changes here ripple to every consumer (CLI, MCP, A
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from enum import Enum
 from typing import Literal, TypedDict
@@ -63,16 +64,41 @@ _ALLOWED_CITATION_SCHEMES: tuple[str, ...] = (
     "http://",
     "bazaar://",
     "twitsh://",
+    "paysh://",
+    "paysh-catalog://",
+)
+
+# Provider-namespaced bare identifiers minted by paysh_live / bazaar_live
+# ingesters before URI normalisation lands — see
+# docs/strategy/2026-05-11-retrieval-wedge-sprint.md §3. Examples:
+#   "paysponge/coingecko"                         (ns/resource)
+#   "merit-systems/stablecrypto/market-data"      (deep namespace)
+#   "exa-ai"                                      (hyphenated service)
+#   "platform-openai-com"                         (host-shaped token)
+# Rule: starts with alphanumeric, only contains [a-z0-9._\-/], and
+# contains at least one separator (-, _, /, .). The separator
+# requirement is the boundary that rejects hallucinated bare words
+# like "kamino" / "yield" / "singleword".
+_PROVIDER_NAMESPACE_RE = re.compile(
+    r"^[a-z0-9][a-z0-9._\-/]*[._\-/][a-z0-9._\-/]*$",
+    re.IGNORECASE,
 )
 
 
 def _validate_citation_uri(value: str) -> str:
     s = str(value).strip()
+    # Legacy: ~10 chunks in Mongo carry empty source_url (S16 web fetcher
+    # bug — read-side is now lenient so retrieval doesn't crash on them).
+    if not s:
+        return s
     for scheme in _ALLOWED_CITATION_SCHEMES:
         if s.startswith(scheme):
             return s
+    if _PROVIDER_NAMESPACE_RE.match(s):
+        return s
     raise ValueError(
-        f"citation/source URI must use one of {_ALLOWED_CITATION_SCHEMES}; got {value!r}"
+        f"citation/source URI must use one of {_ALLOWED_CITATION_SCHEMES} or "
+        f"provider-namespaced form '<ns>/<resource>'; got {value!r}"
     )
 
 

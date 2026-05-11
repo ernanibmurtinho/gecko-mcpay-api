@@ -95,7 +95,13 @@ async def match_chunks_mongo(
     match_count: int = 8,
     extra_filter: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
-    """Top-K cosine match within a session. Empty list if Mongo unconfigured.
+    """Top-K cosine match. Empty list if Mongo unconfigured.
+
+    ``session_id`` is retained in the signature for caller-compat and
+    provenance logging only — it is NOT used to filter retrieval. See
+    docs/strategy/2026-05-11-retrieval-wedge-sprint.md: chunks ingested
+    in one session must be retrievable from any other session (knowledge-
+    as-commodity wedge).
 
     ``extra_filter`` (S20-A3) is merged into the ``$vectorSearch.filter``
     clause — used to exclude ``category=legacy_uncategorized`` /
@@ -105,21 +111,22 @@ async def match_chunks_mongo(
     if coll is None:
         return []
 
-    vs_filter: dict[str, Any] = {"session_id": str(session_id)}
+    vs_filter: dict[str, Any] = {}
     if extra_filter:
         vs_filter.update(extra_filter)
 
+    vector_search: dict[str, Any] = {
+        "index": VECTOR_INDEX_NAME,
+        "path": "embedding",
+        "queryVector": query_embedding,
+        "numCandidates": max(50, match_count * 10),
+        "limit": match_count,
+    }
+    if vs_filter:
+        vector_search["filter"] = vs_filter
+
     pipeline: list[dict[str, Any]] = [
-        {
-            "$vectorSearch": {
-                "index": VECTOR_INDEX_NAME,
-                "path": "embedding",
-                "queryVector": query_embedding,
-                "numCandidates": max(50, match_count * 10),
-                "limit": match_count,
-                "filter": vs_filter,
-            }
-        },
+        {"$vectorSearch": vector_search},
         {
             "$project": {
                 "_id": 1,
@@ -240,21 +247,24 @@ async def match_chunks_hybrid_mongo(
     pool_size = max(match_count * _HYBRID_POOL_OVERFETCH, 30)
     num_candidates = max(pool_size * _HYBRID_NUM_CANDIDATES_OVERFETCH, 200)
 
-    vs_filter: dict[str, Any] = {"session_id": str(session_id)}
+    # `session_id` is no longer a retrieval filter — see
+    # docs/strategy/2026-05-11-retrieval-wedge-sprint.md.
+    vs_filter: dict[str, Any] = {}
     if extra_filter:
         vs_filter.update(extra_filter)
 
+    vector_search: dict[str, Any] = {
+        "index": VECTOR_INDEX_NAME,
+        "path": "embedding",
+        "queryVector": query_embedding,
+        "numCandidates": num_candidates,
+        "limit": pool_size,
+    }
+    if vs_filter:
+        vector_search["filter"] = vs_filter
+
     pipeline: list[dict[str, Any]] = [
-        {
-            "$vectorSearch": {
-                "index": VECTOR_INDEX_NAME,
-                "path": "embedding",
-                "queryVector": query_embedding,
-                "numCandidates": num_candidates,
-                "limit": pool_size,
-                "filter": vs_filter,
-            }
-        },
+        {"$vectorSearch": vector_search},
         {
             "$project": {
                 "_id": 1,
