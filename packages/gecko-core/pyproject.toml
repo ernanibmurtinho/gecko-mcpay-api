@@ -34,6 +34,10 @@ dependencies = [
     "eth-account>=0.13",
     "x402[evm,svm]>=2.8.0",
     "voyageai>=0.2",
+    # W3-1: Helius websocket subscription manager. Already pulled in
+    # transitively by other deps but declared explicitly here so the
+    # trade-agent hotpath import doesn't depend on transitive resolution.
+    "websockets>=12.0",
 ]
 
 [project.optional-dependencies]
