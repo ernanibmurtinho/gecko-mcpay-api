@@ -51,6 +51,7 @@ from typing import Any
 
 import click
 from gecko_core.ingestion.trading_oracle.run_live_ingest import (
+    IngestPlan,
     PlannedCall,
     execute_plan,
     plan_ingest,
@@ -949,6 +950,50 @@ def _build_evm_requester_for_fallback(*, advertised: list[str]) -> Any:
     )
 
 
+async def _preflight_probe(call: PlannedCall) -> tuple[bool, str]:
+    """Free GET probe — skip-before-spend safety net.
+
+    A paid listing MUST answer the unauthenticated probe with 402.
+    A 200 HTML body (e.g. ``stablecrypto.dev`` marketing root) means
+    the catalog URL is not an x402 endpoint; ingesting it would
+    write marketing HTML as protocol data — silent corpus pollution.
+
+    Returns ``(True, "402 ok")`` on success or ``(False, reason)``.
+    Network errors map to ``(False, "probe error: …")`` and skip the
+    listing — a one-off blip should not stop the rest of the matrix.
+    """
+    import httpx
+    from urllib.parse import urlparse
+
+    from service_call_specs import find_spec_for  # local script import
+
+    listing = call.listing
+    service_url = str(listing.get("service_url", ""))
+    if not service_url:
+        return False, "empty service_url"
+
+    # Probe the URL the runner WILL hit — apply url_override if any.
+    try:
+        eps = list(listing.get("endpoints") or [{"url": service_url, "method": "GET"}])
+        fqn_or_host = str(listing.get("fqn") or urlparse(service_url).hostname or "")
+        spec, _ep = find_spec_for(fqn_or_host, eps)
+        if spec is not None and spec.url_override is not None:
+            probe_url = spec.url_override(_CURRENT_QUERY or "", {})
+        else:
+            probe_url = service_url
+    except Exception as exc:  # noqa: BLE001
+        return False, f"probe registry lookup failed: {exc}"
+
+    try:
+        async with httpx.AsyncClient(timeout=6.0) as client:
+            resp = await client.get(probe_url, params={"q": "ping"})
+    except httpx.HTTPError as exc:
+        return False, f"probe error: {type(exc).__name__}: {exc}"
+    if resp.status_code == 402:
+        return True, "402 ok"
+    return False, f"probe returned {resp.status_code} (expected 402)"
+
+
 async def _charge_and_fetch(call: PlannedCall) -> dict[str, Any]:
     """Issue one paid x402 call against the listing's source.
 
@@ -1280,6 +1325,27 @@ def main(
                     protocol=[_proto],
                     content_kind="unknown",
                 )
+
+            # Pre-flight: drop any planned call whose URL does not 402.
+            # Catches stablecrypto-style marketing-root pollution + any
+            # url_override that has rotted since the last successful run.
+            kept: list[PlannedCall] = []
+            for c in plan.calls:
+                ok, reason = await _preflight_probe(c)
+                if ok:
+                    kept.append(c)
+                else:
+                    log.warning(
+                        "[%s] PROBE-SKIP %s reason=%s",
+                        protocol, c.name, reason,
+                    )
+            plan = IngestPlan(
+                calls=tuple(kept),
+                skipped=plan.skipped,
+                projected_total_usd=sum(
+                    (c.price_usd for c in kept), Decimal("0"),
+                ),
+            )
 
             report = await execute_plan(
                 plan,
