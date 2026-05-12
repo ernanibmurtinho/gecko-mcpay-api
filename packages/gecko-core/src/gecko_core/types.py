@@ -99,9 +99,7 @@ Free-form ``payload`` carries event-specific structure. The closed-vocabulary
 ``event`` token gates downstream observability filters; adding a new value
 must be paired with the bootstrap validator update (Pattern A)."""
 
-AGENT_JOURNAL_EVENT_VALUES: Final[tuple[AgentJournalEvent, ...]] = get_args(
-    AgentJournalEvent
-)
+AGENT_JOURNAL_EVENT_VALUES: Final[tuple[AgentJournalEvent, ...]] = get_args(AgentJournalEvent)
 
 # ---------------------------------------------------------------------------
 # Global structured observability events (S24 WS-D).
@@ -121,6 +119,7 @@ EventKind = Literal[
     "agent.error",
     "x402.settle",
     "x402.refund",
+    "x402.live_blocked",
 ]
 """Cross-cutting event taxonomy written to the global ``events``
 collection (TTL 180d). Per docs/strategy/2026-05-12-s24-plan.md §4 WS-D."""

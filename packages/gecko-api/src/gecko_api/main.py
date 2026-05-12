@@ -2205,6 +2205,11 @@ async def trade_research(req: TradeResearchRequest, request: Request) -> TradeRe
         "temperature": 0.3,
     }
 
+    import time as _time
+
+    from gecko_core.observability import emit_event
+
+    _t0 = _time.monotonic()
     try:
         verdict = await run_trade_panel_with_retrieval(
             idea=req.idea,
@@ -2223,7 +2228,21 @@ async def trade_research(req: TradeResearchRequest, request: Request) -> TradeRe
         logger.exception("trade_research: failed for protocol=%r", req.protocol)
         raise HTTPException(status_code=500, detail=f"{type(exc).__name__}: {exc}") from exc
 
-    return TradeResearchResponse(**verdict.model_dump())
+    latency_ms = int((_time.monotonic() - _t0) * 1000)
+    _payload = verdict.model_dump()
+    await emit_event(
+        "verdict.served",
+        {
+            "tool": "gecko_trade_research",
+            "tier": req.tier,
+            "latency_ms": latency_ms,
+            "citation_count": len(_payload.get("citations") or []),
+            "dissent_count": len(_payload.get("dissent") or []),
+            "confidence": _payload.get("confidence"),
+            "trace_id": trace_id,
+        },
+    )
+    return TradeResearchResponse(**_payload)
 
 
 @app.post("/trade_research/pro", response_model=TradeResearchResponse)
@@ -2266,6 +2285,11 @@ async def trade_research_pro(req: TradeResearchRequest, request: Request) -> Tra
         "temperature": 0.3,
     }
 
+    import time as _time
+
+    from gecko_core.observability import emit_event
+
+    _t0 = _time.monotonic()
     try:
         # Issue #14 — pro tier MUST add evidence the basic envelope doesn't
         # carry, otherwise buyers can't justify paying 3x. enable_backtest
@@ -2305,6 +2329,19 @@ async def trade_research_pro(req: TradeResearchRequest, request: Request) -> Tra
             "unbacktestable": True,
             "reason": "no_strategist_intent",
         }
+    latency_ms = int((_time.monotonic() - _t0) * 1000)
+    await emit_event(
+        "verdict.served",
+        {
+            "tool": "gecko_trade_research_pro",
+            "tier": "pro",
+            "latency_ms": latency_ms,
+            "citation_count": len(payload.get("citations") or []),
+            "dissent_count": len(payload.get("dissent") or []),
+            "confidence": payload.get("confidence"),
+            "trace_id": trace_id,
+        },
+    )
     return TradeResearchResponse(**payload)
 
 
@@ -3244,6 +3281,20 @@ async def pricing() -> dict[str, Any]:
 @app.get("/healthz")
 async def healthz() -> dict[str, str]:
     return {"status": "ok", "payments": _settings.x402_mode}
+
+
+@app.get("/metrics")
+async def metrics_endpoint() -> dict[str, Any]:
+    """S24 WS-D — read-only aggregate of the global events ledger.
+
+    No auth on purpose at v0.1 — we IP-allowlist in WS-F. Counts are
+    served from the ``gecko_events.events`` collection; when Mongo is
+    unset (local dev) the endpoint still returns a valid empty shell so
+    callers can wire dashboards before infra lands.
+    """
+    from gecko_core.observability import aggregate_metrics
+
+    return await aggregate_metrics()
 
 
 @app.get("/.well-known/x402")

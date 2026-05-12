@@ -611,4 +611,136 @@ def backtest_cmd(
     asyncio.run(_run())
 
 
+# ---------------------------------------------------------------------------
+# S24 WS-D Task #2 — `bb trade-agent doctor` health probe.
+#
+# Each check is a thin function returning ``(ok: bool, detail: str)`` plus a
+# remediation hint surfaced only on failure. Keep checks side-effect-free
+# except the Mongo probe, which writes-then-deletes one document under the
+# dedicated ``gecko_trade_agent.doctor_probe`` collection.
+# ---------------------------------------------------------------------------
+
+
+def _check_mongo() -> tuple[bool, str, str]:
+    """Write-then-delete a noop doc; tolerant of MONGO_URI/MONGODB_URI."""
+    uri = os.environ.get("MONGODB_URI") or os.environ.get("MONGO_URI")
+    if not uri or uri == "__unset__":
+        return (
+            False,
+            "MONGODB_URI not set",
+            "export MONGODB_URI=mongodb+srv://... (Atlas SRV connection string)",
+        )
+    try:
+        from pymongo import MongoClient  # type: ignore[import-untyped]
+
+        client = MongoClient(uri, serverSelectionTimeoutMS=3000)
+        coll = client["gecko_trade_agent"]["doctor_probe"]
+        from datetime import UTC, datetime
+
+        res = coll.insert_one({"ts": datetime.now(UTC), "probe": True})
+        coll.delete_one({"_id": res.inserted_id})
+        client.close()
+        return (True, "mongo reach ok (write+read+delete)", "")
+    except Exception as exc:
+        return (
+            False,
+            f"mongo unreachable: {type(exc).__name__}: {exc}",
+            "verify MONGODB_URI credentials + Atlas IP allowlist",
+        )
+
+
+def _check_x402() -> tuple[bool, str, str]:
+    mode = os.environ.get("X402_MODE", "stub")
+    if mode != "live":
+        return (True, f"X402_MODE={mode} (no buyer-wallet check needed)", "")
+    buyer = os.environ.get("GECKO_BUYER_WALLET_SECRET") or os.environ.get("GECKO_BUYER_WALLET_KEY")
+    if not buyer:
+        return (
+            False,
+            "X402_MODE=live but no buyer wallet secret in env",
+            "set GECKO_BUYER_WALLET_SECRET (SSM SecureString preferred)",
+        )
+    return (True, "X402_MODE=live + buyer wallet configured", "")
+
+
+def _check_frames_wallet() -> tuple[bool, str, str]:
+    path = Path.home() / ".agentwallet" / "config.json"
+    if not path.exists():
+        return (
+            False,
+            f"frames.ag wallet config missing at {path}",
+            "run `agentwallet init` (frames.ag CLI) to seed config",
+        )
+    try:
+        import json as _json
+
+        _json.loads(path.read_text())
+    except Exception as exc:
+        return (
+            False,
+            f"frames.ag config invalid JSON: {exc}",
+            f"re-run `agentwallet init` to regenerate {path}",
+        )
+    return (True, f"frames.ag config ok at {path}", "")
+
+
+def _check_mcp_registration() -> tuple[bool, str, str]:
+    import subprocess
+
+    try:
+        proc = subprocess.run(
+            ["claude", "mcp", "list"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+    except FileNotFoundError:
+        return (
+            False,
+            "`claude` CLI not found on PATH",
+            "install Claude Code CLI: https://docs.claude.com/en/docs/claude-code",
+        )
+    except Exception as exc:
+        return (False, f"`claude mcp list` failed: {exc}", "verify Claude Code CLI install")
+    if proc.returncode != 0:
+        return (
+            False,
+            f"`claude mcp list` exited {proc.returncode}: {proc.stderr.strip()[:120]}",
+            "run `claude mcp list` manually to inspect",
+        )
+    if "gecko" not in proc.stdout.lower():
+        return (
+            False,
+            "no gecko-mcp registration found in `claude mcp list`",
+            "run `claude mcp add gecko -- gecko-mcp` (or see skill.md)",
+        )
+    return (True, "gecko-mcp registered with Claude Code", "")
+
+
+@trade_agent_cmd.command("doctor")
+def doctor_cmd() -> None:
+    """Health probe — checks Mongo, x402, frames.ag wallet, MCP registration.
+
+    Each check prints one line. A non-zero exit code on any failure
+    signals "operator action required" to wrapping scripts (ECS task
+    health-check, CI smoke).
+    """
+    checks: list[tuple[str, tuple[bool, str, str]]] = [
+        ("mongo", _check_mongo()),
+        ("x402", _check_x402()),
+        ("frames-wallet", _check_frames_wallet()),
+        ("mcp-registration", _check_mcp_registration()),
+    ]
+    failures = 0
+    for name, (ok, detail, fix) in checks:
+        mark = "PASS" if ok else "FAIL"
+        click.echo(f"[{mark}] {name}: {detail}")
+        if not ok:
+            failures += 1
+            if fix:
+                click.echo(f"       remediation: {fix}")
+    if failures:
+        raise click.exceptions.Exit(code=1)
+
+
 __all__ = ["trade_agent_cmd"]

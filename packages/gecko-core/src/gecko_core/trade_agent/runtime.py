@@ -39,6 +39,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
+from gecko_core.observability import emit_event
 from gecko_core.trade_agent.modes import AdvisorMode, TraderMode
 from gecko_core.trade_agent.oracle import OracleWrapper, RateLimitedError
 from gecko_core.trade_agent.primitives import (
@@ -209,6 +210,15 @@ class AgentRuntime:
         if self._status == "paused" and self.mode == "trader":
             return
 
+        # S24 WS-D — per-tick global telemetry. Wallet may be None for
+        # system-owned agents; that's expected and the wallet index is
+        # sparse so we don't bloat the ledger.
+        await emit_event(
+            "agent.tick",
+            {"agent_id": self.agent_id, "mode": self.mode},
+            wallet=self.user_wallet,
+        )
+
         if self.mode == "advisor":
             assert self._advisor is not None
             candidate = self._advisor.evaluate(event)
@@ -221,6 +231,16 @@ class AgentRuntime:
                     "idea": candidate.idea,
                     "rule_id": candidate.rule_id,
                 },
+            )
+            await emit_event(
+                "agent.opportunity",
+                {
+                    "agent_id": self.agent_id,
+                    "mint": candidate.mint,
+                    "idea": candidate.idea,
+                    "rule_id": candidate.rule_id,
+                },
+                wallet=self.user_wallet,
             )
             return
 
@@ -265,6 +285,16 @@ class AgentRuntime:
         if self.exec_adapter is None:
             await self._enqueue_journal(
                 "exec_error", {"reason": "no_adapter", "mint": candidate.mint}
+            )
+            await emit_event(
+                "agent.error",
+                {
+                    "agent_id": self.agent_id,
+                    "kind": "exec_error",
+                    "reason": "no_adapter",
+                    "mint": candidate.mint,
+                },
+                wallet=self.user_wallet,
             )
             return
         receipt = await self.exec_adapter.submit(

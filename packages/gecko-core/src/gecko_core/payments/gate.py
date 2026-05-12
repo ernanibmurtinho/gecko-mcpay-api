@@ -16,6 +16,7 @@ it and short-circuit when its previous result was a success.
 from __future__ import annotations
 
 import logging
+import time
 from uuid import UUID
 
 from gecko_core.models import Tier
@@ -82,6 +83,7 @@ async def run_payment_gate(
         amount_usd=price_for(tier),
     )
 
+    _t0 = time.monotonic()
     try:
         result = await client.charge(intent)
     except Exception as e:
@@ -120,6 +122,23 @@ async def run_payment_gate(
         session_id,
         intent_id,
     )
+    # S24 WS-D — economics ledger. Best-effort, never blocks the gate.
+    try:
+        from gecko_core.observability import emit_event
+
+        await emit_event(
+            "x402.settle",
+            {
+                "route": f"session:{tier}",
+                "intent_id": str(intent_id),
+                "session_id": str(session_id),
+                "amount_usdc": float(price_for(tier)),
+                "signature": result.tx_signature,
+                "latency_ms": int((time.monotonic() - _t0) * 1000),
+            },
+        )
+    except Exception:  # pragma: no cover - never block on ledger
+        logger.debug("x402.settle ledger write failed", exc_info=True)
     return result
 
 

@@ -6,7 +6,7 @@ env config. See `docs/implementation-plan.md` Phase 4.
 
 import logging
 import os
-from typing import Final
+from typing import Any, Final
 
 logger = logging.getLogger(__name__)
 
@@ -75,20 +75,42 @@ def assert_live_settlement_allowed(tool_name: str, requested_mode: str) -> str:
             KILL_SWITCH_ENV,
             LIVE_TOOLS_ENV,
         )
+        _record_live_blocked(tool_name, requested_mode, "kill_switch_engaged")
         return "stub"
 
     allowlist = _live_tool_allowlist()
     if tool_name not in allowlist:
         logger.warning(
-            "x402.live_blocked tool=%s mode=%s reason=not_in_allowlist "
-            "allowlist=%s",
+            "x402.live_blocked tool=%s mode=%s reason=not_in_allowlist allowlist=%s",
             tool_name,
             requested_mode,
             sorted(allowlist),
         )
+        _record_live_blocked(
+            tool_name, requested_mode, "not_in_allowlist", allowlist=sorted(allowlist)
+        )
         return "stub"
 
     return requested_mode
+
+
+def _record_live_blocked(tool: str, requested_mode: str, reason: str, **extra: Any) -> None:
+    """S24 WS-D — emit `x402.live_blocked` to the events ledger in addition
+    to the existing log line. Lazy import keeps `payments/__init__.py`
+    import-time cheap and avoids a circular import on cold paths.
+    """
+    try:
+        from gecko_core.observability import emit_event_sync
+
+        payload: dict[str, Any] = {
+            "tool": tool,
+            "requested_mode": requested_mode,
+            "reason": reason,
+        }
+        payload.update(extra)
+        emit_event_sync("x402.live_blocked", payload)
+    except Exception:  # pragma: no cover - never block on observability
+        logger.debug("x402.live_blocked ledger write failed", exc_info=True)
 
 
 from gecko_core.payments.cdp import (
@@ -178,15 +200,14 @@ from gecko_core.payments.x402_client import (
 )
 
 __all__ = [
-    "KILL_SWITCH_ENV",
-    "LIVE_TOOLS_ENV",
-    "assert_live_settlement_allowed",
     "BASE_MAINNET_NETWORK_ID",
     "BASE_MAINNET_USDC_CONTRACT",
     "BASE_SEPOLIA_NETWORK_ID",
     "CDP_FACILITATOR_BASE_URL",
     "CLOUDFLARE_NETWORK_ID",
     "CREATOR_PAYOUT_DEFAULT_PER_CITE_USD",
+    "KILL_SWITCH_ENV",
+    "LIVE_TOOLS_ENV",
     "NETWORKS",
     "PAYMENT_MODES",
     "VERDICT_DETAIL_PRICE_USDC",
@@ -220,6 +241,7 @@ __all__ = [
     "X402Client",
     "X402Mode",
     "aggregate_creator_payouts",
+    "assert_live_settlement_allowed",
     "build_cdp_facilitator_client",
     "facilitator_id_for_network",
     "get_client",

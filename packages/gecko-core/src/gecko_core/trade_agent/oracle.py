@@ -32,6 +32,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Literal, Protocol
 
+from gecko_core.observability import emit_event
 from gecko_core.trade_agent.state.models import AgentVerdictCacheEntry
 from gecko_core.trade_agent.state.mongo import StateStore
 
@@ -149,7 +150,27 @@ class OracleWrapper:
                     cached.tier,
                     trigger,
                 )
+                await emit_event(
+                    "cache.hit",
+                    {
+                        "agent_id": self.agent_id,
+                        "idea_hash": key,
+                        "tier": cached.tier,
+                        "trigger": trigger,
+                    },
+                )
                 return cached.verdict
+        # Cache miss (either no entry or stale). Record before charging.
+        await emit_event(
+            "cache.miss",
+            {
+                "agent_id": self.agent_id,
+                "idea_hash": key,
+                "tier": tier,
+                "trigger": trigger,
+                "force_refresh": force_refresh,
+            },
+        )
 
         # Cache miss / forced refresh — check rate limit before charging.
         self._enforce_rate_limit(trigger)
