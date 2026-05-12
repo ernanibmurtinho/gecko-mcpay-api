@@ -61,12 +61,12 @@ ProviderKind = Literal[
     # ground every coach decision in attributed investor-canon citations
     # blended with live on-chain freshness data. See
     # docs/strategy/2026-05-11-trade-vertical-expansion.md §6.
-    "canon_marks",       # Howard Marks / Oaktree client memos
-    "canon_damodaran",   # Aswath Damodaran / NYU Stern PDFs + posts
+    "canon_marks",  # Howard Marks / Oaktree client memos
+    "canon_damodaran",  # Aswath Damodaran / NYU Stern PDFs + posts
     "canon_mauboussin",  # Michael Mauboussin / Morgan Stanley papers
-    "canon_youtube",     # Patrick Boyle, Ben Felix, Mauboussin transcripts
-    "canon_berkshire",   # Berkshire Hathaway shareholder letters 1965-now
-    "canon_macro",       # Fed, BIS, IMF working papers
+    "canon_youtube",  # Patrick Boyle, Ben Felix, Mauboussin transcripts
+    "canon_berkshire",  # Berkshire Hathaway shareholder letters 1965-now
+    "canon_macro",  # Fed, BIS, IMF working papers
     # S24 WS-A — live market-data grounding. Pyth historical daily candles
     # + DefiLlama TVL snapshots per protocol. ai-ml-engineer review
     # (2026-05-12): 3/7 panel voices structurally hallucinate without

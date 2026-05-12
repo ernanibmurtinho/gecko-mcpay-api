@@ -88,9 +88,7 @@ async def test_harness_calls_runtime_primitives(monkeypatch: pytest.MonkeyPatch)
     spec = load_spec(_spec())
     history = FixtureHistorySource(FIXTURE_DIR / "solana_30d_synthetic.json")
     oracle = OptimisticOracleFixture()
-    await BacktestHarness(spec, history=history, oracle=oracle).run(
-        gating="on", window_days=30
-    )
+    await BacktestHarness(spec, history=history, oracle=oracle).run(gating="on", window_days=30)
 
     # 30 events; entry evaluated each step; size only on trigger events.
     assert seen["entry"] >= 30

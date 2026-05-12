@@ -154,9 +154,7 @@ class LiveBuyerX402Client:
         else:
             self._private_key_path = private_key_path
             self._pubkey = pubkey
-        self._helius_key = (
-            helius_api_key.get_secret_value() if helius_api_key is not None else None
-        )
+        self._helius_key = helius_api_key.get_secret_value() if helius_api_key is not None else None
         self._confirm_timeout_s = confirm_timeout_s
         self._confirm_interval_s = confirm_interval_s
 
@@ -190,8 +188,7 @@ class LiveBuyerX402Client:
             )
         except ImportError as exc:
             raise LiveBuyerError(
-                "Solana buyer dependencies not installed. "
-                "Run `uv sync --extra solana-buyer`."
+                "Solana buyer dependencies not installed. Run `uv sync --extra solana-buyer`."
             ) from exc
 
         try:
@@ -221,7 +218,7 @@ class LiveBuyerX402Client:
             confirm_interval_s=self._confirm_interval_s,
         )
         try:
-            await confirmer._wait_for_confirmation(tx_signature)  # noqa: SLF001
+            await confirmer._wait_for_confirmation(tx_signature)
         except ConfirmationTimeoutError:
             raise
         except LiveX402Error:

@@ -200,13 +200,11 @@ def test_freshness_tier_values_match_sql_check() -> None:
     from gecko_core.sources.types import FRESHNESS_TIER_VALUES
 
     migrations_dir = (
-        Path(__file__).parent.parent.parent.parent
-        / "infra"
-        / "supabase"
-        / "migrations"
+        Path(__file__).parent.parent.parent.parent / "infra" / "supabase" / "migrations"
     )
     sql_combined = "\n".join(
-        p.read_text() for p in sorted(migrations_dir.glob("*.sql"))
+        p.read_text()
+        for p in sorted(migrations_dir.glob("*.sql"))
         if "freshness_tier" in p.read_text()
     )
     for value in FRESHNESS_TIER_VALUES:

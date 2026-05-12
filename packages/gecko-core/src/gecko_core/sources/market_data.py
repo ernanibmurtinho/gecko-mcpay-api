@@ -104,10 +104,7 @@ class PythCandlePlan:
     @property
     def url(self) -> str:
         # Pyth Hermes historical-prices endpoint shape (v2 spec).
-        return (
-            f"{PYTH_PRICE_FEED_HOST}/v2/updates/price/latest"
-            f"?ids[]={self.feed_id}&parsed=true"
-        )
+        return f"{PYTH_PRICE_FEED_HOST}/v2/updates/price/latest?ids[]={self.feed_id}&parsed=true"
 
 
 @dataclass(frozen=True)
