@@ -162,7 +162,7 @@ class MongoStateStore:
         self._db = self._client[db_name]
 
     async def upsert_agent_state(self, state: AgentState) -> None:
-        payload = state.model_dump(mode="json")
+        payload = state.model_dump()
         await self._db["agent_state"].update_one(
             {"agent_id": state.agent_id}, {"$set": payload}, upsert=True
         )
@@ -201,7 +201,7 @@ class MongoStateStore:
         await self._db["agent_state"].update_one({"agent_id": agent_id}, {"$set": update})
 
     async def upsert_position(self, position: AgentPosition) -> None:
-        payload = position.model_dump(mode="json")
+        payload = position.model_dump()
         await self._db["agent_positions"].update_one(
             {"agent_id": position.agent_id, "position_id": position.position_id},
             {"$set": payload},
@@ -217,7 +217,7 @@ class MongoStateStore:
         return out
 
     async def write_journal(self, entry: AgentJournalEntry) -> None:
-        await self._db["agent_journal"].insert_one(entry.model_dump(mode="json"))
+        await self._db["agent_journal"].insert_one(entry.model_dump())
 
     async def tail_journal(self, agent_id: str, limit: int = 20) -> list[AgentJournalEntry]:
         cursor = self._db["agent_journal"].find({"agent_id": agent_id}).sort("ts", -1).limit(limit)
@@ -239,7 +239,7 @@ class MongoStateStore:
         return AgentVerdictCacheEntry.model_validate(doc)
 
     async def upsert_verdict_cache(self, entry: AgentVerdictCacheEntry) -> None:
-        payload = entry.model_dump(mode="json")
+        payload = entry.model_dump()
         await self._db["agent_verdict_cache"].update_one(
             {"agent_id": entry.agent_id, "idea_hash": entry.idea_hash},
             {"$set": payload},
