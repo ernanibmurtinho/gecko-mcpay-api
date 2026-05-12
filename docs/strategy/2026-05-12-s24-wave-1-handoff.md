@@ -116,3 +116,50 @@ These dispatch as a next batch once we have signal on Wave 1. I'll fire them seq
 ---
 
 **Synthesized at 05:30 BRT / 2026-05-12 morning, while background agents finish their first surgical iterations.**
+
+---
+
+## ADDENDUM (06:30 BRT) — defer wall broken + WS-B + WS-D landed
+
+Five things changed since 05:30:
+
+1. **The defer wall broke.** ai-ml-engineer found the real Pattern F bug — `$vectorSearch.filter` was rejecting cross-cutting candidates at the ANN stage *before* the post-`$match` could rescue them. Drift fixture went from `cites=0` → `cites=15`. 5-fixture sweep dropped from `defer_rate=1.0` → `0.2`. Brier 0.188.
+
+2. **10-fixture sweep landed.** Distribution: 4 act / 3 pass / 3 defer. Two of four metrics pass:
+   - Brier 0.277 ≤ 0.30 ✅
+   - Act-verdict 30d profit rate 0.75 ≥ 0.58 ✅
+   - Defer rate 0.30 ⚠ borderline (target <0.30)
+   - Pass-drawdown avoid rate 0.333 ❌ (target ≥0.70 — the high-confidence pass with dissent=3 is the structural tell)
+
+3. **WS-B SE-1 landed.** Runtime reconciled with new Mongo schema. 86/86 trade_agent tests pass. End-to-end `bb trade-agent up → ls → inspect → stop → purge` smoke works against live Atlas. `scripts/mongo/bootstrap_trade_agent.py` retired. One follow-up flagged: journal field-name dual-write (`event` + `event_type`) — pick canonical in a separate PR.
+
+4. **WS-D observability landed (Task #5 complete).** Structured event ledger live across the stack: `verdict.served`, `cache.hit/miss`, `oracle.cost_usd`, `agent.tick`, `agent.opportunity`, `x402.settle`, `x402.live_blocked`. `bb trade-agent doctor` CLI shipped (4 checks: Mongo reach, x402 mode + buyer wallet, frames.ag wallet, MCP registration). `/metrics` JSON endpoint live on gecko-api with 24h + 7d windows + day-over-day deltas. **332 tests pass, 0 fail.**
+
+5. **Still in flight (final overnight dispatch):** ai-ml-engineer #3 applying the strategist default-action matrix + confidence-band normalization (every verdict came back at 0.75 — band is collapsed). Goal: 3 of 4 metrics passing. If sweep clears, expanding the suite from 10 → 30 fixtures.
+
+**Branch state:** `s24/wave-1-execution` has **9 commits** as of 06:30. Two follow-up commits expected from ai-ml-engineer #3.
+
+**Updated morning checklist:**
+
+1. `git log --oneline s24/wave-1-execution` — expect 10-11 commits
+2. Check `tests/eval/live_runs/2026-05-12-s24-defi-trade-10-2.json` (or `30.json` if suite expanded) for the latest sweep result
+3. Read `bb trade-agent doctor` output by running it yourself — single command
+4. Hit `https://api.geckovision.tech/metrics` once redeployed to see the 24h aggregate live
+5. Decide D4/D5/D6 (Task #9)
+6. If 3-of-4 metrics passing in latest sweep → green-light full 30-fixture (or 40 once suite hits that size) sweep at basic tier for Day 2 ($5-8)
+7. If still 2-of-4 → strategist/coordinator may need deeper rethink; ai-ml-engineer will have written `docs/eval/2026-05-13-s24-eval-honest-state.md` if so
+8. Push branch — `git push origin s24/wave-1-execution`
+
+**S24 progress (5 of 8 tasks materially advanced in one night):**
+
+| Task | State after Wave 1 night-shift |
+|---|---|
+| #1 D1/D2/D3 | ✅ closed |
+| #2 WS-A eval | 🟡 in iteration (defer wall broken, surgical second iteration in flight) |
+| #3 WS-B runtime | ✅ effectively complete, dual-write follow-up flagged |
+| #4 WS-C live flip | ✅ scaffolding done, gated on Task #2 |
+| #5 WS-D observability | ✅ complete |
+| #6 WS-E install polish | ⏸ pending — doctor CLI from WS-D is a head-start |
+| #7 WS-F panel safety | ⏸ pending — overlaps with #2 ai-ml work, sequence after |
+| #8 WS-G GTM | ⏸ Day-7 gated on Task #2 + #4 |
+| #9 D4/D5/D6 | ✅ closed |
