@@ -41,11 +41,7 @@ from gecko_core.types import (
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _BOOTSTRAP = _REPO_ROOT / "scripts" / "mongo" / "bootstrap_trade_agent.py"
 _S24_MIGRATION = (
-    _REPO_ROOT
-    / "infra"
-    / "mongo"
-    / "migrations"
-    / "2026-05-12-s24-agent-collections.py"
+    _REPO_ROOT / "infra" / "mongo" / "migrations" / "2026-05-12-s24-agent-collections.py"
 )
 
 
@@ -145,9 +141,12 @@ def test_event_kind_canonical_values() -> None:
         "cache.hit",
         "cache.miss",
         "oracle.cost_usd",
+        "oracle.rate_limit_hit",
         "agent.tick",
         "agent.opportunity",
         "agent.error",
+        "agent.spend_cap_hit",
         "x402.settle",
         "x402.refund",
+        "x402.live_blocked",
     )

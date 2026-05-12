@@ -33,6 +33,7 @@ import re
 from collections.abc import Callable
 from typing import Any, Protocol, cast
 
+from gecko_core.observability import emit_event
 from gecko_core.orchestration.trade_panel.agents import build_groupchat
 from gecko_core.orchestration.trade_panel.models import (
     Citation,
@@ -429,6 +430,8 @@ async def run_trade_panel(
     tier: str = "basic",
     llm_config: dict[str, Any] | None = None,
     agent_factory: AgentFactory | None = None,
+    agent_id: str | None = None,
+    wallet: str | None = None,
 ) -> TradePanelVerdict:
     """Run the 7-agent trade research panel.
 
@@ -501,6 +504,51 @@ async def run_trade_panel(
         parsed = _parse_closing_line(agent_name, text)
         turns.append(TradePanelTurn(agent=agent_name, content=text, parsed_verdict=parsed))
         messages.append({"role": "assistant", "content": text})
+
+    # S24 WS-F #6 — emit oracle.cost_usd. AG2 ConversableAgents don't
+    # surface the OpenAI usage object cleanly; we estimate from tiktoken
+    # over the seed prompt (shared by all 7 voices) and each turn's
+    # content. tokens_in = seed_tokens * len(voices) (each voice sees the
+    # accumulating message log; approximate as seed * N since per-voice
+    # context grows but is dominated by the seed + previous turns). To
+    # avoid over-estimating, count once and add accumulating prior-turn
+    # tokens explicitly. embed_tokens = idea tokens (the retrieval embed
+    # call is upstream but we attribute its cost to the panel run).
+    try:
+        from gecko_core.routing.costs import estimate_cost_usd, estimate_tokens
+
+        seed_tokens = estimate_tokens(seed)
+        turn_tokens = [estimate_tokens(t.content) for t in turns]
+        # Each voice sees seed + prior turns => sum_i (seed + sum_{j<i} turn_j)
+        tokens_in = 0
+        accum = seed_tokens
+        for tt in turn_tokens:
+            tokens_in += accum
+            accum += tt
+        tokens_out = sum(turn_tokens)
+        embed_tokens = estimate_tokens(idea)
+        # Default model — basic = gpt-4o-mini, pro = gpt-4o.
+        model_id = "gpt-4o" if tier == "pro" else "gpt-4o-mini"
+        llm_cost = estimate_cost_usd(model_id, tokens_in=tokens_in, tokens_out=tokens_out)
+        # text-embedding-3-small is ~$0.02 per 1M tokens.
+        embed_cost = embed_tokens * 0.02 / 1_000_000
+        total_usd = round(llm_cost + embed_cost, 6)
+        await emit_event(
+            "oracle.cost_usd",
+            {
+                "agent_id": agent_id,
+                "tier": tier,
+                "model": model_id,
+                "llm_tokens_in": tokens_in,
+                "llm_tokens_out": tokens_out,
+                "embed_tokens": embed_tokens,
+                "total_usd": total_usd,
+                "protocol": protocol,
+            },
+            wallet=wallet,
+        )
+    except Exception as exc:  # never block verdict synthesis on cost-emit
+        _log.warning("trade_panel.cost_emit_failed err=%s", exc)
 
     return _build_verdict_from_coordinator(turns)
 
@@ -811,6 +859,8 @@ async def run_trade_panel_with_retrieval(
     agent_factory: AgentFactory | None = None,
     enable_backtest: bool = False,
     history_source: Any | None = None,
+    agent_id: str | None = None,
+    wallet: str | None = None,
 ) -> TradePanelVerdict:
     """Convenience wrapper — fetch corpus chunks, then run the 7-agent panel.
 
@@ -852,6 +902,8 @@ async def run_trade_panel_with_retrieval(
         tier=tier,
         llm_config=llm_config,
         agent_factory=agent_factory,
+        agent_id=agent_id,
+        wallet=wallet,
     )
 
     # Issue #15: attach the structured citation list sourced from the same
