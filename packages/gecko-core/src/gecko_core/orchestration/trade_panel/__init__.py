@@ -507,8 +507,23 @@ async def retrieve_trade_corpus_chunks(
                 "numCandidates": max(200, top_k * 20),
                 "limit": top_k * 5,
                 "exact": False,
+                # S24 WS-A Pattern F — the vertical pre-filter must admit
+                # cross-cutting chunks (canon literature, market_data macro
+                # feeds) regardless of the requested vertical, otherwise
+                # perps/lending/infra/lst requests see zero canon citations
+                # because canon is currently tagged vertical="dex". Same
+                # spirit as the post-$match: cross-cutting chunks reach the
+                # panel for every protocol.
                 "filter": {
-                    "vertical": {"$eq": vertical},
+                    "$or": [
+                        {"vertical": {"$eq": vertical}},
+                        {"provider_kind": {"$in": [
+                            "market_data",
+                            "canon_marks",
+                            "canon_damodaran",
+                            "canon_berkshire",
+                        ]}},
+                    ],
                     "metadata.deprecated": {"$ne": True},
                 },
             }
@@ -519,10 +534,17 @@ async def retrieve_trade_corpus_chunks(
         # cross-cutting frameworks. See docs/strategy/2026-05-11-
         # retrieval-wedge-sprint.md — this is the wedge: canon corpus
         # must reach the panel regardless of named protocol.
+        #
+        # S24 WS-A — market_data chunks (Pyth candles + DefiLlama TVL)
+        # surface alongside canon. They carry a specific protocol tag for
+        # provenance but cross-protocol macro feeds (SOL/USD, BTC/USD)
+        # are useful to every voice, so the provider_kind clause admits
+        # them regardless of protocol match. Pattern F.
         {"$match": {"$or": [
             {"protocol": proto_norm},
             {"protocol": {"$size": 0}},
             {"protocol": {"$exists": False}},
+            {"provider_kind": "market_data"},
         ]}},
         {"$limit": top_k},
         {

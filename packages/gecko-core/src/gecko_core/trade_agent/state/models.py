@@ -14,27 +14,20 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-# Single source of truth for the status / mode enums. Bootstrap script
-# validators list these as plain string `enum`s — a drift test would
-# `typing.get_args(AgentStatus)` against the bootstrap module's literals.
-AgentMode = Literal["advisor", "trader"]
-AgentStatus = Literal["starting", "running", "paused", "stopped", "halted", "resuming"]
+# Pattern A — single source of truth for status / mode / journal-event
+# enums lives in :mod:`gecko_core.types`. Re-exported here for back-compat
+# with existing imports (``from gecko_core.trade_agent.state import
+# AgentStatus``). Do NOT redeclare these — drift test in
+# tests/test_literal_consistency.py will fail.
+from gecko_core.types import (
+    AgentJournalEvent as JournalEvent,
+)
+from gecko_core.types import (
+    AgentMode,
+    AgentStatus,
+)
+
 PositionStatus = Literal["open", "closed", "liquidated"]
-JournalEvent = Literal[
-    "agent_started",
-    "agent_stopped",
-    "agent_paused",
-    "agent_resumed",
-    "opportunity",
-    "entry",
-    "exit",
-    "verdict_called",
-    "verdict_cache_hit",
-    "circuit_breaker_trip",
-    "spec_swap",
-    "heartbeat_stale",
-    "exec_error",
-]
 
 
 def _utcnow() -> datetime:
