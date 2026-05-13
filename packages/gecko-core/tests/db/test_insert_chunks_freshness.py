@@ -41,7 +41,13 @@ def patched(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
 
 
 async def test_freshness_tier_defaults_to_static(patched: dict[str, Any]) -> None:
-    chunks = [(0, "hello world", [0.1] * mongo_chunks.EMBED_DIM)]
+    chunks = [
+        (
+            0,
+            ("hello world placeholder text long enough to pass the S29 chunk-quality gate: " * 5),
+            [0.1] * mongo_chunks.EMBED_DIM,
+        )
+    ]
     await mongo_chunks.insert_chunks_mongo(
         session_id=uuid4(),
         source_id=uuid4(),
@@ -55,7 +61,13 @@ async def test_freshness_tier_defaults_to_static(patched: dict[str, Any]) -> Non
 
 
 async def test_freshness_tier_explicit_value_lands(patched: dict[str, Any]) -> None:
-    chunks = [(0, "snapshot row", [0.1] * mongo_chunks.EMBED_DIM)]
+    chunks = [
+        (
+            0,
+            ("snapshot row placeholder text long enough to pass the S29 chunk-quality gate: " * 5),
+            [0.1] * mongo_chunks.EMBED_DIM,
+        )
+    ]
     await mongo_chunks.insert_chunks_mongo(
         session_id=uuid4(),
         source_id=uuid4(),
