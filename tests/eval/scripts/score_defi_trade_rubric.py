@@ -282,6 +282,10 @@ async def _score_one(
         "vertical": fixture.get("vertical", "dex"),
         "tier": tier,
         "llm_config": llm_config,
+        # S25 #13 — thread the fixture's as_of_date into retrieval so the
+        # market_data date-alignment boost / demotion fires when the
+        # corpus carries a parseable timestamp. None when fixture omits.
+        "as_of_date": fixture.get("as_of_date"),
     }
     # Pattern E guardrail — judge ground-truth keys must not leak into the panel.
     forbidden = {
@@ -360,13 +364,10 @@ def _aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
     if n == 0:
         return {"n": 0}
     dims = list(PASS_THRESHOLDS.keys())
-    means = {
-        d: round(statistics.mean(r["scores"][d] for r in rows), 3) for d in dims
-    }
+    means = {d: round(statistics.mean(r["scores"][d] for r in rows), 3) for d in dims}
     pass_rate = round(sum(1 for r in rows if r["passed"]) / n, 3)
     per_dim_pass = {
-        d: round(sum(1 for r in rows if r["scores"][d] >= PASS_THRESHOLDS[d]) / n, 3)
-        for d in dims
+        d: round(sum(1 for r in rows if r["scores"][d] >= PASS_THRESHOLDS[d]) / n, 3) for d in dims
     }
     return {
         "n": n,
@@ -384,10 +385,7 @@ async def run(*, limit: int | None, tier: str, tag: str) -> int:
         raise SystemExit("OPENAI_API_KEY required for live trade-panel runs.")
     llm_config = _build_llm_config(api_key, tier)
 
-    print(
-        f"S24 task#11 rubric scorer | n={len(fixtures)} | tier={tier} | "
-        f"suite={SUITE_PATH.name}"
-    )
+    print(f"S24 task#11 rubric scorer | n={len(fixtures)} | tier={tier} | suite={SUITE_PATH.name}")
     rows: list[dict[str, Any]] = []
     for f in fixtures:
         print(f"  [{f['id']}] protocol={f['protocol']} ... ", end="")

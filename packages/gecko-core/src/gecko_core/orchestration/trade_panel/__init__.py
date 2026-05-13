@@ -573,6 +573,141 @@ async def run_trade_panel(
 
 _DEFAULT_TRADE_TOP_K: int = 15
 
+# S25 #13 — scoring boost terms. Empirical: Atlas vectorSearchScore on the
+# corpus sits in [0.69, 0.78] for typical queries; a +0.15 boost pushes a
+# protocol-exact chunk past a tangentially-relevant canon chunk without
+# crowding genuinely top-scored content. Date demotion is bounded so that
+# market_data outside the fixture window doesn't fall off the result —
+# the panel still sees it but pays attention to protocol manifest first.
+_BOOST_PROTOCOL_EXACT: float = 0.15
+_BOOST_PROVIDER_SPECIFIC: float = 0.10  # paysh_live / bazaar_live with protocol match
+_BOOST_DATE_ALIGNED: float = 0.05
+_DEMOTE_DATE_MISALIGNED: float = -0.10
+_DATE_WINDOW_DAYS: int = 7
+
+
+def _parse_chunk_date(chunk: dict[str, Any]) -> str | None:
+    """Best-effort extract of an ISO date string (YYYY-MM-DD) from a chunk.
+
+    Looks at, in order:
+      1. ``metadata.timestamp`` (ingest-set; canonical when present)
+      2. ``metadata.as_of_iso`` (ingest-set on some market_data writes)
+      3. ``captured_at`` (Mongo write-time timestamp; falls back to ingest
+         time if no domain-level date is available)
+      4. ``source_url`` suffix ``#<iso>`` (the market_data plan hashes the
+         hour bucket into the URL; we strip the time portion)
+      5. ``text`` regex for ``as of YYYY-MM-DDTHH:MM`` or ``YYYY-MM-DD``
+
+    Returns None when no parseable date is found. Caller treats None as
+    "do not apply date scoring" (neutral).
+    """
+    md = chunk.get("metadata") or {}
+    for key in ("timestamp", "as_of_iso"):
+        val = md.get(key) if isinstance(md, dict) else None
+        if isinstance(val, str) and len(val) >= 10:
+            return val[:10]
+        # Pymongo returns BSON datetimes as native datetime objects;
+        # support both shapes so the date demotion fires regardless.
+        if hasattr(val, "strftime"):
+            try:
+                return val.strftime("%Y-%m-%d")
+            except Exception:
+                pass
+    captured = chunk.get("captured_at")
+    # Only use captured_at for hot/live chunks — for static canon the
+    # ingest date is not a content date.
+    if (
+        isinstance(captured, str)
+        and len(captured) >= 10
+        and chunk.get("freshness_tier") in {"hot", "live_only", "daily"}
+    ):
+        return captured[:10]
+    url = str(chunk.get("source_url") or "")
+    if "#" in url:
+        tail = url.rsplit("#", 1)[-1]
+        if len(tail) >= 10 and tail[4] == "-" and tail[7] == "-":
+            return tail[:10]
+    text = chunk.get("text") or ""
+    m = re.search(r"(?<!\d)(20\d{2}-\d{2}-\d{2})(?!\d)", text)
+    if m:
+        return m.group(1)
+    return None
+
+
+def _days_between(a: str, b: str) -> int | None:
+    """Absolute days between two YYYY-MM-DD strings. None on parse failure."""
+    from datetime import date
+
+    try:
+        da = date.fromisoformat(a)
+        db = date.fromisoformat(b)
+    except ValueError:
+        return None
+    return abs((da - db).days)
+
+
+def _apply_retrieval_boosts(
+    rows: list[dict[str, Any]],
+    *,
+    protocol: str,
+    as_of_date: str | None,
+) -> list[dict[str, Any]]:
+    """Re-score retrieved chunks with protocol/provider/date boosts.
+
+    Pure function — input rows carry an ``Atlas vectorSearchScore`` in the
+    ``score`` field; this writes back the boosted score and preserves the
+    original under ``raw_score`` for diagnostics. Sorted descending by the
+    boosted score on return.
+
+    Boost terms:
+      - +0.15 when ``protocol`` appears in the chunk's protocol tag list
+        (treats array-typed and scalar-typed protocol fields uniformly).
+      - +0.10 additional when provider_kind is paysh_live/bazaar_live AND
+        the protocol match also fires (these are protocol-manifest sources
+        whose semantic content is often sparse but on-topic and structurally
+        what the panel needs to ground a directional verdict).
+      - +0.05 when chunk's parseable date is within the date window of
+        ``as_of_date``; -0.10 when outside. Skipped entirely when
+        ``as_of_date`` is None or the chunk is not freshness=hot/live/daily.
+
+    Boosts compose additively. A protocol-exact paysh_live chunk dated
+    in-window stacks to +0.30 over the raw Atlas score.
+    """
+    proto_norm = (protocol or "").strip().lower()
+    PROVIDER_SPECIFIC_KINDS = {"paysh_live", "bazaar_live"}
+
+    for row in rows:
+        raw = float(row.get("score") or 0.0)
+        row["raw_score"] = raw
+        boost = 0.0
+        chunk_protos = row.get("protocol")
+        proto_match = False
+        if isinstance(chunk_protos, list):
+            proto_match = proto_norm in {str(p).strip().lower() for p in chunk_protos}
+        elif isinstance(chunk_protos, str):
+            proto_match = chunk_protos.strip().lower() == proto_norm
+        if proto_match and proto_norm:
+            boost += _BOOST_PROTOCOL_EXACT
+            if row.get("provider_kind") in PROVIDER_SPECIFIC_KINDS:
+                boost += _BOOST_PROVIDER_SPECIFIC
+        # Date alignment — only for hot/live/daily chunks where the date
+        # carries information. Static canon (Marks, Damodaran, Berkshire)
+        # is intentionally date-agnostic.
+        if as_of_date and row.get("freshness_tier") in {"hot", "live_only", "daily"}:
+            chunk_date = _parse_chunk_date(row)
+            if chunk_date is not None:
+                days = _days_between(as_of_date, chunk_date)
+                if days is not None:
+                    if days <= _DATE_WINDOW_DAYS:
+                        boost += _BOOST_DATE_ALIGNED
+                    else:
+                        boost += _DEMOTE_DATE_MISALIGNED
+        row["score"] = raw + boost
+        row["score_boost"] = boost
+
+    rows.sort(key=lambda r: float(r.get("score") or 0.0), reverse=True)
+    return rows
+
 
 async def retrieve_trade_corpus_chunks(
     *,
@@ -580,6 +715,7 @@ async def retrieve_trade_corpus_chunks(
     protocol: str,
     vertical: str = "dex",
     top_k: int = _DEFAULT_TRADE_TOP_K,
+    as_of_date: str | None = None,
 ) -> list[dict[str, Any]]:
     """Embed ``idea`` and read top-K chunks scoped to ``(vertical, protocol)``.
 
@@ -642,7 +778,12 @@ async def retrieve_trade_corpus_chunks(
                 "path": "embedding",
                 "queryVector": query_vector,
                 "numCandidates": max(200, top_k * 20),
-                "limit": top_k * 5,
+                # S25 #13 — oversample at vectorSearch stage so the Python
+                # boost pass has room to reshuffle protocol-tagged chunks
+                # ahead of canon. Atlas charges by candidate scan, not
+                # result size; 10x is still cheap and gives the boost real
+                # working space.
+                "limit": top_k * 10,
                 "exact": False,
                 # S24 WS-A Pattern F — the vertical pre-filter must admit
                 # cross-cutting chunks (canon literature, market_data macro
@@ -651,6 +792,14 @@ async def retrieve_trade_corpus_chunks(
                 # because canon is currently tagged vertical="dex". Same
                 # spirit as the post-$match: cross-cutting chunks reach the
                 # panel for every protocol.
+                #
+                # S25 #13 — paysh_live + bazaar_live chunks also admitted
+                # across verticals (they carry a specific protocol tag but
+                # protocol-manifest content is useful regardless of which
+                # vertical bucket the caller asked for; e.g. Kamino
+                # paysh_live chunks tagged vertical=dex must still reach
+                # a vertical=lending request because the protocol manifest
+                # documents both vault types).
                 "filter": {
                     "$or": [
                         {"vertical": {"$eq": vertical}},
@@ -661,6 +810,8 @@ async def retrieve_trade_corpus_chunks(
                                     "canon_marks",
                                     "canon_damodaran",
                                     "canon_berkshire",
+                                    "paysh_live",
+                                    "bazaar_live",
                                 ]
                             }
                         },
@@ -691,7 +842,16 @@ async def retrieve_trade_corpus_chunks(
                 ]
             }
         },
-        {"$limit": top_k},
+        # S25 #13 — oversample the Atlas result, then apply
+        # protocol-exact + provider-specific + date-alignment scoring
+        # boosts in Python below. Atlas raw vectorSearchScore alone
+        # routinely buries protocol-manifest paysh_live chunks beneath
+        # tangentially-on-topic canon PDFs (a Damodaran ERP paragraph
+        # mentioning "leverage" outscores a sparse Kamino vault manifest
+        # for a Kamino leverage question). Boost = +0.15 protocol-exact,
+        # +0.10 paysh_live/bazaar_live with protocol match, -0.10 for
+        # hot market_data outside fixture as_of_date ±7d window.
+        {"$limit": top_k * 4},
         {
             "$project": {
                 "_id": 1,
@@ -721,7 +881,11 @@ async def retrieve_trade_corpus_chunks(
                     "source": (doc.get("source") or doc.get("provider_kind") or "unknown"),
                     "provider_kind": doc.get("provider_kind") or "web",
                     "freshness_tier": doc.get("freshness_tier") or "static",
-                    "protocol": doc.get("protocol") or proto_norm,
+                    # Preserve raw ingest-side protocol tag (incl. empty
+                    # list for canon). Do NOT fall back to proto_norm —
+                    # the boost step relies on truthful tagging to avoid
+                    # crediting canon chunks with a protocol-exact match.
+                    "protocol": doc.get("protocol"),
                     "vertical": doc.get("vertical") or vertical,
                     "score": float(doc.get("score") or 0.0),
                 }
@@ -729,6 +893,12 @@ async def retrieve_trade_corpus_chunks(
     except Exception as exc:  # pragma: no cover - defensive
         _log.warning("trade_panel.retrieve.error err=%s", exc)
         return []
+
+    # S25 #13 — apply scoring boosts in Python over the oversampled pool,
+    # then slice to top_k. See the comment above the $limit clause for the
+    # rationale; the boost terms themselves live in _apply_retrieval_boosts.
+    rows = _apply_retrieval_boosts(rows, protocol=proto_norm, as_of_date=as_of_date)
+    rows = rows[:top_k]
 
     # Issue #12 — exit log. hit_count + top_score disambiguate "Atlas returned
     # nothing" (likely filter-shape / ingest-tag drift) from "Atlas returned
@@ -862,6 +1032,7 @@ async def run_trade_panel_with_retrieval(
     history_source: Any | None = None,
     agent_id: str | None = None,
     wallet: str | None = None,
+    as_of_date: str | None = None,
 ) -> TradePanelVerdict:
     """Convenience wrapper — fetch corpus chunks, then run the 7-agent panel.
 
@@ -877,7 +1048,11 @@ async def run_trade_panel_with_retrieval(
     on the Phase 8 contract.
     """
     chunks = await retrieve_trade_corpus_chunks(
-        idea=idea, protocol=protocol, vertical=vertical, top_k=top_k
+        idea=idea,
+        protocol=protocol,
+        vertical=vertical,
+        top_k=top_k,
+        as_of_date=as_of_date,
     )
 
     # Issue #12 — panel kickoff log. Truthy chunks here but empty
