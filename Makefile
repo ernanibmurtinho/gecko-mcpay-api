@@ -9,7 +9,15 @@
 # auto-marked by path + filename so individual files do not need
 # decorator churn.
 
-.PHONY: test-fast test-full test-changed test-mongo test-live test-network test-integration
+.PHONY: test-fast test-full test-changed test-mongo test-live test-network test-integration test-canary
+
+# S26 Tier-1 eval canary. Live panel call, ~$0.05/run, <30s. Asserts
+# D1 (answered_back) + D2 (context_overflow) + D3 (citations_grounded)
+# on the single-fixture canary suite. Exits non-zero on any failure.
+# Plan doc: docs/strategy/2026-05-13-s26-eval-redesign-plan.md
+# Use `make test-canary CANARY_ARGS=--dry-run` to scaffold-test without spend.
+test-canary:
+	uv run python -m tests.eval.scripts.canary_eval $(CANARY_ARGS)
 
 # Default laptop checkpoint. <60s. Skips slow / network / integration /
 # mongo / live markers. Run this after every change.

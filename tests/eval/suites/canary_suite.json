@@ -1,0 +1,23 @@
+[
+  {
+    "id": "kamino-2024Q3-jlpusdc-entry",
+    "as_of_date": "2024-08-12",
+    "protocol": "kamino",
+    "vertical": "dex",
+    "text": "I'm considering depositing $5k into the Kamino JLP-USDC multiply vault at current parameters. Entry now or wait?",
+    "expected_verdict_v2": "ACT",
+    "expected_verdict_v2_set": ["ACT", "DEFER", "PASS"],
+    "must_cite_provider_kinds": ["paysh_live", "market_data", "canon_marks", "canon_damodaran", "canon_berkshire"],
+    "must_not_hallucinate": [
+      "specific USD price level for JLP cited without a market_data source",
+      "exact TVL figure cited from a canon memo only",
+      "specific APY percentage cited without a paysh_live or market_data source"
+    ],
+    "expected_dissent_topics": [
+      "smart_contract_risk",
+      "leverage_unwind_risk",
+      "vault_parameter_change_risk"
+    ],
+    "why": "Tier-1 canary fixture. Selected for clean shape: wide expected verdict set (canary cannot fail on verdict mismatch alone), rich must_cite list (drives D2/D3 stress), concrete dissent topics. Mirrors fixture[0] of defi_trade_rubric_suite.json; if you change the canary, change here only — the rubric suite is the source of truth for that fixture."
+  }
+]

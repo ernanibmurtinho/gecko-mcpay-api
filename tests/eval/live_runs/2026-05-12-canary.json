@@ -1,0 +1,58 @@
+{
+  "date": "2026-05-12",
+  "suite": "canary_suite.json",
+  "tier": "canary",
+  "row": {
+    "id": "kamino-2024Q3-jlpusdc-entry",
+    "protocol": "kamino",
+    "vertical": "dex",
+    "passed": false,
+    "dimensions": {
+      "d1_answered_back": {
+        "passed": true,
+        "failures": [],
+        "details": {
+          "verdict": "defer",
+          "confidence": 0.7,
+          "n_turns": 7
+        }
+      },
+      "d2_context_overflow": {
+        "passed": false,
+        "failures": [
+          "chunk dropout: 10 of 15 chunks not reachable in rendered block (cap=8000 chars, block_len=8032)"
+        ],
+        "warnings": [],
+        "details": {
+          "n_chunks_input": 15,
+          "n_chunks_rendered": 5,
+          "rendered_block_chars": 8032,
+          "char_cap": 8000,
+          "truncation_marker_present": true,
+          "estimated_prompt_tokens": 2119
+        }
+      },
+      "d3_citations_grounded": {
+        "passed": true,
+        "failures": [],
+        "details": {
+          "n_panel_cites": 15,
+          "n_valid_chunk_ids": 15,
+          "n_phantom_cites": 0,
+          "n_inline_markers_out_of_range": 0
+        }
+      }
+    },
+    "panel_error": null,
+    "wall_seconds": {
+      "retrieve": 2.49,
+      "panel": 49.31
+    },
+    "panel": {
+      "verdict": "defer",
+      "confidence": 0.7,
+      "n_citations": 15,
+      "n_chunks_input": 15
+    }
+  }
+}
