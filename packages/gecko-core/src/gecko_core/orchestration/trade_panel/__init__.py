@@ -734,6 +734,139 @@ def _apply_retrieval_boosts(
     return rows
 
 
+# ---------------------------------------------------------------------------
+# S27 #21 — provider_kind quota allocator (fixed-slot, post-boost).
+#
+# Problem: S25 #13's protocol-exact + provider-specific boosts stack to +0.25
+# on protocol_native chunks. A pure top_k-by-boosted-score slice then routinely
+# fills all 15 slots with protocol_native, even though the rubric judge grades
+# against `must_cite_provider_kinds = {paysh_live, market_data, canon_marks,
+# canon_damodaran, canon_berkshire}`. S26 lost-in-middle handoff documents
+# `provider_kinds_present=['protocol_native']` on 2/3 fixtures, giving
+# provider_kind_coverage=0.33 against threshold 1.00.
+#
+# Fix: after _apply_retrieval_boosts has scored the candidate pool, partition
+# by provider_kind and fill per-bucket quotas first. Unfilled slots overflow
+# to other buckets by global boosted score. Boost still informs ranking
+# within each bucket — the allocator only decides who gets into top_k.
+#
+# Universal V1 quota (question-class-blind). Sum (19) intentionally exceeds
+# top_k (15) so higher-quota buckets win when supply is plentiful and lower-
+# quota buckets get squeezed. Question-class-aware quotas are S28+ work.
+_PROVIDER_QUOTAS: dict[str, int] = {
+    "protocol_native": 5,
+    "canon_marks": 3,
+    "canon_damodaran": 3,
+    "canon_berkshire": 2,
+    "market_data": 2,
+    "bazaar_live": 1,
+    "paysh_live": 1,
+    "canon_youtube": 1,
+    "canon_macro": 1,
+}
+
+# Minimum text length for a chunk to count toward its provider_kind quota.
+# paysh_live chunks for many protocols are empty `{"data":[]}` API dumps
+# (Mongo audit 2026-05-13: paysh_live kamino total=7, substantive=0).
+# Forcing a quota slot on those is worse than leaving the slot empty for
+# overflow into a substantive bucket.
+_QUOTA_MIN_CHUNK_CHARS: int = 200
+
+
+def _provider_quota_floor(
+    rows: list[dict[str, Any]],
+    *,
+    top_k: int,
+    quotas: dict[str, int] | None = None,
+    min_chars: int = _QUOTA_MIN_CHUNK_CHARS,
+) -> list[dict[str, Any]]:
+    """Allocate ``top_k`` slots across provider_kinds via fixed quotas.
+
+    Algorithm:
+      1. Drop candidates whose text is shorter than ``min_chars`` from
+         quota eligibility (they can still surface via the last-resort
+         filler if no eligible chunk is available).
+      2. Partition the eligible pool by ``provider_kind``; within each
+         bucket sort by boosted score desc.
+      3. For each provider_kind in ``quotas``, take up to its quota
+         from the bucket. Buckets shorter than their quota leave
+         unfilled slots.
+      4. Overflow: fill any remaining slots from the global eligible
+         pool by boosted score, skipping anything already picked.
+      5. Last-resort: ineligible (short-text) chunks fill out top_k
+         when the corpus is genuinely thin.
+      6. Final sort by boosted score desc so the panel sees strongest first.
+
+    Pure function — returns a new list; input rows are not mutated.
+    """
+    if top_k <= 0 or not rows:
+        return []
+    quotas = quotas if quotas is not None else _PROVIDER_QUOTAS
+
+    def _eligible(row: dict[str, Any]) -> bool:
+        text = row.get("text") or ""
+        return len(text) >= min_chars
+
+    by_kind: dict[str, list[dict[str, Any]]] = {}
+    for row in rows:
+        pk = str(row.get("provider_kind") or "web")
+        by_kind.setdefault(pk, []).append(row)
+    for bucket in by_kind.values():
+        bucket.sort(key=lambda r: float(r.get("score") or 0.0), reverse=True)
+
+    picked: list[dict[str, Any]] = []
+    picked_ids: set[int] = set()
+
+    # Pass 1 — per-bucket quotas over eligible chunks.
+    for pk, quota in quotas.items():
+        bucket = by_kind.get(pk, [])
+        taken = 0
+        for row in bucket:
+            if taken >= quota:
+                break
+            if not _eligible(row):
+                continue
+            rid = id(row)
+            if rid in picked_ids:
+                continue
+            picked.append(row)
+            picked_ids.add(rid)
+            taken += 1
+            if len(picked) >= top_k:
+                break
+        if len(picked) >= top_k:
+            break
+
+    # Pass 2 — overflow. Fill remaining slots from the global eligible
+    # pool by boosted score desc.
+    if len(picked) < top_k:
+        remaining = sorted(
+            (r for r in rows if id(r) not in picked_ids),
+            key=lambda r: float(r.get("score") or 0.0),
+            reverse=True,
+        )
+        for row in remaining:
+            if not _eligible(row):
+                continue
+            picked.append(row)
+            picked_ids.add(id(row))
+            if len(picked) >= top_k:
+                break
+        # Last-resort: ineligible chunks. Keeps top_k honest when the
+        # corpus is thin. Rare in practice.
+        if len(picked) < top_k:
+            for row in remaining:
+                if id(row) in picked_ids:
+                    continue
+                picked.append(row)
+                picked_ids.add(id(row))
+                if len(picked) >= top_k:
+                    break
+
+    picked.sort(key=lambda r: float(r.get("score") or 0.0), reverse=True)
+    return picked
+
+
 async def retrieve_trade_corpus_chunks(
     *,
     idea: str,
@@ -919,11 +1052,16 @@ async def retrieve_trade_corpus_chunks(
         _log.warning("trade_panel.retrieve.error err=%s", exc)
         return []
 
-    # S25 #13 — apply scoring boosts in Python over the oversampled pool,
-    # then slice to top_k. See the comment above the $limit clause for the
-    # rationale; the boost terms themselves live in _apply_retrieval_boosts.
+    # S25 #13 — apply scoring boosts in Python over the oversampled pool.
+    # The boost terms themselves live in _apply_retrieval_boosts.
     rows = _apply_retrieval_boosts(rows, protocol=proto_norm, as_of_date=as_of_date)
-    rows = rows[:top_k]
+    # S27 #21 — provider_kind quota allocator. Replaces the prior
+    # `rows[:top_k]` straight slice that routinely filled all 15 slots
+    # with protocol_native because of the +0.25 boost stack. The quota
+    # floor reserves slots for canon + market_data so the rubric judge's
+    # `must_cite_provider_kinds` set can actually be covered. Boost still
+    # ranks within each bucket. See _provider_quota_floor.
+    rows = _provider_quota_floor(rows, top_k=top_k)
 
     # Issue #12 — exit log. hit_count + top_score disambiguate "Atlas returned
     # nothing" (likely filter-shape / ingest-tag drift) from "Atlas returned
