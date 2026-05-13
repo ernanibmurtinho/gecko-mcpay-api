@@ -1,0 +1,506 @@
+{
+  "date": "2026-05-13",
+  "tier": "basic",
+  "suite": "defi_trade_rubric_suite.json",
+  "n_fixtures_loaded": 10,
+  "n_scored": 9,
+  "aggregate": {
+    "n": 9,
+    "overall_pass_rate": 0.0,
+    "per_dimension_means": {
+      "verdict_accuracy": 0.889,
+      "citation_relevance": 0.383,
+      "provider_kind_coverage": 0.778,
+      "hallucination_score": 0.0,
+      "dissent_grounding": 0.578,
+      "confidence_calibration": 0.506
+    },
+    "per_dimension_pass_rate": {
+      "verdict_accuracy": 0.889,
+      "citation_relevance": 0.333,
+      "provider_kind_coverage": 0.778,
+      "hallucination_score": 0.0,
+      "dissent_grounding": 1.0,
+      "confidence_calibration": 0.444
+    },
+    "thresholds": {
+      "verdict_accuracy": 0.85,
+      "citation_relevance": 0.5,
+      "provider_kind_coverage": 0.7,
+      "hallucination_score": 0.3,
+      "dissent_grounding": 0.5,
+      "confidence_calibration": 0.55
+    }
+  },
+  "rows": [
+    {
+      "id": "kamino-2024Q3-jlpusdc-entry",
+      "protocol": "kamino",
+      "vertical": "dex",
+      "as_of_date": "2024-08-12",
+      "panel": {
+        "verdict": "defer",
+        "confidence": 0.65,
+        "dissent_count": 2,
+        "blocker_questions": [
+          "What is the current status of the smart contract audits for the Kamino protocol?",
+          "How will the pending admin changes affect governance and operational stability?"
+        ],
+        "n_citations": 5,
+        "provider_kinds_present": [
+          "protocol_native"
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "ACT",
+        "expected_verdict_v2_set": [
+          "ACT",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "paysh_live",
+          "market_data",
+          "canon_marks",
+          "canon_damodaran",
+          "canon_berkshire"
+        ],
+        "expected_dissent_topics": [
+          "smart_contract_risk",
+          "leverage_unwind_risk",
+          "vault_parameter_change_risk"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.4,
+        "provider_kind_coverage": 0.0,
+        "hallucination_score": 0.0,
+        "dissent_grounding": 0.8,
+        "confidence_calibration": 0.7
+      },
+      "passed": false,
+      "judge_notes": "Citation relevance is low-moderate: all 5 citations are raw API JSON blobs from the Kamino vaults endpoint with no human-readable context tying them to the JLP-USDC multiply vault specifically; they are on-protocol but provide almost no actionable signal (no APY, no leverage params, no JLP price). The bull_bear_debater and fundamental_analyst both cite a specific AUM figure of ~$10,157,574.1 derived from the raw 'prevAum' field in citation [4] \u2014 this is a TVL figure cited from a canon/protocol_native memo without a paysh_live or market_data source, which matches a must_not_hallucinate pattern (exact TVL figure cited from a canon memo only). Therefore hallucination_score = 0.0. Dissent grounding is strong: smart_contract_risk is explicitly surfaced by the risk_manager and blocker_questions; leverage_unwind_risk is hinted at but not concretely named (partial); vault_parameter_change_risk is touched via pending admin changes. At least one expected dissent topic (smart_contract_risk) is clearly and concretely surfaced. Confidence of 0.65 with 2 dissenters, thin/low-quality citations, and real risk flags is reasonable \u2014 slightly conservative but well-calibrated given the uncertainty.",
+      "wall_seconds": {
+        "panel": 51.57,
+        "judge": 10.32
+      }
+    },
+    {
+      "id": "kamino-2024Q4-sol-leverage-entry",
+      "protocol": "kamino",
+      "vertical": "lending",
+      "as_of_date": "2024-11-05",
+      "panel": {
+        "verdict": "pass",
+        "confidence": 0.4,
+        "dissent_count": 2,
+        "blocker_questions": [
+          "What is the current audit status of the Kamino protocol's smart contracts?",
+          "How does SOL's price trend in the coming days, particularly in relation to the $165 entry point?"
+        ],
+        "n_citations": 5,
+        "provider_kinds_present": [
+          "canon_berkshire",
+          "canon_marks",
+          "market_data"
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "DEFER",
+        "expected_verdict_v2_set": [
+          "ACT",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "market_data",
+          "canon_marks",
+          "canon_damodaran",
+          "canon_berkshire",
+          "paysh_live"
+        ],
+        "expected_dissent_topics": [
+          "liquidation_cascade_risk",
+          "drawdown_path_risk",
+          "audit_status_uncertainty",
+          "leverage_unwind_risk"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 0.0,
+        "citation_relevance": 0.5,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 0.0,
+        "dissent_grounding": 0.7,
+        "confidence_calibration": 0.4
+      },
+      "passed": false,
+      "judge_notes": "Citation relevance: Citation 1 (Pyth SOL/USD) is directly on-topic. Citation 2 is a future-dated (2026) gecko URL that is anachronistic and tangential. Citations 3 & 4 are Marks canon on risk/return \u2014 generically relevant but not Kamino/SOL-specific. Citation 5 is a Berkshire letter with garbled binary content \u2014 essentially useless. Roughly half are on-topic. Hallucination: The technical analyst references SOL at '$157.8759' from citation 1 (market_data source present \u2014 OK), but the question posits $165 as the entry price and the bull/bear debater treats $165 as a live price without a supporting market_data source. More critically, the coordinator's confidence in the verdict envelope is stated as 0.40 but the coordinator turn says 0.70 \u2014 an internal inconsistency that borders on a fabricated figure. The $165 price level is used throughout without a market_data citation confirming it, which is a must_not_hallucinate pattern. Hallucination score = 0.0. Dissent grounding: The risk manager explicitly raises smart contract risk (audit_status_uncertainty) and market volatility/liquidation risk (liquidation_cascade_risk), and the strategist advocates 'observe' rather than act. Drawdown-path risk and leverage-unwind risk are hinted at but not concretely named. At least two expected dissent topics are clearly surfaced. Score: 0.7. Confidence calibration: The envelope says confidence=0.40 but the coordinator turn says 0.70 \u2014 a significant internal mismatch. With thin on-topic citations, 2 dissenters, and unresolved audit/liquidation blockers, even 0.40 is arguably slightly high, but 0.70 in the coordinator turn is a clear over-confidence. The discrepancy itself is a calibration failure.",
+      "wall_seconds": {
+        "panel": 49.84,
+        "judge": 13.02
+      }
+    },
+    {
+      "id": "kamino-2025Q3-usdc-pyusd-exit",
+      "protocol": "kamino",
+      "vertical": "dex",
+      "as_of_date": "2025-07-22",
+      "panel": {
+        "verdict": "defer",
+        "confidence": 0.7,
+        "dissent_count": 0,
+        "blocker_questions": [
+          "Does the total value locked in the Kamino USDC-PYUSD vault increase by more than 10% over the next 30 days?"
+        ],
+        "n_citations": 5,
+        "provider_kinds_present": [
+          "protocol_native"
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "PASS",
+        "expected_verdict_v2_set": [
+          "PASS",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "paysh_live",
+          "market_data",
+          "canon_marks",
+          "canon_damodaran"
+        ],
+        "expected_dissent_topics": [
+          "yield_trap_risk",
+          "stablecoin_peg_risk",
+          "opportunity_cost"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.3,
+        "provider_kind_coverage": 0.0,
+        "hallucination_score": 0.0,
+        "dissent_grounding": 0.5,
+        "confidence_calibration": 0.4
+      },
+      "passed": false,
+      "judge_notes": "Citation relevance is low: all 5 citations are raw API JSON blobs from the Kamino vaults endpoint with no readable APY, TVL, or yield data \u2014 they are on-protocol but provide no actionable signal for the question. The fundamental_analyst and risk_manager cite 'managementFeeBps: 0' and 'cumulativeEarnedInterest: 0' from these blobs, which is marginally relevant but mostly noise. Hallucination: the bull_bear_debater states '+0.9% yield since June' as if it is a confirmed figure from a source, but no market_data or live source backs this \u2014 it is echoed from the user's question framing, not a cited source. However, the must_not_hallucinate patterns specifically flag 'exact APY figure cited from canon memo only' and 'specific stablecoin peg deviation cited without market_data'; the +0.9% is user-provided context, not a panel-generated figure, so this is borderline. More critically, no specific APY or peg deviation is fabricated by the panel itself. Scoring 0.0 because the bull case frames +0.9% as a 'demonstrated stable yield' without any source citation, which edges into hallucination territory per the strict zero-tolerance rule. Dissent grounding: opportunity_cost is hinted at in the bear case ('other protocols may offer higher returns') and yield_trap_risk is partially surfaced ('+0.9% may not be sufficient'), but neither is concretely developed as a blocker or surviving dissent \u2014 no agent explicitly names yield_trap or stablecoin_peg_risk. Scored 0.5 for partial surfacing. Confidence calibration: panel scores 0.7 confidence on DEFER with zero dissent, but citations are essentially unreadable raw JSON with no yield/TVL signal. The correct call per ground truth is PASS (rotate), and DEFER is only acceptable with opportunity-cost reasoning \u2014 which is only weakly present. 0.7 confidence with this citation quality and no concrete dissent is overconfident; should be ~0.5 or lower.",
+      "wall_seconds": {
+        "panel": 48.22,
+        "judge": 14.1
+      }
+    },
+    {
+      "id": "drift-2024Q4-sol-perp-long",
+      "protocol": "drift",
+      "vertical": "perps",
+      "as_of_date": "2024-12-02",
+      "panel": {
+        "verdict": "defer",
+        "confidence": 0.7,
+        "dissent_count": 2,
+        "blocker_questions": [
+          "What is the current audit status of Drift v3, and are there any identified vulnerabilities?",
+          "How does the Drift protocol plan to address its low TVL and improve liquidity?"
+        ],
+        "n_citations": 5,
+        "provider_kinds_present": [
+          "bazaar_live",
+          "market_data"
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "PASS",
+        "expected_verdict_v2_set": [
+          "PASS",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "market_data",
+          "canon_marks",
+          "canon_macro",
+          "canon_damodaran",
+          "paysh_live"
+        ],
+        "expected_dissent_topics": [
+          "macro_event_risk",
+          "leverage_unwind_risk",
+          "funding_rate_risk",
+          "liquidation_cascade_risk"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.5,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 0.0,
+        "dissent_grounding": 0.5,
+        "confidence_calibration": 0.6
+      },
+      "passed": false,
+      "judge_notes": "Citation relevance: Citation 1 (SOL/USD price) is directly on-topic. Citations 2 and 3 are opaque bazaar/exa-ai blobs with no clear protocol-specific content visible. Citations 4 (mSOL) and 5 (jitoSOL) are tangential \u2014 they are Solana LST prices, not SOL-PERP or Drift-specific data. Roughly half the citations are on-topic. Hallucination: The verdict and turns contain a specific SOL price ($236.9579) but it IS backed by citation 1 (market_data/Pyth). The TVL figure of $6M is cited from citation 3 (bazaar_live), which is a live source \u2014 borderline but technically sourced. However, the entry price of $230 is referenced repeatedly without a market_data source confirming it as the current price (the actual price is $236.96), and the strategist/debater treat $230 as a meaningful level without sourcing it. More critically, no specific funding rate is cited (good), and no FOMC outcome is claimed as predictable (good). The $230 price level is the user's hypothetical entry, not a hallucinated claim, so this passes. Score: 1.0 \u2014 no clear must_not_hallucinate violation. Dissent grounding: The panel surfaces macro_event_risk only weakly \u2014 the FOMC is mentioned as a potential catalyst (bullish framing) rather than as a binary risk event. Funding_rate_risk and liquidation_cascade_risk are entirely absent from blocker questions and dissent. Leverage_unwind_risk is not explicitly named. The blocker questions focus on audit status and TVL, missing the core expected dissent topics (macro event binary risk, funding rates, liquidation cascades). Only a faint hint of macro risk surfaces. Score: 0.5. Confidence calibration: Panel gives 0.7 confidence on a DEFER verdict with 2 dissents, degraded fundamentals, and thin/tangential citations. The core macro-event risk (FOMC binary outcome) is not properly surfaced, yet confidence is 0.7 \u2014 mildly overconfident given the missing key risk factors and weak citation base. Score: 0.6.",
+      "wall_seconds": {
+        "panel": 70.8,
+        "judge": 16.71
+      }
+    },
+    {
+      "id": "drift-2025Q2-jto-perp-short",
+      "protocol": "drift",
+      "vertical": "perps",
+      "as_of_date": "2025-05-14",
+      "panel": {
+        "verdict": "defer",
+        "confidence": 0.65,
+        "dissent_count": 2,
+        "blocker_questions": [
+          "Does the total value locked (TVL) in Drift increase significantly within the next 21 days?"
+        ],
+        "n_citations": 5,
+        "provider_kinds_present": [
+          "bazaar_live",
+          "canon_berkshire",
+          "canon_damodaran",
+          "market_data"
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "ACT",
+        "expected_verdict_v2_set": [
+          "ACT",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "market_data",
+          "paysh_live",
+          "canon_damodaran",
+          "canon_marks"
+        ],
+        "expected_dissent_topics": [
+          "short_squeeze_risk",
+          "funding_rate_risk",
+          "narrative_reversal_risk"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.2,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 0.0,
+        "dissent_grounding": 0.5,
+        "confidence_calibration": 0.5
+      },
+      "passed": false,
+      "judge_notes": "Citation relevance is very poor: cite #2 is jitoSOL/USD price (not JTO token), cite #3 is a Berkshire Hathaway letter (completely off-topic), cites #4 and #5 are Damodaran liquidity/equity papers (generic finance, not DeFi/Drift/JTO), and cite #1 is a raw bazaar API cost blob with no substantive content. None of the citations ground the unlock-supply thesis with tokenomics or JTO-specific market data. Hallucination: the fundamental analyst cites '$6M TVL' and 'Grade B-' from citation #1, but that citation is a raw API cost JSON with no actual content \u2014 this is a fabricated/hallucinated figure presented as sourced. This triggers the must_not_hallucinate rule (specific TVL figure cited without a valid source). Dissent grounding: the panel does not explicitly surface short_squeeze_risk, funding_rate_risk, or narrative_reversal_risk \u2014 the expected dissent topics. The bull_bear_debater hints at demand absorption (loosely related to narrative_reversal) but does not concretely name any of the three expected topics. Confidence calibration: 0.65 defer is mildly reasonable given thin/irrelevant citations and mixed signals, but the panel lacks the tokenomics/unlock data needed to even evaluate the core thesis, suggesting confidence should be lower (more uncertainty). Mild over-confidence given near-zero on-topic citation support.",
+      "wall_seconds": {
+        "panel": 43.14,
+        "judge": 10.91
+      }
+    },
+    {
+      "id": "jupiter-2024Q3-jlp-vs-jitosol",
+      "protocol": "jupiter",
+      "vertical": "dex",
+      "as_of_date": "2024-09-09",
+      "panel": {
+        "verdict": "defer",
+        "confidence": 0.7,
+        "dissent_count": 1,
+        "blocker_questions": [
+          "Does the trading volume for JLP increase by more than 20% over the next 30 days?",
+          "3 of 4 primary analysts abstained \u2014 corpus too thin to support a directional call."
+        ],
+        "n_citations": 5,
+        "provider_kinds_present": [
+          "market_data",
+          "protocol_native"
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "DEFER",
+        "expected_verdict_v2_set": [
+          "ACT",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "paysh_live",
+          "market_data",
+          "canon_marks",
+          "canon_damodaran"
+        ],
+        "expected_dissent_topics": [
+          "concentration_risk",
+          "jlp_drawdown_risk",
+          "rotation_timing_risk"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.55,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 0.0,
+        "dissent_grounding": 0.7,
+        "confidence_calibration": 0.55
+      },
+      "passed": false,
+      "judge_notes": "Citation relevance: Citations 1-2 are on-topic (JLP/JitoSOL token data), Citation 3 covers JLP pool mechanics (relevant), Citation 4 is about lending oracles (tangential), Citation 5 is market data for jitoSOL but dated 2026-05-12 vs as_of_date 2024-09-09 (stale/mismatched). Roughly half are solidly on-topic. Hallucination: The fundamental analyst cites a specific TVL figure of ~$465M from Citation 1 (protocol_native, daily freshness) and the bull_bear_debater repeats it \u2014 this is sourced from a citation so technically grounded, but Citation 1's snippet is about JLP liquidity/mcap, not a standalone TVL figure. The risk manager mentions 'maximum position size of $2.5 billion' for the JLP pool with no citation \u2014 this is a specific figure with no matching source, which is a must_not_hallucinate violation. Hallucination score = 0.0. Dissent grounding: Concentration risk is named explicitly by the risk manager ('Concentration Risk' vector), and JLP drawdown/liquidity risk is raised. Rotation timing risk is hinted at but not concretely framed. At least one expected dissent topic (concentration_risk) is clearly surfaced. Score 0.7. Confidence calibration: Panel states 0.70 confidence for a DEFER verdict, but the coordinator's parsed verdict says 'pass' (reject), which is inconsistent with the envelope verdict of 'defer'. The corpus is thin (3 of 4 analysts abstained per blocker), dissent is present, and citations are mixed quality \u2014 0.70 confidence is mildly over-confident given these weaknesses. Mild miscalibration.",
+      "wall_seconds": {
+        "panel": 54.66,
+        "judge": 13.44
+      }
+    },
+    {
+      "id": "jupiter-2025Q1-lst-rotation-msol",
+      "protocol": "jupiter",
+      "vertical": "dex",
+      "as_of_date": "2025-03-04",
+      "panel": {
+        "verdict": "defer",
+        "confidence": 0.7,
+        "dissent_count": 2,
+        "blocker_questions": [
+          "Does the liquidity for Jupiter remain above $450 million while maintaining a stable or increasing trading volume over the next 30 days?"
+        ],
+        "n_citations": 5,
+        "provider_kinds_present": [
+          "market_data",
+          "protocol_native"
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "PASS",
+        "expected_verdict_v2_set": [
+          "PASS",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "paysh_live",
+          "market_data",
+          "canon_marks",
+          "canon_damodaran"
+        ],
+        "expected_dissent_topics": [
+          "points_narrative_risk",
+          "peg_deviation_risk",
+          "rotation_cost_overhead"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.45,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 0.0,
+        "dissent_grounding": 0.5,
+        "confidence_calibration": 0.6
+      },
+      "passed": false,
+      "judge_notes": "Citation relevance is weak: cites 1-2 are Jupiter LST token API data (tangentially relevant to mSOL/bSOL liquidity), cite 3 and 5 are Jupiter Lend unwind/multiply docs (completely off-topic for a DEX rotation question), and cite 4 is a Pyth mSOL price feed (marginally relevant). Only ~2 of 5 cites are meaningfully on-topic for the mSOL\u2192bSOL rotation via Jupiter DEX question. Hallucination: the verdict and turns contain a specific bSOL APY figure? No explicit APY figure is cited \u2014 however, the transcript does not cite a specific bSOL APY or points-program cash-equivalent valuation, so no must_not_hallucinate pattern is triggered. Score 0.0 (fail) because the fundamental analyst cites the liquidity figure \"$465,806,287.59\" directly from cite 2 (protocol_native/market_data), which is sourced \u2014 but the technical analyst references \"approximately $1,720,513\" buy volume and \"18,873 buys\" from cite 1 without a must_not_hallucinate violation. No specific bSOL APY or points valuation as cash-equivalent appears. However, the claim that the points narrative is \"active\" and driving yield is treated as a given without challenge \u2014 borderline but not a hard hallucination per the must_not_hallucinate list. Scoring 0.0 because the verdict confidence of 0.7 combined with the strategist recommending \"scale in small long\" while the coordinator says \"defer\" creates an internal contradiction that suggests the panel is not cleanly hallucination-free in its reasoning integrity, but strictly per must_not_hallucinate rules no explicit forbidden claim is made \u2014 revising to 1.0. Dissent grounding: rotation_cost_overhead and peg_deviation_risk are NOT surfaced at all; points_narrative_risk is only hinted at (sentiment analyst mentions \"cautious optimism\" and liquidity concerns but never explicitly calls out points-as-non-cash per Marks/Damodaran canon). Expected dissent topics are only partially hinted, not concretely surfaced. Confidence calibration: 0.7 confidence with thin/off-topic cites, no on-topic bSOL yield data, and 2 dissents is mildly over-confident; a 0.55-0.65 range would be more appropriate.",
+      "wall_seconds": {
+        "panel": 46.18,
+        "judge": 16.76
+      }
+    },
+    {
+      "id": "jito-2025Q2-mev-tip-band",
+      "protocol": "jito",
+      "vertical": "infra",
+      "as_of_date": "2025-04-21",
+      "panel": {
+        "verdict": "defer",
+        "confidence": 0.7,
+        "dissent_count": 2,
+        "blocker_questions": [
+          "Does Jito's TVL remain above $900 million over the next 7 days?"
+        ],
+        "n_citations": 5,
+        "provider_kinds_present": [
+          "bazaar_live",
+          "canon_berkshire",
+          "market_data"
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "ACT",
+        "expected_verdict_v2_set": [
+          "ACT",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "paysh_live",
+          "market_data",
+          "canon_mauboussin",
+          "canon_damodaran"
+        ],
+        "expected_dissent_topics": [
+          "mempool_depth_volatility",
+          "tip_inflation_risk",
+          "bot_competition_risk"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.2,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 0.0,
+        "dissent_grounding": 0.5,
+        "confidence_calibration": 0.4
+      },
+      "passed": false,
+      "judge_notes": "Citation relevance is very low: citations 1-2 are raw bazaar API cost blobs with no substantive Jito tip-floor data; citation 3 is a jitoSOL/USD Pyth price feed from Sept 2024 (stale, wrong asset for tip-band question); citations 4-5 are Berkshire Hathaway letters \u2014 completely off-topic. No paysh_live or Jito tip-floor archive source is present. Hallucination: the panel repeatedly cites a specific TVL figure (~$919.37M) sourced only from a bazaar snippet with no verifiable on-chain source, and the blocker/falsifier threshold of '$900 million' is stated as a concrete figure without a grounded source \u2014 these constitute hallucination patterns per must_not_hallucinate (specific figures without paysh_live/market_data). Score 0.0. Dissent grounding: bot_competition_risk and tip_inflation_risk are not surfaced at all; mempool_depth_volatility is only vaguely hinted at via 'volatility' language but never named concretely \u2014 partial credit only. Confidence calibration: panel defers at 0.70 confidence despite having zero on-topic tip-floor citations and two dissenting agents; 0.70 is overconfident given the complete absence of Jito tip-band data sources.",
+      "wall_seconds": {
+        "panel": 56.76,
+        "judge": 10.28
+      }
+    },
+    {
+      "id": "sanctum-2025Q3-unstake-vs-hold",
+      "protocol": "sanctum",
+      "vertical": "lst",
+      "as_of_date": "2025-08-05",
+      "panel": {
+        "verdict": "defer",
+        "confidence": 0.7,
+        "dissent_count": 2,
+        "blocker_questions": [
+          "Does the price of INF recover to above $150 within the next 30 days?"
+        ],
+        "n_citations": 5,
+        "provider_kinds_present": [
+          "market_data"
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "PASS",
+        "expected_verdict_v2_set": [
+          "PASS",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "paysh_live",
+          "market_data",
+          "canon_marks",
+          "canon_damodaran"
+        ],
+        "expected_dissent_topics": [
+          "peg_deviation_risk",
+          "router_spread_cost",
+          "yield_continuity_risk"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.35,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 0.0,
+        "dissent_grounding": 0.5,
+        "confidence_calibration": 0.4
+      },
+      "passed": false,
+      "judge_notes": "Citation relevance is poor: citations 2 and 4 are dated 2026-05-12 (future relative to as_of_date 2025-08-05), making them temporally mismatched and unreliable for the question; citation 3 is from 2024-12-02 (stale); citation 5 is from 2024-11-05 (stale). Only citation 1 (SOL/USD on 2025-08-05) is on-topic and timely. No paysh_live or router-spread source is present at all. Hallucination: multiple specific price figures are cited throughout the turns (INF at $135.927085, SOL at $95.587882 from 2026-05-12 candles; INF at $298.09 from 2024-12-02) \u2014 these figures come from sources with wrong dates (future or stale) and are used as if current, constituting hallucinated/fabricated current-price claims. The blocker question references INF recovering to above $150, which implies a current price below $150 \u2014 but no valid as_of_date source supports this specific level. This triggers the must_not_hallucinate rule on specific INF/SOL peg figures cited without valid market_data. Dissent grounding: peg_deviation_risk is hinted at via the bull-bear debater and risk manager discussing price declines and peg recovery, and router_spread_cost is briefly touched (1.001 SOL spread mentioned in question framing but not substantively analyzed by any agent). yield_continuity_risk is not concretely surfaced. Only partial/hinted coverage \u2014 score 0.5. Confidence calibration: panel states 0.7 confidence for DEFER, but citations are largely stale/future-dated, no paysh_live data on router spread or INF APY exists, and dissent is present \u2014 0.7 is overconfident given thin/invalid evidence base.",
+      "wall_seconds": {
+        "panel": 38.32,
+        "judge": 13.25
+      }
+    }
+  ]
+}
