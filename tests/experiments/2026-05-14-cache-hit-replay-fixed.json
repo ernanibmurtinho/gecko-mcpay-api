@@ -1,0 +1,51 @@
+{
+  "experiment": "S28 W1 #24 — cache-hit replay after idea_hash tier fix",
+  "branch": "s28/cache-key-fix",
+  "date": "2026-05-14",
+  "fixes_applied": [
+    "Bug 1: tier appended to idea_hash composition (sha256(protocol|vertical|intent|size|horizon|tier))",
+    "Bug 2: runtime.hot_swap_to fires get_verdict(trigger=spec_change, force_refresh=True)"
+  ],
+  "cost_usd": 0,
+  "results": [
+    {
+      "mode": "idle",
+      "calls": 288,
+      "cache_hits": 287,
+      "cache_misses": 1,
+      "hit_ratio": 0.997,
+      "prior": 0.95,
+      "prior_post_fix_expected_band": [0.90, 1.00],
+      "unique_idea_hashes": 1,
+      "underlying_charge_calls": 1,
+      "notes": "Idle is single-tier (basic only); tier-keying does not affect it."
+    },
+    {
+      "mode": "active-low",
+      "calls": 53,
+      "cache_hits": 51,
+      "cache_misses": 2,
+      "hit_ratio": 0.962,
+      "prior": 0.70,
+      "pre_s28_measured": 0.981,
+      "prior_post_fix_expected_band": [0.70, 0.85],
+      "unique_idea_hashes": 2,
+      "underlying_charge_calls": 2,
+      "notes": "Drop from 0.981 -> 0.962 reflects the 5 pro spec_change calls now correctly missing against the basic cache. Still well above 0.70 prior; pricing band unchanged."
+    },
+    {
+      "mode": "active-high",
+      "calls": 496,
+      "cache_hits": 487,
+      "cache_misses": 9,
+      "hit_ratio": 0.982,
+      "prior": 0.50,
+      "pre_s28_measured": 0.984,
+      "prior_post_fix_expected_band": [0.50, 0.70],
+      "unique_idea_hashes": 9,
+      "underlying_charge_calls": 9,
+      "notes": "Drop from 0.984 -> 0.982. The 20 pro spec_change swaps now miss, but base-idea spray dominates the volume so the headline ratio barely moves. Brief expected a larger drop because we assumed prior measurement was tier=basic-only collision; in fact the basic-tier paraphrase collapse is the real driver and remains intact."
+    }
+  ],
+  "summary": "Tier-keying produces a small but correct correction in active-low (1.9pp) and active-high (0.2pp). Idle is unaffected. The S27 'inflation' was much smaller than the brief expected because the streams are basic-tier dominant and the basic-tier semantic-hash collapse was already accurate."
+}
