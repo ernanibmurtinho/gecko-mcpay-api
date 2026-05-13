@@ -114,59 +114,12 @@ class _LLMReplier(Protocol):
         ...
 
 
-def _middle_out_reorder(chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Lost-in-the-middle mitigation: place highest-scored chunks at the
-    edges (primacy + recency positions) and demote lower-scored ones to
-    the middle.
-
-    Background (S26 #19): canary 2026-05-13-canary-postfix observed
-    personas citing markers [1][2][3][14][15] only out of 15 chunks —
-    classic "ignore the middle" attention pattern documented in the
-    Lost-in-the-Middle paper (Liu et al., 2023). The fix is purely a
-    prompt-layout change; retrieval scoring (#13's boost code) is
-    unchanged — we just don't put the strongest evidence in the position
-    the model is least likely to read.
-
-    Strategy: given score-sorted input ``[r1, r2, ..., rN]`` (r1 highest),
-    assign by alternating edges:
-      position N  <- r1   (recency — strongest at the tail)
-      position 1  <- r2   (primacy — second-strongest at the head)
-      position N-1 <- r3
-      position 2  <- r4
-      ...and so on, converging to the middle with the weakest chunks.
-
-    Returns a NEW list; does not mutate input.
-    """
-    n = len(chunks)
-    if n <= 2:
-        return list(chunks)
-    out: list[dict[str, Any] | None] = [None] * n
-    left = 0
-    right = n - 1
-    flip = True  # True -> place at right next; False -> place at left
-    for rank, chunk in enumerate(chunks):
-        if flip:
-            out[right] = chunk
-            right -= 1
-        else:
-            out[left] = chunk
-            left += 1
-        flip = not flip
-    return [c for c in out if c is not None]
-
-
 def _format_chunks(chunks: list[dict[str, Any]]) -> str:
     """Render retrieved chunks as a numbered context block.
 
     Indexed so the personas can cite by chunk index in their bodies.
     Each chunk is rendered as ``[idx] (source) text``. Truncated to
     ``_RAG_CONTEXT_CHAR_CAP`` total characters to keep round-1 cheap.
-
-    S26 #19: callers must apply ``_middle_out_reorder`` BEFORE passing
-    chunks here if lost-in-the-middle mitigation is desired. We do not
-    reorder here because ``build_citations_from_chunks`` needs the same
-    ordering to keep [N] markers aligned with citation ids — keep one
-    canonical reorder point at the orchestration layer.
     """
     if not chunks:
         return "(no retrieved chunks — corpus empty for this protocol)"
@@ -184,11 +137,36 @@ def _format_chunks(chunks: list[dict[str, Any]]) -> str:
 
 
 def _opening_prompt(idea: str, protocol: str, chunks: list[dict[str, Any]]) -> str:
-    """Seed message for the panel — stable shape across all 7 personas."""
+    """Seed message for the panel — stable shape across all 7 personas.
+
+    S26 #19: a CITATION BREADTH directive is appended so non-coordinator
+    voices spread their inline ``[N]`` markers across the full chunk
+    range. Without it, gpt-4o-mini consistently cites 3-5 edge markers
+    only (see canary 2026-05-13-canary-postfix). This is a persona-
+    structure directive, not a coordinator verdict-shape edit, and is
+    safe under the plateau-memory caveat.
+    """
+    n_chunks = len(chunks)
+    breadth_block = (
+        ""
+        if n_chunks == 0
+        else (
+            "\n\nCITATION BREADTH (mandatory for every non-coordinator voice):\n"
+            f"  You have {n_chunks} numbered corpus chunks ([1] through [{n_chunks}]).\n"
+            "  Your turn MUST cite at least 4 DISTINCT chunk indices when "
+            f"{n_chunks} >= 6, drawn from across the full range — "
+            "  do NOT cite only edges [1][2][N-1][N]. Walk the middle. If a "
+            "middle chunk is not directly relevant, name it briefly and say "
+            "why you set it aside; do not silently skip.\n"
+            "  Phantom citation (claiming a chunk you did not read in body "
+            "text) is a panel failure mode and disqualifies the turn.\n"
+        )
+    )
     return (
         f"Research question: {idea}\n\n"
         f"Protocol in scope: {protocol}\n\n"
-        f"Retrieved corpus chunks (numbered for citation):\n{_format_chunks(chunks)}\n\n"
+        f"Retrieved corpus chunks (numbered for citation):\n{_format_chunks(chunks)}"
+        f"{breadth_block}\n\n"
         "Each persona contributes once, in this order: "
         "technical_analyst → sentiment_analyst → fundamental_analyst → "
         "risk_manager → strategist → bull_bear_debater → coordinator. "
@@ -1101,12 +1079,6 @@ async def run_trade_panel_with_retrieval(
         top_k=top_k,
         as_of_date=as_of_date,
     )
-
-    # S26 #19 — lost-in-the-middle mitigation. Reorder once here so
-    # _format_chunks (via run_trade_panel -> _opening_prompt) and
-    # build_citations_from_chunks see the SAME index order. The marker
-    # convention [N] in persona prose must align with citation.id == N.
-    chunks = _middle_out_reorder(chunks)
 
     # Issue #12 — panel kickoff log. Truthy chunks here but empty
     # `citations` on the response would point at hypothesis 3 (prompt-drop):
