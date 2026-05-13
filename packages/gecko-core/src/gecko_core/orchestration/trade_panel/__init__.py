@@ -674,7 +674,7 @@ def _apply_retrieval_boosts(
     in-window stacks to +0.30 over the raw Atlas score.
     """
     proto_norm = (protocol or "").strip().lower()
-    PROVIDER_SPECIFIC_KINDS = {"paysh_live", "bazaar_live"}
+    PROVIDER_SPECIFIC_KINDS = {"paysh_live", "bazaar_live", "protocol_native"}
 
     for row in rows:
         raw = float(row.get("score") or 0.0)
