@@ -980,6 +980,45 @@ def check_voyage_api_key(environ: dict[str, str] | None = None) -> list[CheckRes
     return results
 
 
+def check_cohere_api_key(environ: dict[str, str] | None = None) -> list[CheckResult]:
+    """S28 #25 — verify Cohere API key for the trade-panel rerank wedge.
+
+    ``COHERE_API_KEY`` is optional — the trade-panel retrieval degrades
+    gracefully when unset (falls through to the Path D baseline). When set,
+    we surface a redacted prefix sentinel to confirm not-empty without
+    leaking the secret. Cohere keys do not have a stable public prefix
+    pattern so we accept any non-empty value.
+
+    Security: the key is never echoed. We surface ``<first2>...<last4>``
+    only when length permits; otherwise ``set`` only.
+    """
+    env = environ if environ is not None else dict(os.environ)
+    results: list[CheckResult] = []
+    key = (env.get("COHERE_API_KEY") or "").strip()
+    if not key:
+        results.append(
+            CheckResult(
+                name="cohere:api_key",
+                ok=True,
+                detail="unset (rerank degrades gracefully — Path D baseline)",
+                info=True,
+            )
+        )
+        return results
+    if len(key) >= 8:
+        sentinel = f"{key[:2]}...{key[-4:]}"
+    else:
+        sentinel = "set"
+    results.append(
+        CheckResult(
+            name="cohere:api_key",
+            ok=True,
+            detail=f"prefix={sentinel}",
+        )
+    )
+    return results
+
+
 VOYAGE_LIVE_TIMEOUT_S: float = 5.0
 
 
@@ -1417,6 +1456,7 @@ def run_doctor(
         results.extend(check_chunk_store(environ))
         results.extend(check_embed_provider(environ))
         results.extend(check_voyage_api_key(environ))
+        results.extend(check_cohere_api_key(environ))
         if live:
             results.extend(asyncio.run(check_voyage_live(environ)))
             results.append(check_openai_live(environ))

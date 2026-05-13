@@ -34,6 +34,10 @@ dependencies = [
     "eth-account>=0.13",
     "x402[evm,svm]>=2.8.0",
     "voyageai>=0.2",
+    # S28 #25 — Cohere Rerank for trade-panel post-retrieval semantic
+    # re-scoring. Required at import-time when COHERE_API_KEY is set;
+    # the rerank module degrades gracefully when the package is missing.
+    "cohere>=5.0",
     # W3-1: Helius websocket subscription manager. Already pulled in
     # transitively by other deps but declared explicitly here so the
     # trade-agent hotpath import doesn't depend on transitive resolution.
