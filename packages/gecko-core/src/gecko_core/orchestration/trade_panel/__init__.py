@@ -935,13 +935,13 @@ async def retrieve_trade_corpus_chunks(
                 "index": VECTOR_INDEX_NAME,
                 "path": "embedding",
                 "queryVector": query_vector,
-                "numCandidates": max(200, top_k * 20),
-                # S25 #13 — oversample at vectorSearch stage so the Python
-                # boost pass has room to reshuffle protocol-tagged chunks
-                # ahead of canon. Atlas charges by candidate scan, not
-                # result size; 10x is still cheap and gives the boost real
-                # working space.
-                "limit": top_k * 10,
+                # S27 Path D — bumped numCandidates from 20x to 40x so the
+                # ANN graph has enough slack for the wider 12x post-filter
+                # pool (below). limit raised from 10x to 15x for the same
+                # reason. Atlas charges by candidate scan; this is one
+                # wider scan, not 4x cost.
+                "numCandidates": max(400, top_k * 40),
+                "limit": top_k * 15,
                 "exact": False,
                 # S24 WS-A Pattern F — the vertical pre-filter must admit
                 # cross-cutting chunks (canon literature, market_data macro
@@ -1009,7 +1009,14 @@ async def retrieve_trade_corpus_chunks(
         # for a Kamino leverage question). Boost = +0.15 protocol-exact,
         # +0.10 paysh_live/bazaar_live with protocol match, -0.10 for
         # hot market_data outside fixture as_of_date ±7d window.
-        {"$limit": top_k * 4},
+        # S27 Path D — widen the candidate pool from 4x to 12x so the
+        # provider-kind quota allocator (below) has enough mixed-kind
+        # candidates to fill canon / market_data / paysh_live quotas on
+        # niche queries. Prior 4x routinely produced 0 canon candidates
+        # for tightly-scoped vault questions (e.g. kamino-2024Q3-jlpusdc),
+        # forcing the allocator to overflow every slot to protocol_native.
+        # 12x is one wider Mongo scan, not 12; cost is negligible.
+        {"$limit": top_k * 12},
         {
             "$project": {
                 "_id": 1,
