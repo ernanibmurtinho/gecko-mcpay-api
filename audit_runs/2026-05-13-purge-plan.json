@@ -1,0 +1,502 @@
+{
+  "generated_at": "2026-05-13T23:09:45.947131+00:00",
+  "mode": "dry-run",
+  "classes": [
+    {
+      "code": "A",
+      "label": "web + binary (PDF extraction failures)",
+      "expected_approx": 3229,
+      "matched_count": 3229,
+      "sample_urls": [
+        [
+          "https://solana.com/x402/hackathon",
+          901
+        ],
+        [
+          "https://synthesis.mandate.md/tracks/pl-genesis-agents-with-receipts-8004",
+          527
+        ],
+        [
+          "https://synthesis.mandate.md/tracks/synthesis-open-track",
+          337
+        ],
+        [
+          "https://n8n.io/integrations/if/",
+          213
+        ],
+        [
+          "https://mcp.so/tag/solana",
+          135
+        ],
+        [
+          "https://solana.com/x402",
+          100
+        ],
+        [
+          "https://solana.com/x402/what-is-x402",
+          85
+        ],
+        [
+          "https://www.indiehackers.com/post/welcome-introduce-yourself-week-of-may-24th-welcomeIntro-2020-05-24",
+          82
+        ],
+        [
+          "https://www.x402.org/ecosystem",
+          79
+        ],
+        [
+          "https://cryptoweekly.co/top-100-people-in-crypto/",
+          76
+        ]
+      ],
+      "sample_chunks": [
+        {
+          "_id": "69fda6c13cc0ffe147e82318",
+          "source_url": "http://rebelfi.io/blog/solana-vs-ethereum-stablecoin-yield-comparison",
+          "provider_kind": "web",
+          "text_preview": "XQ\ufffd2o\ufffd\ufffd+,\u07afz\ufffdY\ufffdW \u07ef\ufffd2+\ufffd\ufffdd;f\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\u02b8d\ufffd\ufffdcH\ufffd7\ufffd7\ufffdb\ufffd\ufffd^`\ufffd\ufffd\\\ufffdX\u3d5fT\ufffd\ufffd\ufffd>\ufffd\ufffd\ufffdp \ufffd\ufffd!^ <\ufffd\\\ufffd2Z5\u027c\ufffd'\u04c2\ufffd\ufffd\ufffd\ufffd\ufffdB\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd6_6Z\ufffd\ufffd\ufffdi\\2\ufffd\ufffd\ufffdg\ufffd[\ufffd{\ufffd\ufffd\ufffd x\ufffdC\ufffd\ufffd&"
+        },
+        {
+          "_id": "69fda6c13cc0ffe147e82313",
+          "source_url": "http://rebelfi.io/blog/solana-vs-ethereum-stablecoin-yield-comparison",
+          "provider_kind": "web",
+          "text_preview": "R\ufffd\ufffd\ufffd\ufffd.-\ufffdH\ufffd\ufffdY\ufffd\ufffd;`a\ufffd\ufffdAz\ufffd\ufffd\ufffdy8\u07f2\ufffdZd'\ufffd {n3\ufffd~\ufffd\ufffd\u015e\ufffd[t\ufffd\ufffd\ufffd\ufffd\"a#\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdoD q\u007fi\ufffd\ufffd\ufffdI\u03b7\ufffd\ufffd$\ufffd\ufffd\ufffdd\ufffd -\ufffdH\ufffd9\ufffdgz\ufffd^\ufffd\ufffd\ufffd~/\ufffd\ufffd6\ufffduZ&\ufffd \ufffd\ufffd\ufffd\ufffdf2]h\ufffdI\ufffd\ufffd\ufffd0{\ufffd\u0516`"
+        },
+        {
+          "_id": "69fda6c13cc0ffe147e8230c",
+          "source_url": "http://rebelfi.io/blog/solana-vs-ethereum-stablecoin-yield-comparison",
+          "provider_kind": "web",
+          "text_preview": "\ufffd*Q\ufffd\ufffd\ufffd \"\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdp\ufffd\ufffd\ufffd7\ufffd\ufffd\ufffds9\ufffd\ufffd\ufffd \ufffd Q\ufffd^K\ufffd\ufffd\ufffd$\ufffd8\ufffdIL\ufffd\ufffdR\ufffd\ufffd\ufffd \ufffd\ufffd\ufffd\ufffdi}?M\ufffd\ufffd\ufffd\ufffd\ufffd$\ufffd \ufffdlK\ufffd\ufffdUv\ufffd\ufffd\\R8\ufffd\ufffdT.\ufffd\uf8a8\ufffd\ufffd\ufffdR\ufffd$<\ufffd PX\ufffd \ufffd\ufffd\ufffds\ufffdH#0\ufffdY\ufffd\ufffd\ufffd\ufffd\ufffdV\ufffd\u03bd\ufffd\ufffd\ufffd)r"
+        },
+        {
+          "_id": "69fda6c13cc0ffe147e8232e",
+          "source_url": "http://rebelfi.io/blog/solana-vs-ethereum-stablecoin-yield-comparison",
+          "provider_kind": "web",
+          "text_preview": " \ufffdz>N\ufffd\ufffd\u05b1\ufffd5\u055d\ufffdw\ufffd \u018d(\ufffda\ufffd\ufffd.\ufffd(\ufffd\ufffd3O\ufffd\ufffd5a\ufffd6\u0600\ufffd\ufffd\ufffd\ufffd\ufffd!(\ufffd\ufffd\ufffd\ufffdk^t`\ufffd\ufffd*\ufffda\ufffd\ufffd$O\ufffd+\ufffdS\ufffdG\ufffd\ufffd\ufffd]9t]\ufffd\ufffdZ\ufffd\ufffd5\ufffd\ufffd\ufffd\ufffd\ufffd*\ufffd\ufffd8B\ufffd0X\ufffdU' cO\ufffdx \ufffd\ufffdS\ufffd_\u0728\ufffd8\ufffdA\ufffd;4\ufffd\ufffd\ufffd2\ufffd\ufffd\u04be"
+        },
+        {
+          "_id": "69fda6c13cc0ffe147e82323",
+          "source_url": "http://rebelfi.io/blog/solana-vs-ethereum-stablecoin-yield-comparison",
+          "provider_kind": "web",
+          "text_preview": "b\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd/S A \ufffdeSp\ufffd\ufffd 1\ufffd\ufffd\u0210 `KH\ufffd\ufffdE\ufffd\\\ufffdl8\ufffdu \ufffd$\ufffd If\ufffd\ufffd\ufffd\ufffd=e\ufffdX.xx\ufffd=\ufffdK\ufffd/ \\\ufffd\ufffd\ufffd\ufffd2S\ufffdw}\ufffd.3\ufffd&l$\ufffd_A@df\ufffd\ufffd\ufffd f\ufffd \ufffd#\ufffd+\ufffd\ufffd\ufffd *DL \ufffd\ufffdA\ufffdL1\ufffd\ufffd\ufffd,\ufffd\ufffd!\ufffd\ufffd3"
+        }
+      ],
+      "ids_count": 3229
+    },
+    {
+      "code": "B",
+      "label": "canon_berkshire + binary",
+      "expected_approx": 149,
+      "matched_count": 149,
+      "sample_urls": [
+        [
+          "https://www.berkshirehathaway.com/letters/1989.html",
+          12
+        ],
+        [
+          "https://www.berkshirehathaway.com/letters/1990.html",
+          9
+        ],
+        [
+          "https://www.berkshirehathaway.com/letters/1985.html",
+          9
+        ],
+        [
+          "https://www.berkshirehathaway.com/letters/1984.html",
+          8
+        ],
+        [
+          "https://www.berkshirehathaway.com/letters/1986.html",
+          7
+        ],
+        [
+          "https://www.berkshirehathaway.com/letters/1996.html",
+          6
+        ],
+        [
+          "https://www.berkshirehathaway.com/letters/1980.html",
+          6
+        ],
+        [
+          "https://www.berkshirehathaway.com/letters/1992.html",
+          5
+        ],
+        [
+          "https://www.berkshirehathaway.com/letters/1991.html",
+          5
+        ],
+        [
+          "https://www.berkshirehathaway.com/letters/1988.html",
+          5
+        ]
+      ],
+      "sample_chunks": [
+        {
+          "_id": "6a02160e5ecb74368afd1b94",
+          "source_url": "https://www.berkshirehathaway.com/letters/2003ltr.pdf",
+          "provider_kind": "canon_berkshire",
+          "text_preview": "2\r Note: The following table appears in the printed Annual Report on the facing page of the\r Chairman's Letter and is re"
+        },
+        {
+          "_id": "6a0216085ecb74368afd1b68",
+          "source_url": "https://www.berkshirehathaway.com/letters/2002pdf.pdf",
+          "provider_kind": "canon_berkshire",
+          "text_preview": "2\r Note: The following table appears in the printed Annual Report on the facing page of the\r Chairman's Letter and is re"
+        },
+        {
+          "_id": "6a0216025ecb74368afd1b42",
+          "source_url": "https://www.berkshirehathaway.com/letters/2001pdf.pdf",
+          "provider_kind": "canon_berkshire",
+          "text_preview": "2\r Note: The following table appears in the printed Annual Report on the facing page of the\r Chairman's Letter and is re"
+        },
+        {
+          "_id": "6a0215fb5ecb74368afd1b1a",
+          "source_url": "https://www.berkshirehathaway.com/letters/2000pdf.pdf",
+          "provider_kind": "canon_berkshire",
+          "text_preview": "2\r Note: The following table appears in the printed Annual Report on the facing page of the\r Chairman's Letter and is re"
+        },
+        {
+          "_id": "6a02156f3169a51804eec468",
+          "source_url": "https://www.berkshirehathaway.com/letters/2024ltr.pdf",
+          "provider_kind": "canon_berkshire",
+          "text_preview": ", 2025 Warren E. Buffett \r  Chairman of the Board \r 13   Berkshire\u2019s Performance vs. the S&P 500 \r  Annual Percentage Ch"
+        }
+      ],
+      "ids_count": 149
+    },
+    {
+      "code": "C",
+      "label": "twitsh stub fixtures (twitsh://session/*)",
+      "expected_approx": 117,
+      "matched_count": 118,
+      "sample_urls": [
+        [
+          "twitsh://session/1e798cd5-eec0-4e3f-a131-662e0dedebfc",
+          2
+        ],
+        [
+          "twitsh://session/2685dc56-c4e8-4436-bdb1-1c77ebe01d45",
+          2
+        ],
+        [
+          "twitsh://session/3a91eaa4-803a-4b05-9de8-83486e0bf535",
+          2
+        ],
+        [
+          "twitsh://session/9bfec8e9-3be4-413f-9c1a-1cf8b96f2195",
+          2
+        ],
+        [
+          "twitsh://session/e658dd94-d48a-46d1-92f2-2faf209a48e5",
+          2
+        ],
+        [
+          "twitsh://session/e514e164-d18f-4cc3-a4d4-dcab548a920b",
+          2
+        ],
+        [
+          "twitsh://session/fe6cda12-c7ee-412d-b76a-4939480d5f02",
+          2
+        ],
+        [
+          "twitsh://session/7e8499e5-b9f0-4f4a-abd2-f4887a70956f",
+          2
+        ],
+        [
+          "twitsh://session/bbae8c8a-2982-4193-b355-1537f7372e34",
+          2
+        ],
+        [
+          "twitsh://session/dc63f411-fe9c-4cfa-88bb-3d366e7e563d",
+          2
+        ]
+      ],
+      "sample_chunks": [
+        {
+          "_id": "69fda6d03cc0ffe147e8233f",
+          "source_url": "twitsh://session/1e798cd5-eec0-4e3f-a131-662e0dedebfc",
+          "provider_kind": "twitsh",
+          "text_preview": "@signal_main-ma (2026-05-01T00:00:00Z): x402 makes main-market pay-per-call viable for the first time  Engagement: 18 li"
+        },
+        {
+          "_id": "69fda6d03cc0ffe147e8233e",
+          "source_url": "twitsh://session/1e798cd5-eec0-4e3f-a131-662e0dedebfc",
+          "provider_kind": "twitsh",
+          "text_preview": "@builder_utiliz (2026-05-01T00:00:00Z): agentic markets are eating utilization  Engagement: 42 likes, 12 reposts, 7 repl"
+        },
+        {
+          "_id": "69fd53953cc0ffe147e82281",
+          "source_url": "twitsh://session/2685dc56-c4e8-4436-bdb1-1c77ebe01d45",
+          "provider_kind": "twitsh",
+          "text_preview": "@builder_advers (2026-05-01T00:00:00Z): agentic markets are eating adversarial-debate  Engagement: 42 likes, 12 reposts,"
+        },
+        {
+          "_id": "69fd53953cc0ffe147e82282",
+          "source_url": "twitsh://session/2685dc56-c4e8-4436-bdb1-1c77ebe01d45",
+          "provider_kind": "twitsh",
+          "text_preview": "@signal_marketp (2026-05-01T00:00:00Z): x402 makes marketplaces pay-per-call viable for the first time  Engagement: 18 l"
+        },
+        {
+          "_id": "69fd25fc170ac73a47866517",
+          "source_url": "twitsh://session/3a91eaa4-803a-4b05-9de8-83486e0bf535",
+          "provider_kind": "twitsh",
+          "text_preview": "@signal_neobank (2026-05-01T00:00:00Z): x402 makes neobank pay-per-call viable for the first time  Engagement: 18 likes,"
+        }
+      ],
+      "ids_count": 118
+    },
+    {
+      "code": "D",
+      "label": "paysh_live (whole-kind purge; all 64 empty)",
+      "expected_approx": 64,
+      "matched_count": 64,
+      "sample_urls": [
+        [
+          "paysponge/coingecko",
+          64
+        ]
+      ],
+      "sample_chunks": [
+        {
+          "_id": "6a020b8a171616cd80f33f9d",
+          "source_url": "paysponge/coingecko",
+          "provider_kind": "paysh_live",
+          "text_preview": "{ \"data\": [] }"
+        },
+        {
+          "_id": "6a020b85171616cd80f33f9c",
+          "source_url": "paysponge/coingecko",
+          "provider_kind": "paysh_live",
+          "text_preview": "{ \"data\": [] }"
+        },
+        {
+          "_id": "6a020b7d171616cd80f33f9b",
+          "source_url": "paysponge/coingecko",
+          "provider_kind": "paysh_live",
+          "text_preview": "{ \"data\": [] }"
+        },
+        {
+          "_id": "6a020b78171616cd80f33f9a",
+          "source_url": "paysponge/coingecko",
+          "provider_kind": "paysh_live",
+          "text_preview": "{ \"data\": [] }"
+        },
+        {
+          "_id": "6a020b73171616cd80f33f99",
+          "source_url": "paysponge/coingecko",
+          "provider_kind": "paysh_live",
+          "text_preview": "{ \"data\": [] }"
+        }
+      ],
+      "ids_count": 64
+    },
+    {
+      "code": "E",
+      "label": "bazaar_manifest thin (text length < 200)",
+      "expected_approx": 46,
+      "matched_count": 46,
+      "sample_urls": [
+        [
+          "https://agentic.market/services/docs-clado-ai",
+          1
+        ],
+        [
+          "https://agentic.market/services/agentcamo-xyz",
+          1
+        ],
+        [
+          "https://agentic.market/services/myceliasignal-com",
+          1
+        ],
+        [
+          "https://agentic.market/services/stablemerch-dev",
+          1
+        ],
+        [
+          "https://agentic.market/services/hyperbrowser-ai",
+          1
+        ],
+        [
+          "https://agentic.market/services/hyperbolic-xyz",
+          1
+        ],
+        [
+          "https://agentic.market/services/hunter-io",
+          1
+        ],
+        [
+          "https://agentic.market/services/ai-google-dev",
+          1
+        ],
+        [
+          "https://agentic.market/services/mesh-heurist-xyz",
+          1
+        ],
+        [
+          "https://agentic.market/services/gen-portalfoundation-ai",
+          1
+        ]
+      ],
+      "sample_chunks": [
+        {
+          "_id": "69fc3996c14f4b7af2b6b305",
+          "source_url": "https://agentic.market/services/docs-clado-ai",
+          "provider_kind": "bazaar_manifest",
+          "text_preview": "Clado [Data] Contact enrichment Networks: Base, Solana. Pricing: $0.2 USDC."
+        },
+        {
+          "_id": "69fc3996c14f4b7af2b6b304",
+          "source_url": "https://agentic.market/services/agentcamo-xyz",
+          "provider_kind": "bazaar_manifest",
+          "text_preview": "Agent Camo (VPN) [Infra] Residential proxy sessions with geo-targeting Networks: Base, Solana. Pricing: $0.01 USDC."
+        },
+        {
+          "_id": "69fc3994c14f4b7af2b6b301",
+          "source_url": "https://agentic.market/services/myceliasignal-com",
+          "provider_kind": "bazaar_manifest",
+          "text_preview": "Mycelia Signal [Trading] Cryptographic price oracle (7 feeds) Networks: Base. Pricing: $0.01 USDC."
+        },
+        {
+          "_id": "69fc3993c14f4b7af2b6b300",
+          "source_url": "https://agentic.market/services/stablemerch-dev",
+          "provider_kind": "bazaar_manifest",
+          "text_preview": "StableMerch [Other] Order custom t-shirts and mugs from images Networks: Base. Pricing: $15 \u2013 $25 USDC avg $20."
+        },
+        {
+          "_id": "69fc3992c14f4b7af2b6b2ff",
+          "source_url": "https://agentic.market/services/hyperbrowser-ai",
+          "provider_kind": "bazaar_manifest",
+          "text_preview": "Hyperbrowser [Search] Headless browser and web scraping - AI-native Networks: Base, Solana. Pricing: $0.001 \u2013 $0.005 USD"
+        }
+      ],
+      "ids_count": 46
+    },
+    {
+      "code": "F",
+      "label": "web test fixtures (^chunk text \\d+$)",
+      "expected_approx": 44,
+      "matched_count": 10,
+      "sample_urls": [
+        [
+          "<no-url>",
+          10
+        ]
+      ],
+      "sample_chunks": [
+        {
+          "_id": "69f64eca5c55500997670ffe",
+          "source_url": "<no-url>",
+          "provider_kind": "web",
+          "text_preview": "chunk text 0"
+        },
+        {
+          "_id": "69f64eca5c55500997670fff",
+          "source_url": "<no-url>",
+          "provider_kind": "web",
+          "text_preview": "chunk text 1"
+        },
+        {
+          "_id": "69f64eca5c55500997671000",
+          "source_url": "<no-url>",
+          "provider_kind": "web",
+          "text_preview": "chunk text 2"
+        },
+        {
+          "_id": "69f64eca5c55500997671001",
+          "source_url": "<no-url>",
+          "provider_kind": "web",
+          "text_preview": "chunk text 3"
+        },
+        {
+          "_id": "69f64eca5c55500997671002",
+          "source_url": "<no-url>",
+          "provider_kind": "web",
+          "text_preview": "chunk text 4"
+        }
+      ],
+      "ids_count": 10
+    },
+    {
+      "code": "G",
+      "label": "assorted too_short (paysh_manifest+market_data+canon_damodaran+leftovers)",
+      "expected_approx": 10,
+      "matched_count": 10,
+      "sample_urls": [
+        [
+          "https://www.stern.nyu.edu/~adamodar/pdfiles/papers/ERP2012.pdf",
+          1
+        ],
+        [
+          "https://www.stern.nyu.edu/~adamodar/pdfiles/papers/ERP2011.pdf",
+          1
+        ],
+        [
+          "https://gecko.local/market_data/jupiter/2026-05-12T08:00:00Z",
+          1
+        ],
+        [
+          "https://gecko.local/market_data/drift/2026-05-12T08:00:00Z",
+          1
+        ],
+        [
+          "https://gecko.local/market_data/kamino/2026-05-12T08:00:00Z",
+          1
+        ],
+        [
+          "https://pay.sh/.well-known/agent-skills/index.json#publish-provider",
+          1
+        ],
+        [
+          "https://pay.sh/.well-known/agent-skills/index.json#accept-api-payments",
+          1
+        ],
+        [
+          "https://pay.sh/.well-known/agent-skills/index.json#configure-pay-mcp",
+          1
+        ],
+        [
+          "https://pay.sh/.well-known/agent-skills/index.json#discover-provider",
+          1
+        ],
+        [
+          "https://pay.sh/.well-known/agent-skills/index.json#pay-for-api",
+          1
+        ]
+      ],
+      "sample_chunks": [
+        {
+          "_id": "6a021a5c600a85667fd2c108",
+          "source_url": "https://www.stern.nyu.edu/~adamodar/pdfiles/papers/ERP2012.pdf",
+          "provider_kind": "canon_damodaran",
+          "text_preview": "% 27.98% 6.54% 4.82%\r 2004 10.74% 1.23% 4.49% 9.52% 6.25% 6.53% 4.84%\r 2005 4.83% 3.01% 2.87% 1.82% 1.97% 6.47% 4.80%"
+        },
+        {
+          "_id": "6a021a48600a85667fd2c08b",
+          "source_url": "https://www.stern.nyu.edu/~adamodar/pdfiles/papers/ERP2011.pdf",
+          "provider_kind": "canon_damodaran",
+          "text_preview": "2.21% 4.00% 6.43%\r 2009 1115.10 59.65 22.31 3.84% 7.20% 4.36%\r 2010 1257.64 83.66 23.12 3.29% 6.95% 5.20%"
+        },
+        {
+          "_id": "6a02e49d5fd7b227d635b3a0",
+          "source_url": "https://gecko.local/market_data/jupiter/2026-05-12T08:00:00Z",
+          "provider_kind": "market_data",
+          "text_preview": "DefiLlama TVL snapshot for jupiter (as of 2026-05-12T08:00:00Z). Current TVL: $0 USD. 7-day change: +0.00%. 30-day chang"
+        },
+        {
+          "_id": "6a02e4985fd7b227d635b39d",
+          "source_url": "https://gecko.local/market_data/drift/2026-05-12T08:00:00Z",
+          "provider_kind": "market_data",
+          "text_preview": "DefiLlama TVL snapshot for drift (as of 2026-05-12T08:00:00Z). Current TVL: $277,181,616 USD. 7-day change: +11.97%. 30-"
+        },
+        {
+          "_id": "6a02e48e5fd7b227d635b399",
+          "source_url": "https://gecko.local/market_data/kamino/2026-05-12T08:00:00Z",
+          "provider_kind": "market_data",
+          "text_preview": "DefiLlama TVL snapshot for kamino (as of 2026-05-12T08:00:00Z). Current TVL: $1,505,498,759 USD. 7-day change: +4.40%. 3"
+        }
+      ],
+      "ids_count": 10
+    }
+  ],
+  "total_would_delete": 3626
+}
