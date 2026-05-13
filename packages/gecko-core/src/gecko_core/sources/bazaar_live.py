@@ -99,6 +99,20 @@ class ServiceNotFoundError(BazaarLiveError):
     """``service_id`` is not present in the cached catalog."""
 
 
+class NonSolanaServiceError(BazaarLiveError):
+    """Service is not on a Solana-family chain.
+
+    S26 #14 Gap 2 — the rubric eval surfaced that 15/27 Kamino-tagged
+    bazaar_live chunks were Zerion **Base chain** portfolio metadata.
+    Multi-chain Bazaar services that happen to mention 'kamino' in
+    their response payload (e.g. portfolio APIs that report holdings
+    across every chain) shouldn't surface for Solana-Kamino questions.
+    The check is networks-list-based at the catalog layer: if the
+    service does not advertise a Solana-family network, we refuse the
+    ingest before spending. Raised BEFORE any network call.
+    """
+
+
 class BudgetExceeded(BazaarLiveError):
     """Caller-side cap or sprint budget envelope is below the service's
     advertised ``min_price_usd``. Raised BEFORE any network call."""
@@ -212,6 +226,34 @@ def _is_safe_https(url: str) -> bool:
     if host.startswith(("10.", "127.", "169.254.", "192.168.", "0.")):
         return False
     return host != "localhost"
+
+
+# S26 #14 Gap 2 — Solana-family chain token list for the bazaar_live
+# chain filter. Lower-cased. Matches what Bazaar advertises on its
+# /v1/services response (case-normalized).
+_SOLANA_FAMILY_NETWORKS: frozenset[str] = frozenset({
+    "solana",
+    "solana-mainnet",
+    "solana-devnet",
+    "solana-testnet",
+    "sol",
+})
+
+
+def _has_solana_network(service: BazaarService) -> bool:
+    """Pure: return True iff service advertises a Solana-family network.
+
+    A service with an empty ``networks`` field is treated as ambiguous
+    (we cannot verify it's Solana, so we refuse). Services that
+    explicitly list Base, Polygon, Ethereum, etc. without Solana are
+    rejected. Multi-chain services that include Solana alongside others
+    are allowed — operator can post-filter on the response body if
+    needed.
+    """
+    if not service.networks:
+        return False
+    normalized = {n.strip().lower() for n in service.networks if isinstance(n, str)}
+    return bool(normalized & _SOLANA_FAMILY_NETWORKS)
 
 
 def _lookup_service(
@@ -435,6 +477,21 @@ async def fetch_paid(
             f"(host={urlparse(endpoint.url).hostname!r})"
         )
 
+    # S26 #14 Gap 2 — chain filter. Trade-vertical retrieval is
+    # Solana-only; multi-chain or non-Solana Bazaar services produce
+    # cross-chain noise (Zerion Base portfolio metadata, etc.) that
+    # ranks well on vector similarity but is useless for Solana
+    # protocol questions. Refuse BEFORE any network call so we don't
+    # spend USDC on chunks we'd discard.
+    if not _has_solana_network(service):
+        raise NonSolanaServiceError(
+            f"bazaar_live: service {service_id!r} does not advertise a "
+            f"Solana-family network (networks={list(service.networks)!r}); "
+            "refusing to ingest cross-chain content into the trade-vertical "
+            "corpus. Override by editing _SOLANA_FAMILY_NETWORKS if the "
+            "vertical scope changes."
+        )
+
     min_price = _endpoint_min_price_usd(endpoint)
     effective_cap = _enforce_budget(
         service_id=service_id,
@@ -504,6 +561,7 @@ __all__ = [
     "SOURCE_NAME",
     "BazaarLiveError",
     "BudgetExceeded",
+    "NonSolanaServiceError",
     "PaidRequester",
     "PaidResponse",
     "ServiceHTTPError",
@@ -512,6 +570,7 @@ __all__ = [
     "_build_chunks",
     "_endpoint_min_price_usd",
     "_enforce_budget",
+    "_has_solana_network",
     "_hash_body",
     "_is_safe_https",
     "_ledger_entry",
