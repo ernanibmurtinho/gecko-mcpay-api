@@ -603,7 +603,7 @@ async def run_trade_panel(
 # trade-research surface.
 # ---------------------------------------------------------------------------
 
-_DEFAULT_TRADE_TOP_K: int = 5  # S28 #25 — Cohere rerank lets us serve only the top semantic chunks; was 15 (Path D)
+_DEFAULT_TRADE_TOP_K: int = 10  # S29 #31 — bumped 5→10; quota_floor now runs BEFORE rerank with top_k*2 pre-rerank slate so Cohere reranks within a provider-kind-balanced candidate set
 
 # S25 #13 — scoring boost terms. Empirical: Atlas vectorSearchScore on the
 # corpus sits in [0.69, 0.78] for typical queries; a +0.15 boost pushes a
@@ -1070,14 +1070,28 @@ async def retrieve_trade_corpus_chunks(
     # The boost terms themselves live in _apply_retrieval_boosts.
     rows = _apply_retrieval_boosts(rows, protocol=proto_norm, as_of_date=as_of_date)
 
-    # S28 #25 — Cohere semantic rerank over the wide (~180-candidate) pool.
-    # Inserted between boost and quota_floor: the boost stage encodes
-    # structural priors (provider/protocol/date), then Cohere re-orders by
-    # query semantics, then quota_floor enforces breadth invariants.
+    # S29 #31 — quota_floor BEFORE rerank (was: rerank then quota_floor).
     #
+    # Why the swap: Cohere's relevance scorer prefers protocol-named JSON blobs
+    # (e.g. Exa cost-metadata envelopes) over canon prose with the same query.
+    # At top_n=5, canon chunks were squeezed out of the post-rerank slate even
+    # though canon_damodaran (2410), canon_marks (649), canon_berkshire (1674)
+    # all live in the wide pool. The S28-final-N=10 baseline observed
+    # provider_kind_coverage=0.50 against HIS threshold 0.70 — Cohere ate the
+    # diversity. Diagnostic at docs/strategy/2026-05-14-d1-fix-diagnostic.md.
+    #
+    # New shape: quota_floor first reserves slots per-provider_kind from the
+    # boosted wide pool, allocating top_k*2 candidates (e.g. 20 for top_k=10).
+    # Cohere then reranks within that provider-kind-balanced candidate set,
+    # picking the top_k=10 by query semantics. Diversity is locked in upstream
+    # so Cohere can't cannibalize it.
+    pre_rerank_k = top_k * 2
+    rows = _provider_quota_floor(rows, top_k=pre_rerank_k)
+
+    # S28 #25 — Cohere semantic rerank over the quota-floored set.
     # Graceful degrade: if COHERE_API_KEY is unset (or any soft failure),
-    # cohere_rerank returns [] and we fall through to the existing slate.
-    # The Path D baseline is preserved end-to-end when the key is absent.
+    # cohere_rerank returns [] and we fall through to the quota-floored slate
+    # truncated to top_k.
     if rows:
         try:
             from gecko_core.rag.rerank import cohere_rerank
@@ -1086,21 +1100,13 @@ async def retrieve_trade_corpus_chunks(
             pairs = await cohere_rerank(query=idea, documents=documents, top_n=top_k)
             if pairs:
                 rows = [rows[idx] for idx, _score in pairs if 0 <= idx < len(rows)]
+            else:
+                rows = rows[:top_k]
         except Exception as exc:  # pragma: no cover - defensive
             _log.warning("trade_panel.retrieve.rerank_error err=%s (falling through)", exc)
-
-    # S27 #21 — provider_kind quota allocator. Replaces the prior
-    # `rows[:top_k]` straight slice that routinely filled all 15 slots
-    # with protocol_native because of the +0.25 boost stack. The quota
-    # floor reserves slots for canon + market_data so the rubric judge's
-    # `must_cite_provider_kinds` set can actually be covered. Boost still
-    # ranks within each bucket. See _provider_quota_floor.
-    #
-    # S28 #25 — when cohere_rerank ran and returned top_n=5 rows, the
-    # quota floor is effectively a no-op (rows fits within top_k); when
-    # rerank degraded gracefully (no key, error), this still slices the
-    # wide pool down to top_k with quota guarantees.
-    rows = _provider_quota_floor(rows, top_k=top_k)
+            rows = rows[:top_k]
+    else:
+        rows = rows[:top_k]
 
     # Issue #12 — exit log. hit_count + top_score disambiguate "Atlas returned
     # nothing" (likely filter-shape / ingest-tag drift) from "Atlas returned
