@@ -17,7 +17,7 @@
     "id": "kamino-2024Q4-sol-leverage-entry",
     "as_of_date": "2024-11-05",
     "protocol": "kamino",
-    "vertical": "lending",
+    "vertical": "unknown",
     "question": "Open a 3x SOL-long leveraged position on Kamino Multiply with SOL at $165. 30d horizon. Sensible?",
     "corpus_freeze_date": "2024-11-05",
     "known_outcome_at_30d": {
@@ -59,7 +59,7 @@
     "id": "drift-2024Q4-sol-perp-long",
     "as_of_date": "2024-12-02",
     "protocol": "drift",
-    "vertical": "perps",
+    "vertical": "dex",
     "question": "Open 2x SOL-PERP long on Drift at $230 ahead of the Dec FOMC. 14d horizon. Sensible?",
     "corpus_freeze_date": "2024-12-02",
     "known_outcome_at_30d": {
@@ -73,7 +73,7 @@
     "id": "drift-2025Q2-jto-perp-short",
     "as_of_date": "2025-05-14",
     "protocol": "drift",
-    "vertical": "perps",
+    "vertical": "dex",
     "question": "Short JTO-PERP at $2.40 on Drift, 1x size, 21d horizon — unlock-supply thesis. Take it?",
     "corpus_freeze_date": "2025-05-14",
     "known_outcome_at_30d": {
@@ -115,7 +115,7 @@
     "id": "jito-2025Q2-mev-tip-band",
     "as_of_date": "2025-04-21",
     "protocol": "jito",
-    "vertical": "infra",
+    "vertical": "infra_devtool",
     "question": "Setting tip strategy for a high-frequency arb bot on Jito. P75 tip band reasonable, or P90 needed for next 7d?",
     "corpus_freeze_date": "2025-04-21",
     "known_outcome_at_30d": {
@@ -130,7 +130,7 @@
     "id": "sanctum-2025Q3-unstake-vs-hold",
     "as_of_date": "2025-08-05",
     "protocol": "sanctum",
-    "vertical": "lst",
+    "vertical": "unknown",
     "question": "Holding 200 INF (Sanctum infinity LST). Unstake now for 1.001 SOL on Sanctum router, or hold 30d? Yield-vs-peg-risk call.",
     "corpus_freeze_date": "2025-08-05",
     "known_outcome_at_30d": {
