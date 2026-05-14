@@ -56,9 +56,13 @@ def test_canonical_verticals_value() -> None:
         "ai_agent_platform",
         "gaming",
         "infra_devtool",
+        # S32-#58 — DeFi-trade-vertical categories.
+        "lending",
+        "liquid_staking",
+        "perps",
         "unknown",
     )
-    assert len(VERTICALS) == 11
+    assert len(VERTICALS) == 14
 
 
 def test_canonical_knowledge_sources_value() -> None:
@@ -73,12 +77,8 @@ def test_canonical_knowledge_sources_value() -> None:
         "paysh_live",
         "user_query",
         "enriched_output",
-        # S24 WS-A — market-data grounding (Pyth + DefiLlama).
-        "market_data",
-        # S26 #14 — direct protocol-native API ingest.
-        "protocol_native",
     )
-    assert len(KNOWLEDGE_SOURCES) == 12
+    assert len(KNOWLEDGE_SOURCES) == 10
 
 
 def test_literal_get_args_matches_runtime_tuples() -> None:
@@ -130,14 +130,13 @@ def test_default_chunk_metadata_shape() -> None:
     assert before - timedelta(seconds=1) <= md["timestamp"] <= after + timedelta(seconds=1)
 
 
-def test_all_31_literal_values_via_constant_tuples() -> None:
-    """8 Categories (7 canonical + legacy_uncategorized) + 11 Verticals +
-    12 KnowledgeSources (S22-N1 split pay_sh into paysh_manifest +
-    paysh_live; S22-BAZAAR-INGEST-01 added bazaar_manifest + bazaar_live;
-    S24 WS-A added market_data; S26 #14 added protocol_native)
-    = 31 values must be reachable via the public constant tuples."""
+def test_all_32_literal_values_via_constant_tuples() -> None:
+    """8 Categories (7 canonical + legacy_uncategorized) + 14 Verticals
+    (11 seed + S32-#58 lending/liquid_staking/perps) + 10
+    KnowledgeSources (S22-N1 paysh split + S22-BAZAAR-INGEST-01 bazaar
+    split) = 32 values must be reachable via the public constant tuples."""
     total = len(CATEGORIES) + len(VERTICALS) + len(KNOWLEDGE_SOURCES)
-    assert total == 31
+    assert total == 32
     # And each constant tuple has no duplicates.
     assert len(set(CATEGORIES)) == len(CATEGORIES)
     assert len(set(VERTICALS)) == len(VERTICALS)
