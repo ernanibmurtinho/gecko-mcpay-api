@@ -79,13 +79,18 @@ CHUNKS_VECTOR_LEGACY_FILTER_FIELDS: tuple[str, ...] = (
 )
 
 
-def mongo_uri() -> str | None:
+def mongo_uri(env: dict[str, str] | None = None) -> str | None:
     """Return the configured Mongo URI or None if unset.
 
     Mirrors ``gecko_core.cache.mongo._mongo_uri`` so both stores respect
     the same SSM ``__unset__`` sentinel.
+
+    ``env`` lets callers (e.g. ``gecko-mcp doctor`` which takes an
+    ``environ=`` override for tests) route through the canonical accessor
+    instead of redeclaring the env-var contract inline. S31-#48 Pattern A.
     """
-    uri = os.environ.get("MONGODB_URI") or os.environ.get("MONGO_URI")
+    src = env if env is not None else os.environ
+    uri = src.get("MONGODB_URI") or src.get("MONGO_URI")
     if not uri or uri == "__unset__":
         return None
     return uri
@@ -98,8 +103,13 @@ def is_chunk_store_configured() -> bool:
     return mongo_uri() is not None
 
 
-def chunk_db_name() -> str:
-    return os.environ.get("MONGODB_CHUNK_DB", CHUNK_DB_DEFAULT)
+def chunk_db_name(env: dict[str, str] | None = None) -> str:
+    """Return the chunk-store DB name, honoring ``MONGODB_CHUNK_DB``.
+
+    Accepts an optional env mapping for the same reason as ``mongo_uri()``.
+    """
+    src = env if env is not None else os.environ
+    return src.get("MONGODB_CHUNK_DB", CHUNK_DB_DEFAULT)
 
 
 @lru_cache(maxsize=1)

@@ -787,8 +787,15 @@ def check_chunk_store(environ: dict[str, str] | None = None) -> list[CheckResult
     if kind != "mongo":
         return results
 
-    uri = env.get("MONGODB_URI") or env.get("MONGO_URI")
-    if not uri or uri == "__unset__":
+    # S31-#48 Pattern A — route URI + DB name through the canonical accessors
+    # in ``gecko_core.db.mongo`` so doctor never redeclares the env-var
+    # contract. The accessors honor the ``__unset__`` SSM sentinel and the
+    # ``MONGODB_CHUNK_DB`` override in one place.
+    from gecko_core.db.mongo import chunk_db_name, mongo_uri
+
+    uri = mongo_uri(env)
+    db_name = chunk_db_name(env)
+    if not uri:
         results.append(
             CheckResult(
                 name="chunk_store:mongo:uri",
@@ -801,7 +808,6 @@ def check_chunk_store(environ: dict[str, str] | None = None) -> list[CheckResult
     try:
         from pymongo import MongoClient
 
-        db_name = env.get("MONGODB_CHUNK_DB", "gecko_rag")
         # Sync probe — doctor is run rarely and the seam is simpler.
         client: MongoClient[dict[str, Any]] = MongoClient(uri, serverSelectionTimeoutMS=3000)
         client.admin.command("ping")

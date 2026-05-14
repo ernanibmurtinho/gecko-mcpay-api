@@ -54,6 +54,17 @@ Modern pymongo (>= 4.5) ships ``collection.create_search_index`` /
 runs an older pymongo, equivalent Atlas Admin API curl invocations
 exist — see the Atlas docs section "Manage Atlas Search Indexes" for
 the REST shape. We rely on the pymongo helpers here.
+
+S31-#48 Pattern A note (env var consolidation)
+----------------------------------------------
+The ``--mongodb-uri`` default and the ``--db`` default route through
+``gecko_core.db.mongo.mongo_uri()`` and ``chunk_db_name()`` — the
+single source of truth for the chunk-store env-var contract. The
+canonical accessor tolerates both ``MONGODB_URI`` (preferred) and
+``MONGO_URI`` (legacy alias retained for cross-store back-compat with
+``cache.mongo`` + ``orchestration.transcripts``); adding or removing
+an alias is now a one-file edit. Error messages and help text refer to
+``MONGODB_URI`` only — operators should prefer the canonical name.
 """
 
 from __future__ import annotations
@@ -61,7 +72,6 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import os
 import sys
 from dataclasses import dataclass
 from typing import Any
@@ -73,6 +83,7 @@ from gecko_core.db.mongo import (
     SEARCH_INDEX_NAME,
     VECTOR_INDEX_NAME,
     chunk_db_name,
+    mongo_uri,
 )
 from gecko_core.db.mongo_chunks import MONGO_VECTOR_DIM_EXPECTED
 
@@ -289,9 +300,13 @@ def run(argv: list[str] | None = None, *, collection: Any = None) -> int:
     grp.add_argument("--dry-run", action="store_true", default=True)
     grp.add_argument("--apply", action="store_true", default=False)
     parser.add_argument("--rebuild", action="store_true", default=False)
+    # S31-#48 Pattern A — route the URI default through the canonical
+    # accessor in ``gecko_core.db.mongo``. The accessor still tolerates the
+    # ``MONGO_URI`` alias for cross-store back-compat, but the contract
+    # lives in one place — adding/removing an alias touches one file.
     parser.add_argument(
         "--mongodb-uri",
-        default=os.environ.get("MONGODB_URI") or os.environ.get("MONGO_URI"),
+        default=mongo_uri(),
     )
     # S30-#42: defaults None — route through gecko_core.db.mongo (Pattern A).
     parser.add_argument(
@@ -351,7 +366,7 @@ def run(argv: list[str] | None = None, *, collection: Any = None) -> int:
     if collection is None:
         if not args.mongodb_uri:
             print(
-                "ERROR: --apply requires MONGODB_URI / MONGO_URI in env or --mongodb-uri",
+                "ERROR: --apply requires MONGODB_URI in env or --mongodb-uri",
                 file=sys.stderr,
             )
             return 2
