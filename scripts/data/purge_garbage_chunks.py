@@ -133,13 +133,19 @@ def _build_classes() -> list[PurgeClass]:
         ),
         PurgeClass(
             code="G",
-            label="assorted too_short (paysh_manifest+market_data+canon_damodaran+leftovers)",
+            label="assorted too_short (paysh_manifest+market_data+canon_damodaran+web-thin leftovers)",
+            # Option B (founder-approved 2026-05-13): extend Class G to also
+            # match `web` chunks with text length < 200 that are NOT already
+            # in Class F (i.e. text does not match the ^chunk text \d+$
+            # fixture regex). Per-doc fine-match enforces the thin + non-F
+            # condition; the Mongo pre-filter just widens the kind set.
             filter={
                 "provider_kind": {
                     "$in": [
                         "paysh_manifest",
                         "market_data",
                         "canon_damodaran",
+                        "web",
                     ]
                 }
             },
@@ -162,7 +168,7 @@ def _doc_is_thin(text: str, *, min_chars: int = 200) -> bool:
     return not text or len(text.strip()) < min_chars
 
 
-def _doc_matches_class(code: str, text: str) -> bool:
+def _doc_matches_class(code: str, text: str, provider_kind: str | None = None) -> bool:
     """Per-class fine-match logic applied per doc after Mongo pre-filter.
 
     A/B: keep only chunks the quality gate flags binary OR repeated_chars.
@@ -170,12 +176,27 @@ def _doc_matches_class(code: str, text: str) -> bool:
     D:   whole-kind purge — accept all.
     E:   thin text (<200 chars).
     F:   already fully expressed via Mongo regex on text.
-    G:   thin text (<200 chars) — too_short bucket.
+    G:   thin text (<200 chars) — too_short bucket. Option B extension:
+         when provider_kind == "web", additionally require that the chunk
+         is NOT binary/repeated (Class A territory) and NOT a `chunk text
+         N` fixture (Class F territory) so we don't double-count.
     """
+    import re as _re
+
     if code in {"A", "B"}:
         return _doc_is_binary_or_repeated(text)
-    if code in {"E", "G"}:
+    if code == "E":
         return _doc_is_thin(text)
+    if code == "G":
+        if not _doc_is_thin(text):
+            return False
+        if provider_kind == "web":
+            # exclude Class A (binary/repeated) and Class F (fixture) overlap
+            if _doc_is_binary_or_repeated(text):
+                return False
+            if _re.match(WEB_FIXTURE_RE, text or ""):
+                return False
+        return True
     return True  # C, D, F
 
 
@@ -198,7 +219,8 @@ async def _plan_class(
     )
     async for doc in cursor:
         text = doc.get("text") or ""
-        if not _doc_matches_class(pc.code, text):
+        pk = doc.get("provider_kind")
+        if not _doc_matches_class(pc.code, text, pk):
             continue
         matched += 1
         ids.append(doc["_id"])
