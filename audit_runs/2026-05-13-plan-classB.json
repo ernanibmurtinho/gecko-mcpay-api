@@ -1,0 +1,88 @@
+{
+  "generated_at": "2026-05-14T00:21:31.159052+00:00",
+  "mode": "confirm",
+  "classes": [
+    {
+      "code": "B",
+      "label": "canon_berkshire + binary",
+      "expected_approx": 149,
+      "matched_count": 149,
+      "sample_urls": [
+        [
+          "https://www.berkshirehathaway.com/letters/1989.html",
+          12
+        ],
+        [
+          "https://www.berkshirehathaway.com/letters/1990.html",
+          9
+        ],
+        [
+          "https://www.berkshirehathaway.com/letters/1985.html",
+          9
+        ],
+        [
+          "https://www.berkshirehathaway.com/letters/1984.html",
+          8
+        ],
+        [
+          "https://www.berkshirehathaway.com/letters/1986.html",
+          7
+        ],
+        [
+          "https://www.berkshirehathaway.com/letters/1996.html",
+          6
+        ],
+        [
+          "https://www.berkshirehathaway.com/letters/1980.html",
+          6
+        ],
+        [
+          "https://www.berkshirehathaway.com/letters/1992.html",
+          5
+        ],
+        [
+          "https://www.berkshirehathaway.com/letters/1991.html",
+          5
+        ],
+        [
+          "https://www.berkshirehathaway.com/letters/1988.html",
+          5
+        ]
+      ],
+      "sample_chunks": [
+        {
+          "_id": "6a02160e5ecb74368afd1b94",
+          "source_url": "https://www.berkshirehathaway.com/letters/2003ltr.pdf",
+          "provider_kind": "canon_berkshire",
+          "text_preview": "2\r Note: The following table appears in the printed Annual Report on the facing page of the\r Chairman's Letter and is re"
+        },
+        {
+          "_id": "6a0216085ecb74368afd1b68",
+          "source_url": "https://www.berkshirehathaway.com/letters/2002pdf.pdf",
+          "provider_kind": "canon_berkshire",
+          "text_preview": "2\r Note: The following table appears in the printed Annual Report on the facing page of the\r Chairman's Letter and is re"
+        },
+        {
+          "_id": "6a0216025ecb74368afd1b42",
+          "source_url": "https://www.berkshirehathaway.com/letters/2001pdf.pdf",
+          "provider_kind": "canon_berkshire",
+          "text_preview": "2\r Note: The following table appears in the printed Annual Report on the facing page of the\r Chairman's Letter and is re"
+        },
+        {
+          "_id": "6a0215fb5ecb74368afd1b1a",
+          "source_url": "https://www.berkshirehathaway.com/letters/2000pdf.pdf",
+          "provider_kind": "canon_berkshire",
+          "text_preview": "2\r Note: The following table appears in the printed Annual Report on the facing page of the\r Chairman's Letter and is re"
+        },
+        {
+          "_id": "6a02156f3169a51804eec468",
+          "source_url": "https://www.berkshirehathaway.com/letters/2024ltr.pdf",
+          "provider_kind": "canon_berkshire",
+          "text_preview": ", 2025 Warren E. Buffett \r  Chairman of the Board \r 13   Berkshire\u2019s Performance vs. the S&P 500 \r  Annual Percentage Ch"
+        }
+      ],
+      "ids_count": 149
+    }
+  ],
+  "total_would_delete": 149
+}

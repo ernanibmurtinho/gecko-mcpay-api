@@ -13,5 +13,20 @@
       "69fda6c13cc0ffe147e8232e",
       "69fda6c13cc0ffe147e82323"
     ]
+  },
+  {
+    "executed_at": "2026-05-14T00:21:31.308946+00:00",
+    "class": "B",
+    "label": "canon_berkshire + binary",
+    "planned": 149,
+    "deleted": 149,
+    "drift": 0,
+    "sample_deleted_ids": [
+      "6a02160e5ecb74368afd1b94",
+      "6a0216085ecb74368afd1b68",
+      "6a0216025ecb74368afd1b42",
+      "6a0215fb5ecb74368afd1b1a",
+      "6a02156f3169a51804eec468"
+    ]
   }
 ]
