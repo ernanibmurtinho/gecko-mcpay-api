@@ -56,16 +56,6 @@ _LIVE_ENDPOINTS: Final[tuple[JitoMevEndpoint, ...]] = (
         content_kind="quote",
     ),
     JitoMevEndpoint(
-        slug="jito-mev-recent-blocks",
-        url="https://kobe.mainnet.jito.network/api/v1/recent_blocks",
-        description=(
-            "Jito Block Engine recent-block telemetry — slot, leader, "
-            "bundle count, total tips per block. Grounds bundle-landing-"
-            "rate estimates over recent slots."
-        ),
-        content_kind="quote",
-    ),
-    JitoMevEndpoint(
         slug="jito-mev-rewards-snapshot",
         url="https://kobe.mainnet.jito.network/api/v1/mev_rewards",
         description=(
@@ -89,106 +79,15 @@ _LIVE_ENDPOINTS: Final[tuple[JitoMevEndpoint, ...]] = (
 )
 
 
-# --- MEV / bundle mechanics docs (mechanism-kind) -------------------------
-# The docs.jito.wtf surface that explains HOW bundle landing, tip
-# distribution, and atomic execution actually work. These pages are the
-# substantive ground truth a searcher would cite when defending a tip
-# strategy.
+# S33-#75 endpoint curation — `_DOCS_ENDPOINTS` (4 docs/marketing pages)
+# and `_CLIENT_ENDPOINTS` (5 per-language dev READMEs) were deleted. They
+# were the same 0.00-citation-relevance class as the drift/jito docs the
+# S33-#75 audit flagged: a README documents bundle-submission CODE, it has
+# no tradeable number a verdict can cite. `jito-mev-recent-blocks` was
+# also dropped — kobe.mainnet.jito.network/api/v1/recent_blocks returns
+# HTTP 404. The MEV catalog is now the 3 verified-live data endpoints.
 
-_DOCS_ENDPOINTS: Final[tuple[JitoMevEndpoint, ...]] = (
-    JitoMevEndpoint(
-        slug="jito-mev-docs-low-latency-txn-send",
-        url="https://docs.jito.wtf/lowlatencytxnsend/",
-        description=(
-            "Jito low-latency transaction send — block engine, bundle "
-            "submission API (sendBundle, getBundleStatuses, "
-            "getInflightBundleStatuses, tip accounts), atomicity "
-            "guarantees, MEV protection model, JSON-RPC authentication, "
-            "tip percentiles, regional endpoints. The canonical MEV-"
-            "bundle-mechanics reference."
-        ),
-    ),
-    JitoMevEndpoint(
-        slug="jito-mev-docs-low-latency-txn-feed",
-        url="https://docs.jito.wtf/lowlatencytxnfeed/",
-        description=(
-            "Jito low-latency transaction feed — ShredStream proxy "
-            "mechanics, shred receive flow, latency-vs-reliability "
-            "tradeoff, integration patterns for MEV searchers."
-        ),
-    ),
-    JitoMevEndpoint(
-        slug="jito-mev-docs-root",
-        url="https://docs.jito.wtf/",
-        description=(
-            "Jito Labs docs landing — index across MEV protocol "
-            "architecture, block engine, searcher integration."
-        ),
-    ),
-    JitoMevEndpoint(
-        slug="jito-mev-searchers-product",
-        url="https://www.jito.wtf/searchers/",
-        description=(
-            "Jito Searchers product page — MEV searcher value "
-            "proposition, bundle mechanics, tip economics, integration "
-            "paths. Marketing-grade summary of the searcher surface."
-        ),
-    ),
-)
-
-
-# --- MEV / bundle dev-client READMEs (mechanism-kind) ---------------------
-# These are the per-language client READMEs — they document the bundle
-# submission patterns and tip-account configuration that map directly to
-# tip-strategy code. Excluded jito-solana validator README and Stakenet /
-# Restaking READMEs (those are staking-side, already covered by S28-#26).
-
-_CLIENT_ENDPOINTS: Final[tuple[JitoMevEndpoint, ...]] = (
-    JitoMevEndpoint(
-        slug="jito-mev-protos-readme",
-        url="https://raw.githubusercontent.com/jito-labs/mev-protos/master/README.md",
-        description=(
-            "Jito MEV protos README — gRPC protobuf schemas for "
-            "block-engine, searcher, relayer, auction service. The "
-            "wire-protocol contract for bundle submission."
-        ),
-    ),
-    JitoMevEndpoint(
-        slug="jito-mev-js-rpc-readme",
-        url="https://raw.githubusercontent.com/jito-labs/jito-js-rpc/master/README.md",
-        description=(
-            "Jito JS RPC client README — bundle submission patterns, "
-            "tip account configuration, regional endpoint selection "
-            "from TypeScript. Searcher-implementation reference."
-        ),
-    ),
-    JitoMevEndpoint(
-        slug="jito-mev-py-rpc-readme",
-        url="https://raw.githubusercontent.com/jito-labs/jito-py-rpc/master/README.md",
-        description=(
-            "Jito Python RPC client README — bundle submission "
-            "patterns, tip accounts, regional endpoint selection from "
-            "Python. Searcher-implementation reference."
-        ),
-    ),
-    JitoMevEndpoint(
-        slug="jito-mev-rust-rpc-readme",
-        url="https://raw.githubusercontent.com/jito-labs/jito-rust-rpc/master/README.md",
-        description=("Jito Rust RPC client README — bundle submission patterns from Rust."),
-    ),
-    JitoMevEndpoint(
-        slug="jito-mev-go-rpc-readme",
-        url="https://raw.githubusercontent.com/jito-labs/jito-go-rpc/master/README.md",
-        description=("Jito Go RPC client README — bundle submission patterns from Go."),
-    ),
-)
-
-
-JITO_MEV_ENDPOINTS: Final[tuple[JitoMevEndpoint, ...]] = (
-    *_LIVE_ENDPOINTS,
-    *_DOCS_ENDPOINTS,
-    *_CLIENT_ENDPOINTS,
-)
+JITO_MEV_ENDPOINTS: Final[tuple[JitoMevEndpoint, ...]] = _LIVE_ENDPOINTS
 
 
 def render_chunk(ep: JitoMevEndpoint, body_text: str, as_of_iso: str) -> str:

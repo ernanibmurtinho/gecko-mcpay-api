@@ -33,17 +33,22 @@ Retrieval admittance: protocol_native is in the PROVIDER_SPECIFIC_KINDS
 set used by ``_apply_retrieval_boosts`` — same +0.10 boost as
 ``paysh_live`` when the chunk's protocol tag matches the request.
 
-Endpoint catalog (all public, free, no API key):
+Endpoint catalog (all public, free, no API key) — S33-#75 curation
+swapped documentation pages for live market-data endpoints:
 
-  Kamino:    https://api.kamino.finance/kamino-market/markets
-             https://api.kamino.finance/v2/markets/{market}/reserves
-  Drift:     https://dlob.drift.trade/markets
-  Jupiter:   https://stats.jup.ag/  (HTML scrape for stats; falls back
-             to https://quote-api.jup.ag/v6/tokens for catalog)
-  Jito:      https://kobe.mainnet.jito.network/api/v1/recent_blocks
-             https://www.jito.wtf/api/v1/...
+  Kamino:    api.kamino.finance — markets / kvaults / strategies /
+             staking-yields (substantive market JSON, unchanged)
+  Drift:     data.api.drift.trade — SOL/BTC/ETH-PERP fundingRates +
+             stats/markets/prices, plus one funding-mechanics doc as
+             the interpretation key for the raw rate strings
+  Jupiter:   lite-api.jup.ag — price + verified/lst token tags
+             (the 27 dev.jup.ag/docs/... pages were dropped)
+  Jito:      no catalog here — all Jito live data is owned by
+             ``scripts/protocol_native/ingest_jito_mev.py`` (see
+             ``gecko_core.sources.jito_mev``)
   Sanctum:   https://learn.sanctum.so/docs (docs only — S33-#65 dropped
-             the quote endpoints; the public APY API returns 0.0)
+             the quote endpoints; the public APY API returns 0.0; out
+             of S33-#75 scope)
 
 This module exports the per-protocol URL catalogs + the rendering
 helpers. The ingest is driven by
@@ -124,9 +129,13 @@ KAMINO_ENDPOINTS: Final[tuple[ProtocolEndpoint, ...]] = (
 
 
 # --- Drift -----------------------------------------------------------------
-# S28 #26 depth pass — expand from 1 URL (3 chunks) to 12 URLs targeting
-# perp markets, funding rate math, liquidation engine, oracle staleness,
-# insurance fund, JIT auctions, prediction markets, market config.
+# S33-#75 endpoint curation — the prior S28-#26 catalog was 32 documentation
+# pages (Drift docs site + GitHub README) that scored citation_relevance
+# 0.00: a glossary page cannot ground a "should I carry SOL-PERP funding"
+# verdict. Replaced with the public, no-key Drift Data API
+# (data.api.drift.trade) — funding-rate history + market prices — plus the
+# single funding-mechanics doc kept as the interpretation key for the raw
+# rate strings. drift goes 32 → 5 endpoints (4 data + 1 mechanics doc).
 
 
 def _drift(slug: str, path: str, desc: str, kind: str = "mechanism") -> ProtocolEndpoint:
@@ -140,192 +149,60 @@ def _drift(slug: str, path: str, desc: str, kind: str = "mechanism") -> Protocol
 
 
 DRIFT_ENDPOINTS: Final[tuple[ProtocolEndpoint, ...]] = (
-    _drift("drift-docs-root", "", "Drift Protocol docs landing — index across all docs sections."),
+    # --- Live market data (Drift Data API — free, no key) ---
     _drift(
-        "drift-perps-trading",
-        "protocol/trading/perpetuals-trading/perpetuals-trading",
-        "Drift perpetuals overview — perp market mechanics, position lifecycle, "
-        "leverage caps, margin requirements.",
+        "drift-funding-sol-perp",
+        "https://data.api.drift.trade/market/SOL-PERP/fundingRates?limit=30",
+        "Drift SOL-PERP funding-rate history — 30 most-recent records: signed "
+        "funding rate, long/short rate, cumulative funding, mark vs oracle "
+        "price TWAP, period revenue. Grounds 'is SOL-PERP funding rich / "
+        "should I carry the perp' verdicts in real numbers.",
+        kind="quote",
     ),
+    _drift(
+        "drift-funding-btc-perp",
+        "https://data.api.drift.trade/market/BTC-PERP/fundingRates?limit=30",
+        "Drift BTC-PERP funding-rate history — 30 most-recent records: signed "
+        "funding rate, long/short rate, cumulative funding, mark vs oracle "
+        "price TWAP, period revenue. Grounds BTC perp carry verdicts.",
+        kind="quote",
+    ),
+    _drift(
+        "drift-funding-eth-perp",
+        "https://data.api.drift.trade/market/ETH-PERP/fundingRates?limit=30",
+        "Drift ETH-PERP funding-rate history — 30 most-recent records: signed "
+        "funding rate, long/short rate, cumulative funding, mark vs oracle "
+        "price TWAP, period revenue. Grounds ETH perp carry verdicts.",
+        kind="quote",
+    ),
+    _drift(
+        "drift-market-prices",
+        "https://data.api.drift.trade/stats/markets/prices",
+        "Drift perp-market price catalog — per-market 24h-ago reference price, "
+        "market index, market type across all perps (SOL/BTC/ETH/APT/BONK/"
+        "POL/ARB/...). Grounds 'which markets exist + where price sits'.",
+        kind="quote",
+    ),
+    # --- Funding mechanics doc — kept as the interpretation key for the
+    # raw `fundingRate` strings the Data API returns (divide by oracle
+    # price TWAP for a percentage). Exactly one doc page is retained. ---
     _drift(
         "drift-funding-rates",
         "protocol/trading/perpetuals-trading/funding-rates",
         "Drift funding rate mechanics — long-short equilibrium, premium/discount, "
-        "payment frequency, oracle-derived mark price.",
-    ),
-    _drift(
-        "drift-auction-parameters",
-        "protocol/trading/perpetuals-trading/auction-parameters",
-        "Drift perpetuals auction parameters — start price, end price, "
-        "auction duration, slot increments.",
-    ),
-    _drift(
-        "drift-liquidations",
-        "protocol/trading/liquidations",
-        "Drift liquidations overview — when accounts are eligible, sequence of "
-        "actions, insurance-fund interaction.",
-    ),
-    _drift(
-        "drift-liquidation-engine",
-        "protocol/trading/liquidations/liquidation-engine",
-        "Drift liquidation engine — maintenance margin thresholds, cascade "
-        "dynamics, position priority, partial liquidations.",
-    ),
-    _drift(
-        "drift-liquidators",
-        "protocol/trading/liquidations/liquidators",
-        "Drift liquidator role — incentives, bot architecture, eligibility, competition dynamics.",
-    ),
-    _drift(
-        "drift-oracles",
-        "protocol/trading/oracles",
-        "Drift oracle design — Pyth + Switchboard sourcing, staleness tolerance, "
-        "twap windows, mark price reconciliation.",
-    ),
-    _drift(
-        "drift-risk-parameters",
-        "protocol/risk-and-safety/risk-parameters",
-        "Drift risk parameters — initial/maintenance margin, max leverage, "
-        "per-market caps, asset weights.",
-    ),
-    _drift(
-        "drift-risks",
-        "protocol/risk-and-safety/risks",
-        "Drift protocol risks — smart contract, oracle, liquidity, governance, "
-        "insurance fund coverage.",
-    ),
-    _drift(
-        "drift-safety-module",
-        "protocol/risk-and-safety/drift-safety-module",
-        "Drift safety module — circuit breakers, paused-market state, "
-        "emergency procedures, governance triggers.",
-    ),
-    _drift(
-        "drift-insurance-fund-staking",
-        "protocol/insurance-fund/insurance-fund-staking",
-        "Drift insurance fund staking — IF stake mechanics, revenue share, "
-        "bad-debt absorption, withdrawal cooldown.",
-    ),
-    _drift(
-        "drift-margin",
-        "protocol/trading/margin",
-        "Drift margin system — cross-margin model, asset weights, collateral "
-        "types, account-health math.",
-    ),
-    _drift(
-        "drift-margin-account-health",
-        "protocol/trading/margin/account-health",
-        "Drift account health — total collateral, free collateral, margin "
-        "ratio, liquidation threshold derivation.",
-    ),
-    _drift(
-        "drift-margin-per-market-leverage",
-        "protocol/trading/margin/per-market-leverage",
-        "Drift per-market leverage caps — overrides, scaling with size, tier-based limits.",
-    ),
-    _drift(
-        "drift-jit-auctions-mm",
-        "developers/market-makers/jit-auctions",
-        "Drift JIT (Just-In-Time) auctions — MM bidding process, taker fill "
-        "mechanics, auction duration, taker-vs-LP pricing.",
-    ),
-    _drift(
-        "drift-amm",
-        "protocol/about-v3/drift-amm",
-        "Drift AMM (vAMM) — peg adjustment, fee allocation, k-curve, LP risk, spread mechanics.",
-    ),
-    _drift(
-        "drift-matching-engine",
-        "protocol/about-v3/matching-engine",
-        "Drift matching engine — DLOB priority, order-types, fill semantics, "
-        "AMM-vs-orderbook fallback.",
-    ),
-    _drift(
-        "drift-decentralized-orderbook",
-        "protocol/about-v3/decentralized-orderbook",
-        "Drift DLOB — off-chain orderbook, on-chain settlement, keeper role in cranking matches.",
-    ),
-    _drift(
-        "drift-borrow-lend-faq",
-        "protocol/borrow-lend/borrow-lend-faq",
-        "Drift borrow-lend FAQ — collateral types, interest accrual, "
-        "isolated vs cross, withdrawal limits.",
-    ),
-    _drift(
-        "drift-borrow-interest-rate",
-        "protocol/borrow-lend/borrow-interest-rate",
-        "Drift borrow interest rate model — utilization curve, optimal "
-        "utilization point, slope1/slope2 segments.",
-    ),
-    _drift(
-        "drift-isolated-pools",
-        "protocol/borrow-lend/isolated-pools",
-        "Drift isolated lending pools — risk isolation, asset-tier "
-        "configuration, exit constraints.",
-    ),
-    _drift(
-        "drift-amplify-risk",
-        "protocol/borrow-lend/amplify/risk",
-        "Drift Amplify risk — leveraged-yield mechanics, liquidation risk, "
-        "loop-position unwind path.",
-    ),
-    _drift(
-        "drift-market-specs",
-        "protocol/trading/market-specs",
-        "Drift market specs — per-market base asset, oracle, fees, leverage tiers.",
-    ),
-    _drift(
-        "drift-trading-fees",
-        "protocol/trading/trading-fees",
-        "Drift trading fees — maker/taker schedule, tiers, rebates, discount mechanisms.",
-    ),
-    _drift(
-        "drift-profit-loss",
-        "protocol/trading/profit-loss",
-        "Drift profit-and-loss — unsettled vs settled PnL, PnL pool, accounting model.",
-    ),
-    _drift(
-        "drift-profit-loss-pool",
-        "protocol/trading/profit-loss/profit-loss-pool",
-        "Drift PnL pool — depositor mechanics, payout cap, role in covering winning trader PnL.",
-    ),
-    _drift(
-        "drift-revenue-pool",
-        "protocol/about-v3/revenue-pool",
-        "Drift revenue pool — fee accrual, distribution to IF stakers, treasury policy.",
-    ),
-    _drift(
-        "drift-glossary",
-        "protocol/glossary",
-        "Drift glossary — protocol terminology canonical definitions.",
-    ),
-    _drift(
-        "drift-account-model",
-        "developers/concepts/account-model",
-        "Drift account model — UserAccount, subaccounts, MarketAccount, "
-        "PerpMarket, SpotMarket data shape.",
-        kind="mechanism",
-    ),
-    _drift(
-        "drift-dlob-markets",
-        "https://dlob.drift.trade/markets",
-        "Drift DLOB live market config — per-market index, oracle source, "
-        "funding-rate snapshot, open interest.",
-        kind="quote",
-    ),
-    _drift(
-        "drift-github-readme",
-        "https://raw.githubusercontent.com/drift-labs/protocol-v2/master/README.md",
-        "Drift protocol-v2 GitHub README — program architecture, instruction "
-        "surface, risk parameters.",
+        "payment frequency, oracle-derived mark price. The interpretation key "
+        "for the raw funding-rate numbers in drift-funding-* endpoints.",
     ),
 )
 
 
 # --- Jupiter ---------------------------------------------------------------
-# S28 #26 depth pass — expand from 2 URLs (4 chunks) to 12 URLs covering
-# aggregator routing, JLP composition + risk + yield, LST routing, perp
-# exchange mechanics, swap fee math.
+# S33-#75 endpoint curation — the prior S28-#26 catalog mixed 5 live
+# lite-api.jup.ag data endpoints with 27 dev.jup.ag/docs/... documentation
+# pages. The doc pages are the same 0.00-citation-relevance class as the
+# drift/jito docs — they got averaged up by the data endpoints but added
+# no citable number. All 27 doc entries dropped; the 4 lite-api.jup.ag
+# data entries kept. jupiter goes 32 → 4 endpoints (all data).
 
 
 def _jup(slug: str, path: str, desc: str, kind: str = "mechanism") -> ProtocolEndpoint:
@@ -339,141 +216,6 @@ def _jup(slug: str, path: str, desc: str, kind: str = "mechanism") -> ProtocolEn
 
 
 JUPITER_ENDPOINTS: Final[tuple[ProtocolEndpoint, ...]] = (
-    _jup(
-        "jupiter-docs-root",
-        "",
-        "Jupiter Developer docs root — Swap, Perpetuals, Lend, Token, Price API mechanics.",
-    ),
-    _jup(
-        "jupiter-swap-root",
-        "swap",
-        "Jupiter Swap overview — aggregator design, route discovery, market coverage.",
-    ),
-    _jup(
-        "jupiter-swap-order-execute",
-        "swap/order-and-execute",
-        "Jupiter Order + Execute swap flow — building, signing, submitting an aggregated route trade.",
-    ),
-    _jup(
-        "jupiter-swap-slippage",
-        "swap/advanced/slippage",
-        "Jupiter swap slippage handling — auto-slippage, dynamic computation, settings for volatile assets.",
-    ),
-    _jup(
-        "jupiter-swap-reduce-latency",
-        "swap/advanced/reduce-latency",
-        "Jupiter swap latency reduction — RPC selection, priority fees, transaction sizing.",
-    ),
-    _jup(
-        "jupiter-swap-compute-units",
-        "swap/advanced/compute-units",
-        "Jupiter swap compute units — CU budget for aggregated routes, optimization strategies.",
-    ),
-    _jup(
-        "jupiter-swap-routing-dex-integration",
-        "swap/routing/dex-integration",
-        "Jupiter DEX integration for routing — eligibility, AMM types supported (CLMM, CPMM, stable pools).",
-    ),
-    _jup(
-        "jupiter-swap-routing-market-listing",
-        "swap/routing/market-listing",
-        "Jupiter market listing for routing — pool inclusion criteria, liquidity thresholds, eligibility.",
-    ),
-    _jup(
-        "jupiter-swap-routing-rfq",
-        "swap/routing/rfq-integration",
-        "Jupiter RFQ routing — request-for-quote market-maker integration, when RFQ wins vs AMM routing.",
-    ),
-    _jup(
-        "jupiter-perps-root",
-        "perps",
-        "Jupiter Perpetuals overview — JLP pool, position model, custody accounts.",
-    ),
-    _jup(
-        "jupiter-perps-pool-account",
-        "perps/pool-account",
-        "Jupiter JLP pool account structure — composition (SOL, ETH, BTC, USDC, USDT), AUM, target weights.",
-    ),
-    _jup(
-        "jupiter-perps-custody-account",
-        "perps/custody-account",
-        "Jupiter perps custody accounts — per-asset custody state, owned amounts, locked amounts, funding.",
-    ),
-    _jup(
-        "jupiter-perps-position-account",
-        "perps/position-account",
-        "Jupiter perps position account — open size, collateral, side, entry price, realized PnL.",
-    ),
-    _jup(
-        "jupiter-perps-position-request",
-        "perps/position-request-account",
-        "Jupiter perps position request — open/close/decrease/increase request lifecycle, keeper execution.",
-    ),
-    _jup(
-        "jupiter-tokens-root",
-        "tokens",
-        "Jupiter Token API overview — token universe, metadata, tag taxonomy (verified, lst, stablecoin, community).",
-    ),
-    _jup(
-        "jupiter-tokens-verification",
-        "tokens/verification",
-        "Jupiter token verification criteria — what qualifies a mint for the verified tag, abuse mitigations.",
-    ),
-    _jup(
-        "jupiter-tokens-token-information",
-        "tokens/token-information",
-        "Jupiter token information fields — metadata, dailyVolume, freezeAuthority, mintAuthority, ts pricing.",
-    ),
-    _jup(
-        "jupiter-price-doc",
-        "price",
-        "Jupiter Price API overview — derived price discovery via aggregator routes, depth-aware pricing.",
-    ),
-    _jup(
-        "jupiter-lend-architecture",
-        "lend/architecture",
-        "Jupiter Lend architecture — earn vs borrow surfaces, vault structure, oracle integration.",
-    ),
-    _jup(
-        "jupiter-lend-oracles",
-        "lend/oracles",
-        "Jupiter Lend oracles — Pyth integration, staleness checks, price-fetch fallbacks.",
-    ),
-    _jup(
-        "jupiter-lend-liquidation",
-        "lend/borrow/liquidation",
-        "Jupiter Lend liquidation — LTV thresholds, liquidator incentives, partial vs full liquidation.",
-    ),
-    _jup(
-        "jupiter-lend-advanced-multiply",
-        "lend/advanced/multiply",
-        "Jupiter Lend multiply (leveraged-yield) — loop construction, max LTV, unwind path on liquidation risk.",
-    ),
-    _jup(
-        "jupiter-lend-advanced-unwind",
-        "lend/advanced/unwind",
-        "Jupiter Lend unwind — closing a leveraged position, swap costs, residual collateral.",
-    ),
-    _jup(
-        "jupiter-trigger-best-practices",
-        "trigger/best-practices",
-        "Jupiter Trigger orders — limit-order semantics, partial fills, cancellation, gas considerations.",
-    ),
-    _jup(
-        "jupiter-recurring-best-practices",
-        "recurring/best-practices",
-        "Jupiter Recurring orders — DCA mechanics, schedule, execution priority, slippage protection.",
-    ),
-    _jup(
-        "jupiter-portal-rate-limits",
-        "portal/rate-limits",
-        "Jupiter Portal rate limits — request/sec, tier plans, error handling, exponential backoff guidance.",
-    ),
-    _jup(
-        "jupiter-resources-audits",
-        "resources/audits",
-        "Jupiter audits — auditor list, scope, dates, findings.",
-    ),
     _jup(
         "jupiter-sol-price",
         "https://lite-api.jup.ag/price/v3?ids=So11111111111111111111111111111111111111112",
@@ -506,159 +248,15 @@ JUPITER_ENDPOINTS: Final[tuple[ProtocolEndpoint, ...]] = (
 
 
 # --- Jito ------------------------------------------------------------------
-# S28 #26 depth pass — expand from 2 URLs (3 chunks, worst citRel 0.15) to
-# 14 URLs across JitoSOL mechanics, MEV bundle landing, tip distribution,
-# restaking, block-engine, validator selection.
-
-
-def _jito(slug: str, url: str, desc: str, kind: str = "mechanism") -> ProtocolEndpoint:
-    return ProtocolEndpoint(
-        protocol="jito", slug=slug, url=url, description=desc, content_kind=kind
-    )
-
-
-JITO_ENDPOINTS: Final[tuple[ProtocolEndpoint, ...]] = (
-    # --- Live quote endpoints ---
-    _jito(
-        "jito-tip-floor",
-        "https://bundles.jito.wtf/api/v1/bundles/tip_floor",
-        "Jito tip-floor percentiles (P25/P50/P75/P95/P99) for bundle landing — "
-        "current snapshot. Grounds tip-band decisions in real lamport figures.",
-        kind="quote",
-    ),
-    _jito(
-        "jito-mev-rewards",
-        "https://kobe.mainnet.jito.network/api/v1/mev_rewards",
-        "Jito MEV rewards — recent-epoch MEV totals, distribution snapshot.",
-        kind="quote",
-    ),
-    _jito(
-        "jito-validators",
-        "https://kobe.mainnet.jito.network/api/v1/validators",
-        "Jito validator set telemetry — MEV share, commission, stake size, performance scores.",
-        kind="quote",
-    ),
-    _jito(
-        "jito-recent-blocks",
-        "https://kobe.mainnet.jito.network/api/v1/recent_blocks",
-        "Jito recent blocks — block engine production telemetry: slot, leader, "
-        "bundle count, tip totals.",
-        kind="quote",
-    ),
-    # --- docs.jito.wtf (the two big pages, sphinx) ---
-    _jito(
-        "jito-docs-root",
-        "https://docs.jito.wtf/",
-        "Jito Labs docs landing — index across MEV protocol architecture.",
-    ),
-    _jito(
-        "jito-docs-low-latency-txn-send",
-        "https://docs.jito.wtf/lowlatencytxnsend/",
-        "Jito low-latency transaction send — block engine, bundle submission "
-        "API (sendBundle, getBundleStatuses, getInflightBundleStatuses, tip "
-        "accounts), atomicity guarantees, MEV protection model, JSON-RPC "
-        "authentication, tip percentiles, regional endpoints. ~90KB.",
-    ),
-    _jito(
-        "jito-docs-low-latency-txn-feed",
-        "https://docs.jito.wtf/lowlatencytxnfeed/",
-        "Jito low-latency transaction feed — ShredStream proxy mechanics, "
-        "shred receive flow, latency vs reliability tradeoff, integration "
-        "patterns for searchers. ~40KB.",
-    ),
-    # --- jito.wtf product landing pages ---
-    _jito(
-        "jito-wtf-searchers",
-        "https://www.jito.wtf/searchers/",
-        "Jito Searchers product page — MEV searcher value proposition, bundle "
-        "mechanics, tip economics, integration paths.",
-    ),
-    _jito(
-        "jito-wtf-stakers",
-        "https://www.jito.wtf/stakers/",
-        "Jito Stakers product page — JitoSOL liquid staking, MEV-boosted "
-        "yield, redemption, validator selection.",
-    ),
-    _jito(
-        "jito-wtf-validators",
-        "https://www.jito.wtf/validators/",
-        "Jito Validators product page — running the jito-solana client, "
-        "MEV-share economics, validator onboarding.",
-    ),
-    _jito(
-        "jito-wtf-blog-index",
-        "https://www.jito.wtf/blog/",
-        "Jito blog index — recent posts on protocol changes, ecosystem milestones, MEV research.",
-    ),
-    # --- Jito GitHub READMEs (mechanism documentation in markdown) ---
-    _jito(
-        "jito-stakenet-readme",
-        "https://raw.githubusercontent.com/jito-foundation/stakenet/master/README.md",
-        "Jito Stakenet README — Steward program overview, validator scoring, "
-        "automated delegation rebalancing for JitoSOL stake pool.",
-    ),
-    _jito(
-        "jito-stakenet-keeper-quickstart",
-        "https://raw.githubusercontent.com/jito-foundation/stakenet/master/keeper-bot-quick-start.md",
-        "Jito Stakenet keeper-bot quickstart — Steward operator runbook, "
-        "cycle steps, validator score thresholds, delegation rebalance flow.",
-    ),
-    _jito(
-        "jito-stakenet-docs-index",
-        "https://raw.githubusercontent.com/jito-foundation/stakenet/master/docs/index.md",
-        "Jito Stakenet docs index — pointer to Steward program component map.",
-    ),
-    _jito(
-        "jito-restaking-readme",
-        "https://raw.githubusercontent.com/jito-foundation/restaking/master/README.md",
-        "Jito Restaking README — protocol overview, NCN (Node Consensus "
-        "Network) model, VRT (Vault Receipt Token) mechanics, slashing design.",
-    ),
-    _jito(
-        "jito-restaking-docs-index",
-        "https://raw.githubusercontent.com/jito-foundation/restaking/master/docs/index.md",
-        "Jito Restaking docs index — restaking + vault program component map.",
-    ),
-    _jito(
-        "jito-solana-readme",
-        "https://raw.githubusercontent.com/jito-labs/jito-solana/master/README.md",
-        "jito-solana validator README — fork of Solana Labs validator with "
-        "Jito-specific block-engine integration, MEV bundle inclusion.",
-    ),
-    _jito(
-        "jito-solana-security",
-        "https://raw.githubusercontent.com/jito-labs/jito-solana/master/SECURITY.md",
-        "jito-solana security policy — disclosure process, scope, responsible-disclosure timing.",
-    ),
-    _jito(
-        "jito-mev-protos-readme",
-        "https://raw.githubusercontent.com/jito-labs/mev-protos/master/README.md",
-        "Jito MEV protos README — gRPC protobuf schemas for block-engine, "
-        "searcher, relayer, auction service.",
-    ),
-    _jito(
-        "jito-js-rpc-readme",
-        "https://raw.githubusercontent.com/jito-labs/jito-js-rpc/master/README.md",
-        "Jito JS RPC client README — bundle submission patterns, tip account "
-        "configuration, regional endpoint selection from TypeScript.",
-    ),
-    _jito(
-        "jito-py-rpc-readme",
-        "https://raw.githubusercontent.com/jito-labs/jito-py-rpc/master/README.md",
-        "Jito Python RPC client README — bundle submission patterns, tip "
-        "accounts, regional endpoint selection from Python.",
-    ),
-    _jito(
-        "jito-go-rpc-readme",
-        "https://raw.githubusercontent.com/jito-labs/jito-go-rpc/master/README.md",
-        "Jito Go RPC client README — bundle submission patterns from Go.",
-    ),
-    _jito(
-        "jito-rust-rpc-readme",
-        "https://raw.githubusercontent.com/jito-labs/jito-rust-rpc/master/README.md",
-        "Jito Rust RPC client README — bundle submission patterns from Rust.",
-    ),
-)
+# S33-#75 endpoint curation — the prior S28-#26 JITO_ENDPOINTS tuple (23
+# entries) was dropped entirely. 4 of its entries (tip-floor, mev_rewards,
+# validators, recent_blocks) duplicated the live MEV endpoints already
+# owned by scripts/protocol_native/ingest_jito_mev.py; the other 19 were
+# docs / READMEs / product pages in the 0.00-citation-relevance class.
+# Jito live data is now owned SOLELY by ingest_jito_mev.py (3 live MEV
+# endpoints — see gecko_core.sources.jito_mev). protocol_native.py no
+# longer carries any Jito catalog; `endpoints_for_protocol("jito")` and
+# the multi-protocol ingest return nothing for jito by design.
 
 
 # --- Sanctum ---------------------------------------------------------------
@@ -804,18 +402,23 @@ ALL_PROTOCOL_ENDPOINTS: Final[tuple[ProtocolEndpoint, ...]] = (
     *KAMINO_ENDPOINTS,
     *DRIFT_ENDPOINTS,
     *JUPITER_ENDPOINTS,
-    *JITO_ENDPOINTS,
     *SANCTUM_ENDPOINTS,
 )
 
 
 def endpoints_for_protocol(protocol: str) -> tuple[ProtocolEndpoint, ...]:
-    """Return the endpoints catalog for a given protocol slug."""
+    """Return the endpoints catalog for a given protocol slug.
+
+    S33-#75: ``jito`` deliberately returns an empty tuple — all Jito live
+    data is owned by ``scripts/protocol_native/ingest_jito_mev.py`` (see
+    ``gecko_core.sources.jito_mev``). It is intentionally absent here so a
+    ``--protocols jito`` invocation against this script ingests nothing
+    rather than double-ingesting the MEV endpoints.
+    """
     catalog: dict[str, tuple[ProtocolEndpoint, ...]] = {
         "kamino": KAMINO_ENDPOINTS,
         "drift": DRIFT_ENDPOINTS,
         "jupiter": JUPITER_ENDPOINTS,
-        "jito": JITO_ENDPOINTS,
         "sanctum": SANCTUM_ENDPOINTS,
     }
     return catalog.get(protocol.lower(), ())
@@ -994,6 +597,99 @@ def _render_tip_floor_payload(ep: ProtocolEndpoint, body: Any, as_of_iso: str) -
     return [f"{header} {sentence}{ema_clause} Source: {ep.url}."]
 
 
+def _render_drift_funding_payload(ep: ProtocolEndpoint, body: Any, as_of_iso: str) -> list[str]:
+    """S33-#75 — Drift Data API funding-rate history → per-record prose.
+
+    The Drift Data API returns ``{"success": true, "records": [{...}]}`` —
+    a dict wrapping a list, not a bare list, so ``_render_fallback`` would
+    JSON-flatten the wrapper into low-value ``records[0].fundingRate: ...``
+    prose. This renderer reads ``body["records"]`` and emits ONE prose
+    sentence per record with the signed rate, mark/oracle TWAP, period
+    revenue and timestamp. The interpretation note ("divide rate by oracle
+    price TWAP for a percentage") leads the first chunk so the panel can
+    convert the raw integer-string rate into a funding percentage.
+    """
+    header = _provenance_header(ep, as_of_iso)
+    records: list[Any] = []
+    if isinstance(body, dict):
+        raw = body.get("records")
+        if isinstance(raw, list):
+            records = raw
+    if not records:
+        return _render_fallback(ep, body, as_of_iso)
+
+    # Slug is e.g. ``drift-funding-sol-perp`` — already carries the -PERP
+    # suffix, so just upper-case the remainder.
+    market = ep.slug.replace("drift-funding-", "").upper()
+    interp = (
+        "Drift funding-rate interpretation: divide the raw funding rate by "
+        "the oracle price TWAP to get the funding percentage paid per period; "
+        "a positive rate means longs pay shorts."
+    )
+    # Numeric-magnitude fields render compactly via _fmt_num; identifier
+    # fields (ts, slot) render verbatim so they stay citable integers
+    # rather than being compacted to "1.78B".
+    _NUM_FIELDS: tuple[tuple[str, str], ...] = (
+        ("fundingRate", "funding rate"),
+        ("fundingRateLong", "long rate"),
+        ("fundingRateShort", "short rate"),
+        ("oraclePriceTwap", "oracle price TWAP"),
+        ("markPriceTwap", "mark price TWAP"),
+        ("periodRevenue", "period revenue"),
+    )
+    _ID_FIELDS: tuple[tuple[str, str], ...] = (("ts", "ts"), ("slot", "slot"))
+    chunks: list[str] = []
+    for i, rec in enumerate(records[:_MAX_ENTITIES]):
+        if not isinstance(rec, dict):
+            chunks.append(f"{header} {_compact_scalar(rec)}")
+            continue
+        parts = [
+            f"{label} {_fmt_num(rec[key])}"
+            for key, label in _NUM_FIELDS
+            if rec.get(key) is not None
+        ]
+        parts += [f"{label} {rec[key]}" for key, label in _ID_FIELDS if rec.get(key) is not None]
+        clause = ", ".join(parts)
+        lead = f"{interp} " if i == 0 else ""
+        sentence = f"Drift {market} funding record"
+        if clause:
+            sentence += f" — {clause}"
+        sentence += "."
+        chunks.append(f"{header} {lead}{sentence} Source: {ep.url}.")
+    return chunks
+
+
+_DRIFT_MARKET_FIELDS: Final[tuple[tuple[str, str], ...]] = (
+    ("marketIndex", "market index"),
+    ("marketType", "market type"),
+    ("price24hAgo", "24h-ago price"),
+    ("currentPrice", "current price"),
+    ("priceChange", "price change"),
+)
+
+
+def _render_drift_market_prices_payload(
+    ep: ProtocolEndpoint, body: Any, as_of_iso: str
+) -> list[str]:
+    """S33-#75 — Drift Data API ``/stats/markets/prices`` → per-market prose.
+
+    Payload shape ``{"success": true, "markets": [{...}]}``. Emits one prose
+    line per perp market naming the symbol, index and 24h-ago reference
+    price. Falls back if ``markets`` is absent or empty.
+    """
+    if isinstance(body, dict):
+        markets = body.get("markets")
+        if isinstance(markets, list) and markets:
+            return _render_entity_list(
+                ep,
+                markets,
+                as_of_iso,
+                name_keys=("symbol", "marketSymbol", "name"),
+                fields=_DRIFT_MARKET_FIELDS,
+            )
+    return _render_fallback(ep, body, as_of_iso)
+
+
 def _render_fallback(ep: ProtocolEndpoint, body: Any, as_of_iso: str) -> list[str]:
     """Renderer of last resort — docs HTML, drift docs, sanctum docs, or
     any payload shape without a structured renderer.
@@ -1018,6 +714,13 @@ _RENDERERS: Final[dict[str, Any]] = {
     "jupiter-tokens-verified-list": _render_jupiter_payload,
     "jupiter-tokens-lst-list": _render_jupiter_payload,
     "jito-tip-floor": _render_tip_floor_payload,
+    # S33-#75 — Drift Data API. Funding-rate history is a dict-wrapping-list
+    # ({"records":[...]}); market prices is {"markets":[...]}. Both need a
+    # structured renderer or _render_fallback mangles the wrapper.
+    "drift-funding-sol-perp": _render_drift_funding_payload,
+    "drift-funding-btc-perp": _render_drift_funding_payload,
+    "drift-funding-eth-perp": _render_drift_funding_payload,
+    "drift-market-prices": _render_drift_market_prices_payload,
 }
 
 
@@ -1068,7 +771,6 @@ def render_chunk(ep: ProtocolEndpoint, body_text: str, as_of_iso: str) -> str:
 __all__ = [
     "ALL_PROTOCOL_ENDPOINTS",
     "DRIFT_ENDPOINTS",
-    "JITO_ENDPOINTS",
     "JUPITER_ENDPOINTS",
     "KAMINO_ENDPOINTS",
     "SANCTUM_ENDPOINTS",
