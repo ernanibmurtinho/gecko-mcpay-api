@@ -1,0 +1,93 @@
+{
+  "date": "2026-05-12",
+  "tier": "basic",
+  "suite": "defi_trade_rubric_suite.json",
+  "n_fixtures_loaded": 1,
+  "n_scored": 1,
+  "aggregate": {
+    "n": 1,
+    "overall_pass_rate": 0.0,
+    "per_dimension_means": {
+      "verdict_accuracy": 1.0,
+      "citation_relevance": 0.35,
+      "provider_kind_coverage": 1.0,
+      "hallucination_score": 1.0,
+      "dissent_grounding": 0.8,
+      "confidence_calibration": 0.4
+    },
+    "per_dimension_pass_rate": {
+      "verdict_accuracy": 1.0,
+      "citation_relevance": 0.0,
+      "provider_kind_coverage": 1.0,
+      "hallucination_score": 1.0,
+      "dissent_grounding": 1.0,
+      "confidence_calibration": 0.0
+    },
+    "thresholds": {
+      "verdict_accuracy": 1.0,
+      "citation_relevance": 0.7,
+      "provider_kind_coverage": 1.0,
+      "hallucination_score": 1.0,
+      "dissent_grounding": 0.5,
+      "confidence_calibration": 0.6
+    }
+  },
+  "rows": [
+    {
+      "id": "kamino-2024Q3-jlpusdc-entry",
+      "protocol": "kamino",
+      "vertical": "dex",
+      "as_of_date": "2024-08-12",
+      "panel": {
+        "verdict": "defer",
+        "confidence": 0.7,
+        "dissent_count": 2,
+        "blocker_questions": [
+          "What is the current audit status of the smart contracts?",
+          "How many active users are engaging with the protocol currently?",
+          "3 of 4 primary analysts abstained \u2014 corpus too thin to support a directional call."
+        ],
+        "n_citations": 15,
+        "provider_kinds_present": [
+          "bazaar_live",
+          "canon_damodaran",
+          "canon_marks",
+          "market_data"
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "ACT",
+        "expected_verdict_v2_set": [
+          "ACT",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "paysh_live",
+          "market_data",
+          "canon_marks",
+          "canon_damodaran",
+          "canon_berkshire"
+        ],
+        "expected_dissent_topics": [
+          "smart_contract_risk",
+          "leverage_unwind_risk",
+          "vault_parameter_change_risk"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.35,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 1.0,
+        "dissent_grounding": 0.8,
+        "confidence_calibration": 0.4
+      },
+      "passed": false,
+      "judge_notes": "Citation relevance is low: citations 1-5 are Zerion/Exa API metadata with no direct Kamino JLP-USDC vault content; citations 9-14 are Damodaran real-options papers tangentially applied; only citations 6-8 (market_data) and 15 (Marks memo) are meaningfully on-topic. No paysh_live/Kamino manifest source for vault parameters was cited. Hallucination check passes: no specific APY%, JLP price level, or exact TVL figure was cited without a market_data source \u2014 the TVL figure ($1.505B) is properly attributed to citation 6 (market_data). Dissent grounding is solid: smart_contract_risk is clearly surfaced by the risk_manager and echoed in blocker_questions; leverage_unwind_risk is hinted at but not concretely named; vault_parameter_change_risk is absent. Confidence calibration is poor: the coordinator's internal verdict was 'act' while the envelope says 'defer' \u2014 a direct contradiction indicating coordinator confusion. Additionally, confidence of 0.7 is stated with thin on-topic citations, no paysh_live vault params, and 2 dissenters, making it overconfident for a defer verdict and internally inconsistent given the coordinator called 'act'.",
+      "wall_seconds": {
+        "panel": 74.78,
+        "judge": 10.44
+      }
+    }
+  ]
+}

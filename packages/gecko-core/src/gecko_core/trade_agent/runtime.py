@@ -39,8 +39,13 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
+from gecko_core.observability import emit_event
 from gecko_core.trade_agent.modes import AdvisorMode, TraderMode
-from gecko_core.trade_agent.oracle import OracleWrapper, RateLimitedError
+from gecko_core.trade_agent.oracle import (
+    OracleWrapper,
+    RateLimitedError,
+    SpendCapExceededError,
+)
 from gecko_core.trade_agent.primitives import (
     RiskState,
     compute_size_usd,
@@ -62,6 +67,26 @@ logger = logging.getLogger(__name__)
 HEARTBEAT_INTERVAL_S = 30.0
 STALE_HEARTBEAT_THRESHOLD_S = 120.0
 JOURNAL_QUEUE_MAX = 100
+
+# S24 WS-F #5 — Warm-ping URL hit on startup. Purpose: warm the ECS
+# Fargate min-task pool so the first user-driven oracle call isn't cold.
+# ECS already runs min-tasks=2 (see memory `reference_deploy_script`)
+# but Fargate tasks idle out routing tables; a single ping refreshes
+# them. Failure is non-fatal — runtime boots regardless.
+WARM_PING_URL = "https://api.geckovision.tech/healthz"
+WARM_PING_TIMEOUT_S = 5.0
+
+
+async def _warm_ping(url: str = WARM_PING_URL) -> None:
+    """Fire-and-discard GET to warm the ECS task pool. Never raises."""
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=WARM_PING_TIMEOUT_S) as client:
+            response = await client.get(url)
+            logger.info("trade_agent.warm_ping url=%s status=%d", url, response.status_code)
+    except Exception as exc:  # best-effort warmup
+        logger.info("trade_agent.warm_ping_skipped url=%s err=%s", url, exc)
 
 
 HotpathEventHandler = Callable[[dict[str, Any]], Awaitable[None]]
@@ -158,6 +183,19 @@ class AgentRuntime:
             interval_s=60 * 60 * 24,
             callback=self._scheduled_refresh,
         )
+        # Scheduled hotpath-snapshot write (5min cadence; TTL is 5min).
+        # Stub source — real Helius/Pyth wiring lands in W3-1. The point
+        # of writing now is to exercise the validator-gated TTL collection
+        # so backtest replay + observability surfaces have data.
+        self._scheduler.schedule(
+            "hotpath_snapshot_tick",
+            interval_s=60 * 5,
+            callback=self._scheduled_hotpath_snapshot,
+        )
+        # S24 WS-F #5 — warm-ping ECS before journaling agent_started so
+        # the first user-driven oracle call isn't cold. Fire-and-forget;
+        # never blocks boot.
+        await _warm_ping()
         await self._enqueue_journal("agent_started", {"mode": self.mode})
 
     async def stop(self) -> None:
@@ -200,6 +238,15 @@ class AgentRuntime:
         if self._status == "paused" and self.mode == "trader":
             return
 
+        # S24 WS-D — per-tick global telemetry. Wallet may be None for
+        # system-owned agents; that's expected and the wallet index is
+        # sparse so we don't bloat the ledger.
+        await emit_event(
+            "agent.tick",
+            {"agent_id": self.agent_id, "mode": self.mode},
+            wallet=self.user_wallet,
+        )
+
         if self.mode == "advisor":
             assert self._advisor is not None
             candidate = self._advisor.evaluate(event)
@@ -212,6 +259,16 @@ class AgentRuntime:
                     "idea": candidate.idea,
                     "rule_id": candidate.rule_id,
                 },
+            )
+            await emit_event(
+                "agent.opportunity",
+                {
+                    "agent_id": self.agent_id,
+                    "mint": candidate.mint,
+                    "idea": candidate.idea,
+                    "rule_id": candidate.rule_id,
+                },
+                wallet=self.user_wallet,
             )
             return
 
@@ -238,9 +295,13 @@ class AgentRuntime:
             )
             return
 
-        verdict = await self.oracle.get_verdict(
-            idea=candidate.idea, tier="basic", trigger="entry_gate"
-        )
+        try:
+            verdict = await self.oracle.get_verdict(
+                idea=candidate.idea, tier="basic", trigger="entry_gate"
+            )
+        except SpendCapExceededError as exc:
+            await self._halt_on_spend_cap(str(exc))
+            return
         ok, reason = passes_filter(self.spec.filter, event, verdict=verdict)
         if not ok:
             await self._enqueue_journal(
@@ -256,6 +317,16 @@ class AgentRuntime:
         if self.exec_adapter is None:
             await self._enqueue_journal(
                 "exec_error", {"reason": "no_adapter", "mint": candidate.mint}
+            )
+            await emit_event(
+                "agent.error",
+                {
+                    "agent_id": self.agent_id,
+                    "kind": "exec_error",
+                    "reason": "no_adapter",
+                    "mint": candidate.mint,
+                },
+                wallet=self.user_wallet,
             )
             return
         receipt = await self.exec_adapter.submit(
@@ -369,6 +440,29 @@ class AgentRuntime:
             with contextlib.suppress(asyncio.QueueFull):
                 self._journal_q.put_nowait(entry)
 
+    async def _scheduled_hotpath_snapshot(self) -> None:
+        """Write a stub snapshot doc per protocol.
+
+        Real upstream is the Helius WS feed (ticket W3-1). The stub
+        payload is enough to exercise the write path + TTL index. Failure
+        is non-fatal — never block trading on observability writes.
+        """
+        proto = getattr(self.spec, "protocol", "unknown") or "unknown"
+        snapshot = {
+            "source": "stub",
+            "spec_version": self.spec.version,
+            "mode": self.mode,
+            "status": self._status,
+        }
+        try:
+            await self.state_store.write_hotpath_snapshot(self.agent_id, proto, snapshot)
+        except Exception:
+            logger.exception(
+                "hotpath_snapshot.write_failed agent_id=%s protocol=%s",
+                self.agent_id,
+                proto,
+            )
+
     async def _scheduled_refresh(self) -> None:
         # Best-effort scheduled re-verdict on the *session* idea. Cache
         # write happens inside oracle.get_verdict.
@@ -382,6 +476,37 @@ class AgentRuntime:
             await self._enqueue_journal("verdict_called", {"trigger": "scheduled", "tier": "basic"})
         except RateLimitedError as exc:
             logger.info("oracle.rate_limited trigger=scheduled %s", exc)
+        except SpendCapExceededError as exc:
+            # Hard halt — scheduled refreshes are gated like any other
+            # charge. Operator must clear before the agent ticks again.
+            await self._halt_on_spend_cap(str(exc))
+
+    async def _halt_on_spend_cap(self, reason_detail: str) -> None:
+        """Hard-halt the agent after a spend-cap trip.
+
+        Journals ``circuit_breaker_trip`` with reason ``daily_spend_cap``,
+        flips ``agent_state.status`` to ``halted``. Recovery is operator-
+        only — the runtime does not auto-resume.
+        """
+        await self._enqueue_journal(
+            "circuit_breaker_trip",
+            {"reason": "daily_spend_cap", "detail": reason_detail},
+        )
+        await self._enqueue_journal("halted", {"reason": "daily_spend_cap"})
+        try:
+            await self.state_store.update_status(self.agent_id, "halted")
+        except Exception:
+            logger.exception("spend_cap.halt.status_update_failed agent_id=%s", self.agent_id)
+        self._status = "halted"
+        await emit_event(
+            "agent.error",
+            {
+                "agent_id": self.agent_id,
+                "kind": "spend_cap_halt",
+                "reason": "daily_spend_cap",
+            },
+            wallet=self.user_wallet,
+        )
 
 
 def _version_gt(a: str, b: str) -> bool:

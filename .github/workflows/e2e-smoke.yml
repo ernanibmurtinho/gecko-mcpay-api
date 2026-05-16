@@ -32,6 +32,7 @@ jobs:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       SUPABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
       PGPASSWORD: postgres
+      TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY || 'smoke-stub' }}
 
     steps:
       - name: Checkout

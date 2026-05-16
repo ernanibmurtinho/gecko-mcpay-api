@@ -120,7 +120,9 @@ async def _run_arm(
             bankroll += pnl
             trades.append(
                 Trade(
-                    entry_ts=float(pos.opened_at.timestamp()) if hasattr(pos.opened_at, "timestamp") else 0.0,
+                    entry_ts=float(pos.opened_at.timestamp())
+                    if hasattr(pos.opened_at, "timestamp")
+                    else 0.0,
                     exit_ts=ts,
                     entry_price=entry_price,
                     exit_price=price,
@@ -182,9 +184,7 @@ async def _run_arm(
         last_price = float(ev.get("price", 0.0))
         for pos, _v in open_positions.values():
             if pos.entry_price and last_price > 0:
-                mtm += (pos.size_usd or 0.0) * (
-                    (last_price - pos.entry_price) / pos.entry_price
-                )
+                mtm += (pos.size_usd or 0.0) * ((last_price - pos.entry_price) / pos.entry_price)
         equity_curve.append(round(mtm, 6))
 
     # Force-close any still-open positions at the last seen price so
@@ -331,8 +331,7 @@ async def gecko_backtest(
         # Smallest reasonable synthetic — a flat tick stream. Tests
         # typically pass an explicit FixtureHistorySource.
         history_source = FixtureHistorySource(
-            data={"prices": [{"ts": float(i), "price": 1.0} for i in range(30)],
-                  "mint": "SMOKE"}
+            data={"prices": [{"ts": float(i), "price": 1.0} for i in range(30)], "mint": "SMOKE"}
         )
 
     oracle: OracleCallable | None

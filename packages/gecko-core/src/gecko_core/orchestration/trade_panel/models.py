@@ -14,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from gecko_core.orchestration.trade_panel.backtest.models import BacktestReport
 from gecko_core.sources.types import FreshnessTier, ProviderKind
+from gecko_core.types import SettlementMode
 
 # Final-verdict tokens. Mirrors the coordinator's closing-line regex.
 TradeVerdictLiteral = Literal["act", "pass", "defer"]
@@ -119,6 +120,28 @@ class TradePanelVerdict(BaseModel):
             "Realized-history replay of the Strategist intent. None when "
             "enable_backtest=False (default) or when the panel is rerun "
             "by a caller that doesn't surface backtests."
+        ),
+    )
+    # S24 WS-E — paid-call receipt. Populated by the gecko-api handler from
+    # the x402 settle event (request.state.payment_payload). Always emitted
+    # on the wire even in stub mode (so consumers can rely on the keys
+    # existing); ``tx_signature`` + ``solscan_url`` are null in stub mode.
+    # Build through :func:`gecko_core.payments.receipts.build_receipt` —
+    # never construct these by hand at the call site.
+    tx_signature: str | None = Field(
+        default=None,
+        description="Solana on-chain x402 settlement signature; null in stub mode.",
+    )
+    solscan_url: str | None = Field(
+        default=None,
+        description="Solscan deep link for tx_signature; null in stub mode.",
+    )
+    settlement_mode: SettlementMode = Field(
+        default="stub",
+        description=(
+            "Whether real money moved on chain. 'stub' = no settlement (free / "
+            "stub-mode runs); 'live' = on-chain x402 settle. Canonical literal "
+            "lives in gecko_core.types (Pattern A)."
         ),
     )
 

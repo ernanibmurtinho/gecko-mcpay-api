@@ -85,9 +85,7 @@ async def test_aligned_beats_misaligned(capsys: pytest.CaptureFixture) -> None:
     misaligned = await BacktestHarness(
         spec,
         history=history_m,
-        oracle=RecordedOracleFixture(
-            records=_load_records("oracle_verdicts_misaligned.json")
-        ),
+        oracle=RecordedOracleFixture(records=_load_records("oracle_verdicts_misaligned.json")),
     ).run(gating="on", window_days=30)
 
     assert aligned.gated is not None

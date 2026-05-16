@@ -82,6 +82,15 @@ Vertical = Literal[
     "ai_agent_platform",
     "gaming",
     "infra_devtool",
+    # S32-#58 — DeFi-trade-vertical categories. The original 11-cell
+    # seed was consumer-app-shaped (neobank / marketplace / prediction);
+    # the trade vertical's protocol-fixture set (kamino, sanctum, drift,
+    # marginfi, save, marinade, jito-stake, hyperliquid) was forced to
+    # fall back to ``dex`` or ``unknown``, which silently degrades
+    # retrieval pkCov / citRel in the rubric harness.
+    "lending",
+    "liquid_staking",
+    "perps",
     "unknown",
 ]
 """Static type alias. Keep in sync with VERTICALS manually."""
@@ -97,6 +106,10 @@ VERTICALS: Final[tuple[Vertical, ...]] = (
     "ai_agent_platform",
     "gaming",
     "infra_devtool",
+    # S32-#58 — DeFi-trade-vertical categories. See Literal block above.
+    "lending",
+    "liquid_staking",
+    "perps",
     "unknown",
 )
 """Runtime tuple — ``unknown`` is the catch-all when classification fails."""
@@ -117,6 +130,7 @@ KnowledgeSource = Literal[
     "paysh_live",
     "user_query",
     "enriched_output",
+    "market_data",
     # S31-#50 — free, public protocol-native API + docs content.
     "protocol_native",
 ]
@@ -146,6 +160,7 @@ KNOWLEDGE_SOURCES: Final[tuple[KnowledgeSource, ...]] = (
     "paysh_live",
     "user_query",
     "enriched_output",
+    "market_data",
     "protocol_native",
 )
 """Runtime tuple — used by Mongo validators."""

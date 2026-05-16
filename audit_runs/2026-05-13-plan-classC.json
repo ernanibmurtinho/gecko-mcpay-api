@@ -1,0 +1,88 @@
+{
+  "generated_at": "2026-05-14T00:22:19.760767+00:00",
+  "mode": "confirm",
+  "classes": [
+    {
+      "code": "C",
+      "label": "twitsh stub fixtures (twitsh://session/*)",
+      "expected_approx": 117,
+      "matched_count": 118,
+      "sample_urls": [
+        [
+          "twitsh://session/1e798cd5-eec0-4e3f-a131-662e0dedebfc",
+          2
+        ],
+        [
+          "twitsh://session/2685dc56-c4e8-4436-bdb1-1c77ebe01d45",
+          2
+        ],
+        [
+          "twitsh://session/3a91eaa4-803a-4b05-9de8-83486e0bf535",
+          2
+        ],
+        [
+          "twitsh://session/9bfec8e9-3be4-413f-9c1a-1cf8b96f2195",
+          2
+        ],
+        [
+          "twitsh://session/e658dd94-d48a-46d1-92f2-2faf209a48e5",
+          2
+        ],
+        [
+          "twitsh://session/e514e164-d18f-4cc3-a4d4-dcab548a920b",
+          2
+        ],
+        [
+          "twitsh://session/fe6cda12-c7ee-412d-b76a-4939480d5f02",
+          2
+        ],
+        [
+          "twitsh://session/7e8499e5-b9f0-4f4a-abd2-f4887a70956f",
+          2
+        ],
+        [
+          "twitsh://session/bbae8c8a-2982-4193-b355-1537f7372e34",
+          2
+        ],
+        [
+          "twitsh://session/dc63f411-fe9c-4cfa-88bb-3d366e7e563d",
+          2
+        ]
+      ],
+      "sample_chunks": [
+        {
+          "_id": "69fda6d03cc0ffe147e8233f",
+          "source_url": "twitsh://session/1e798cd5-eec0-4e3f-a131-662e0dedebfc",
+          "provider_kind": "twitsh",
+          "text_preview": "@signal_main-ma (2026-05-01T00:00:00Z): x402 makes main-market pay-per-call viable for the first time  Engagement: 18 li"
+        },
+        {
+          "_id": "69fda6d03cc0ffe147e8233e",
+          "source_url": "twitsh://session/1e798cd5-eec0-4e3f-a131-662e0dedebfc",
+          "provider_kind": "twitsh",
+          "text_preview": "@builder_utiliz (2026-05-01T00:00:00Z): agentic markets are eating utilization  Engagement: 42 likes, 12 reposts, 7 repl"
+        },
+        {
+          "_id": "69fd53953cc0ffe147e82281",
+          "source_url": "twitsh://session/2685dc56-c4e8-4436-bdb1-1c77ebe01d45",
+          "provider_kind": "twitsh",
+          "text_preview": "@builder_advers (2026-05-01T00:00:00Z): agentic markets are eating adversarial-debate  Engagement: 42 likes, 12 reposts,"
+        },
+        {
+          "_id": "69fd53953cc0ffe147e82282",
+          "source_url": "twitsh://session/2685dc56-c4e8-4436-bdb1-1c77ebe01d45",
+          "provider_kind": "twitsh",
+          "text_preview": "@signal_marketp (2026-05-01T00:00:00Z): x402 makes marketplaces pay-per-call viable for the first time  Engagement: 18 l"
+        },
+        {
+          "_id": "69fd25fc170ac73a47866517",
+          "source_url": "twitsh://session/3a91eaa4-803a-4b05-9de8-83486e0bf535",
+          "provider_kind": "twitsh",
+          "text_preview": "@signal_neobank (2026-05-01T00:00:00Z): x402 makes neobank pay-per-call viable for the first time  Engagement: 18 likes,"
+        }
+      ],
+      "ids_count": 118
+    }
+  ],
+  "total_would_delete": 118
+}

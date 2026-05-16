@@ -154,3 +154,42 @@ def test_empty_text_from_all_parsers_returns_empty_not_raise(
 
     text = pdf_mod._extract_text_sync(_bytes(), url="https://example.com/scan.pdf")
     assert text == ""
+
+
+def test_binary_output_from_first_parser_falls_through(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """S29-#32 — a parser that returns mostly non-printable bytes (the
+    Berkshire-1,674-binary-chunks failure mode) must NOT win the chain.
+    The fallback should continue to the next parser and prefer readable
+    text from a later parser over binary garbage from an earlier one.
+    """
+    calls: list[str] = []
+
+    def binary_pdfium(_b: bytes) -> str:
+        calls.append("pdfium")
+        # ~99% non-printable bytes — the failure shape we observed in
+        # the Mongo audit.
+        return "PDF " + "\x00\x01\x02\x03" * 200
+
+    def good_pdfminer(_b: bytes) -> str:
+        calls.append("pdfminer")
+        return "Warren Buffett wrote about intrinsic value at length here."
+
+    def boom_pypdf(_b: bytes) -> str:  # pragma: no cover — should not run
+        calls.append("pypdf")
+        raise RuntimeError("should not be called")
+
+    monkeypatch.setattr(
+        pdf_mod,
+        "_PARSER_CHAIN",
+        (
+            ("pypdfium2", binary_pdfium),
+            ("pdfminer", good_pdfminer),
+            ("pypdf", boom_pypdf),
+        ),
+    )
+
+    text = pdf_mod._extract_text_sync(_bytes(), url="https://example.com/binary.pdf")
+    assert "Buffett" in text
+    assert calls == ["pdfium", "pdfminer"]

@@ -1,0 +1,201 @@
+{
+  "date": "2026-05-12",
+  "tier": "basic",
+  "suite": "defi_trade_suite.json",
+  "n_fixtures_loaded": 10,
+  "n_scored": 10,
+  "aggregate": {
+    "n": 10,
+    "verdict_distribution": {
+      "act": 4,
+      "pass": 3,
+      "defer": 3
+    },
+    "act_30d_profit_rate": 0.75,
+    "pass_drawdown_avoid_rate": 0.333,
+    "defer_rate": 0.3,
+    "brier_overall": 0.277,
+    "brier_by_bucket": {
+      "low": null,
+      "med": null,
+      "high": 0.277
+    }
+  },
+  "rows": [
+    {
+      "id": "kamino-2024Q3-jlpusdc-entry",
+      "protocol": "kamino",
+      "verdict": "act",
+      "confidence": 0.75,
+      "dissent_count": 1,
+      "blocker_questions": [
+        "Does the total value locked in the Kamino protocol increase by more than 5% over the next month?"
+      ],
+      "n_citations": 15,
+      "wall_seconds": 69.75,
+      "known_outcome": {
+        "profit_pct": 4.8,
+        "max_drawdown_pct": -3.1,
+        "label": "modest_profit_low_dd"
+      }
+    },
+    {
+      "id": "kamino-2024Q4-sol-leverage-entry",
+      "protocol": "kamino",
+      "verdict": "defer",
+      "confidence": 0.75,
+      "dissent_count": 2,
+      "blocker_questions": [
+        "Will SOL maintain a price above $100 for the next 30 days?"
+      ],
+      "n_citations": 15,
+      "wall_seconds": 46.69,
+      "known_outcome": {
+        "profit_pct": 52.4,
+        "max_drawdown_pct": -8.2,
+        "label": "high_profit_moderate_dd"
+      }
+    },
+    {
+      "id": "kamino-2025Q1-jitosol-vault",
+      "protocol": "kamino",
+      "verdict": "act",
+      "confidence": 0.75,
+      "dissent_count": 2,
+      "blocker_questions": [
+        "Will Kamino's TVL stabilize or increase over the next 30 days?",
+        "What is the current audit status of Kamino's smart contracts?"
+      ],
+      "n_citations": 15,
+      "wall_seconds": 81.51,
+      "known_outcome": {
+        "profit_pct": 1.9,
+        "max_drawdown_pct": -1.2,
+        "label": "marginal_profit_low_dd"
+      }
+    },
+    {
+      "id": "kamino-2025Q3-usdc-pyusd-exit",
+      "protocol": "kamino",
+      "verdict": "pass",
+      "confidence": 0.75,
+      "dissent_count": 2,
+      "blocker_questions": [
+        "Does the total value locked (TVL) in the Kamino protocol increase by more than 5% over the next 30 days?"
+      ],
+      "n_citations": 15,
+      "wall_seconds": 50.59,
+      "known_outcome": {
+        "profit_pct": 0.3,
+        "max_drawdown_pct": -0.4,
+        "label": "yield_trap_underperform"
+      }
+    },
+    {
+      "id": "drift-2024Q4-sol-perp-long",
+      "protocol": "drift",
+      "verdict": "act",
+      "confidence": 0.75,
+      "dissent_count": 1,
+      "blocker_questions": [
+        "What specific measures are in place to mitigate oracle risk?",
+        "How might the market react to potential regulatory changes in the near term?"
+      ],
+      "n_citations": 15,
+      "wall_seconds": 49.87,
+      "known_outcome": {
+        "profit_pct": -22.6,
+        "max_drawdown_pct": -27.4,
+        "label": "thesis_broken_dd_breach"
+      }
+    },
+    {
+      "id": "drift-2025Q2-jto-perp-short",
+      "protocol": "drift",
+      "verdict": "act",
+      "confidence": 0.75,
+      "dissent_count": 1,
+      "blocker_questions": [
+        "Does Drift's TVL continue to grow above $300 million over the next 21 days?"
+      ],
+      "n_citations": 15,
+      "wall_seconds": 48.23,
+      "known_outcome": {
+        "profit_pct": 14.1,
+        "max_drawdown_pct": -6.0,
+        "label": "thesis_played_out"
+      }
+    },
+    {
+      "id": "jupiter-2024Q3-jlp-vs-jitosol",
+      "protocol": "jupiter",
+      "verdict": "pass",
+      "confidence": 0.75,
+      "dissent_count": 0,
+      "blocker_questions": [
+        "What specific measures are being taken to improve the health of the Jupiter protocol?",
+        "Is there any upcoming news or developments that could significantly impact the TVL of the Jupiter protocol?"
+      ],
+      "n_citations": 15,
+      "wall_seconds": 49.56,
+      "known_outcome": {
+        "profit_pct": 6.7,
+        "max_drawdown_pct": -2.4,
+        "label": "rotation_won"
+      }
+    },
+    {
+      "id": "jupiter-2025Q1-lst-rotation-msol",
+      "protocol": "jupiter",
+      "verdict": "pass",
+      "confidence": 0.75,
+      "dissent_count": 3,
+      "blocker_questions": [
+        "Will the Total Value Locked (TVL) in Jupiter increase above $0 in the next 30 days?"
+      ],
+      "n_citations": 15,
+      "wall_seconds": 56.12,
+      "known_outcome": {
+        "profit_pct": -1.2,
+        "max_drawdown_pct": -4.8,
+        "label": "rotation_lost_marginal"
+      }
+    },
+    {
+      "id": "jito-2025Q2-mev-tip-band",
+      "protocol": "jito",
+      "verdict": "defer",
+      "confidence": 0.75,
+      "dissent_count": 2,
+      "blocker_questions": [
+        "Does the transaction volume on Jito increase significantly over the next 7 days, indicating renewed market confidence?"
+      ],
+      "n_citations": 15,
+      "wall_seconds": 62.5,
+      "known_outcome": {
+        "profit_pct": null,
+        "max_drawdown_pct": null,
+        "label": "p75_landed_92pct_of_bundles",
+        "auxiliary_outcome": "Bundle land rate at P75 over 7d window was 92% \u2014 verdict 'act on P75' is correct; 'pass / wait for clearer band' is incorrect; 'defer for current mempool depth' is acceptable."
+      }
+    },
+    {
+      "id": "sanctum-2025Q3-unstake-vs-hold",
+      "protocol": "sanctum",
+      "verdict": "defer",
+      "confidence": 0.75,
+      "dissent_count": 2,
+      "blocker_questions": [
+        "Does the Total Value Locked (TVL) in Sanctum increase significantly over the next 30 days?"
+      ],
+      "n_citations": 15,
+      "wall_seconds": 51.07,
+      "known_outcome": {
+        "profit_pct": 2.1,
+        "max_drawdown_pct": -0.6,
+        "label": "hold_won_marginal",
+        "auxiliary_outcome": "Holding INF returned 2.1% staking yield over 30d; instant-unstake LST router had a 0.1% spread cost. Hold wins by 2.0%."
+      }
+    }
+  ]
+}

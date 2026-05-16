@@ -1,0 +1,197 @@
+{
+  "date": "2026-05-12",
+  "tier": "basic",
+  "suite": "defi_trade_rubric_suite.json",
+  "n_fixtures_loaded": 3,
+  "n_scored": 3,
+  "aggregate": {
+    "n": 3,
+    "overall_pass_rate": 0.0,
+    "per_dimension_means": {
+      "verdict_accuracy": 0.667,
+      "citation_relevance": 0.4,
+      "provider_kind_coverage": 0.333,
+      "hallucination_score": 0.333,
+      "dissent_grounding": 0.667,
+      "confidence_calibration": 0.617
+    },
+    "per_dimension_pass_rate": {
+      "verdict_accuracy": 0.667,
+      "citation_relevance": 0.0,
+      "provider_kind_coverage": 0.333,
+      "hallucination_score": 0.333,
+      "dissent_grounding": 1.0,
+      "confidence_calibration": 0.667
+    },
+    "thresholds": {
+      "verdict_accuracy": 1.0,
+      "citation_relevance": 0.7,
+      "provider_kind_coverage": 1.0,
+      "hallucination_score": 1.0,
+      "dissent_grounding": 0.5,
+      "confidence_calibration": 0.6
+    }
+  },
+  "rows": [
+    {
+      "id": "kamino-2024Q3-jlpusdc-entry",
+      "protocol": "kamino",
+      "vertical": "dex",
+      "as_of_date": "2024-08-12",
+      "panel": {
+        "verdict": "defer",
+        "confidence": 0.7,
+        "dissent_count": 0,
+        "blocker_questions": [
+          "Does the Kamino protocol secure a recent audit and demonstrate increased liquidity in the next month?",
+          "3 of 4 primary analysts abstained \u2014 corpus too thin to support a directional call."
+        ],
+        "n_citations": 15,
+        "provider_kinds_present": [
+          "protocol_native"
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "ACT",
+        "expected_verdict_v2_set": [
+          "ACT",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "paysh_live",
+          "market_data",
+          "canon_marks",
+          "canon_damodaran",
+          "canon_berkshire"
+        ],
+        "expected_dissent_topics": [
+          "smart_contract_risk",
+          "leverage_unwind_risk",
+          "vault_parameter_change_risk"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.35,
+        "provider_kind_coverage": 0.0,
+        "hallucination_score": 1.0,
+        "dissent_grounding": 0.7,
+        "confidence_calibration": 0.6
+      },
+      "passed": false,
+      "judge_notes": "Citation relevance is low: all 15 citations are raw API dumps from the Kamino kvaults endpoint with no JLP-USDC multiply vault specifically identified, no APY/param data surfaced, and no canon sources (Marks, Damodaran) or market_data sources present. Hallucination score is clean \u2014 no specific price levels, APY percentages, or TVL figures were cited without a source. Dissent grounding is partial: smart_contract_risk was clearly surfaced by the risk_manager and bull_bear_debater; leverage_unwind_risk was not explicitly named but operational/liquidity risk was raised as a proxy; vault_parameter_change_risk was not surfaced at all. Confidence calibration is mildly off \u2014 0.7 confidence on a defer/pass verdict with very thin, largely irrelevant citations and no on-topic param data is slightly overconfident, though the direction (defer) is defensible.",
+      "wall_seconds": {
+        "panel": 95.69,
+        "judge": 7.59
+      }
+    },
+    {
+      "id": "kamino-2024Q4-sol-leverage-entry",
+      "protocol": "kamino",
+      "vertical": "lending",
+      "as_of_date": "2024-11-05",
+      "panel": {
+        "verdict": "pass",
+        "confidence": 0.45,
+        "dissent_count": 2,
+        "blocker_questions": [
+          "What measures are being taken to improve the health of the Kamino protocol?",
+          "Are there any upcoming audits or governance changes that could enhance operational security?"
+        ],
+        "n_citations": 15,
+        "provider_kinds_present": [
+          "bazaar_live",
+          "canon_damodaran",
+          "canon_marks",
+          "market_data"
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "DEFER",
+        "expected_verdict_v2_set": [
+          "ACT",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "market_data",
+          "canon_marks",
+          "canon_damodaran",
+          "canon_berkshire",
+          "paysh_live"
+        ],
+        "expected_dissent_topics": [
+          "liquidation_cascade_risk",
+          "drawdown_path_risk",
+          "audit_status_uncertainty",
+          "leverage_unwind_risk"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 0.0,
+        "citation_relevance": 0.45,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 0.0,
+        "dissent_grounding": 0.8,
+        "confidence_calibration": 0.55
+      },
+      "passed": false,
+      "judge_notes": "Citation relevance: Market data cites (4,5,7) are on-topic for SOL/Kamino pricing context; cite 6 provides Kamino TVL which is relevant. However, the bulk of citations (8-15) are generic Marks/Damodaran canon with only tangential application to the specific question \u2014 no Kamino-specific protocol docs, audit reports, or leverage mechanics sources. Bazaar cites (1,2) are opaque API metadata with no extractable content. Roughly half are boilerplate canon. Hallucination: The bull_bear_debater agent cites a specific price level ($150 liquidation threshold and $180 bullish confirmation) without any market_data or paysh_live source backing these figures \u2014 these are fabricated price levels matching the must_not_hallucinate pattern of 'specific liquidation price cited without a paysh_live or market_data source.' Score = 0.0. Dissent grounding: The risk manager clearly surfaces smart contract/liquidation risk (liquidation_cascade_risk), market volatility/drawdown path risk, and audit status uncertainty \u2014 three of the four expected dissent topics are present and concrete. Score = 0.8. Confidence calibration: The coordinator outputs 0.70 confidence in the JSON but the envelope reports 0.45 \u2014 the internal inconsistency is notable. With degraded fundamentals, unacceptable risk band, and thin on-topic citations, 0.45 is more defensible than 0.70, but the panel's 'pass' verdict with 0.45 confidence is mildly under-calibrated given the strength of the risk signals (DEFER with stronger dissent language would be more calibrated). Mild miscalibration.",
+      "wall_seconds": {
+        "panel": 106.45,
+        "judge": 12.6
+      }
+    },
+    {
+      "id": "kamino-2025Q1-jitosol-vault",
+      "protocol": "kamino",
+      "vertical": "dex",
+      "as_of_date": "2025-02-18",
+      "panel": {
+        "verdict": "defer",
+        "confidence": 0.65,
+        "dissent_count": 2,
+        "blocker_questions": [
+          "What is the current audit status of the Kamino protocol?",
+          "Are there any governance changes that could affect the operational risks associated with the protocol?",
+          "3 of 4 primary analysts abstained \u2014 corpus too thin to support a directional call."
+        ],
+        "n_citations": 15,
+        "provider_kinds_present": [
+          "protocol_native"
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "DEFER",
+        "expected_verdict_v2_set": [
+          "PASS",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "paysh_live",
+          "market_data",
+          "canon_damodaran",
+          "canon_marks"
+        ],
+        "expected_dissent_topics": [
+          "marginal_yield_uplift_risk",
+          "peg_deviation_risk",
+          "transaction_cost_overhead"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.4,
+        "provider_kind_coverage": 0.0,
+        "hallucination_score": 0.0,
+        "dissent_grounding": 0.5,
+        "confidence_calibration": 0.7
+      },
+      "passed": false,
+      "judge_notes": "Citations: All 15 citations are from the same Kamino vaults API endpoint, providing raw vault state data (fees, timestamps, addresses). While technically on-protocol, they are generic vault list dumps with no specific JitoSOL-SOL vault APY, yield differential, or peg data \u2014 making them only partially relevant to the specific question. No canon source on yield-trap prudence was cited as required by ground truth. Hallucination: The fundamental analyst cited a specific TVL figure of '$148,276,430' without a matching market_data or paysh_live source \u2014 this is a must_not_hallucinate violation (specific figure without proper sourcing). Score = 0.0. Dissent: The panel touched on transaction cost overhead only obliquely (minimum deposit thresholds mentioned by risk manager), and peg deviation risk was not explicitly raised. Marginal yield uplift risk was hinted at in the bull/bear debate but not concretely framed as a dissent topic. Expected dissent topics were only partially surfaced. Confidence calibration: 0.65 confidence for a DEFER verdict with thin citations and 2 dissents is reasonably calibrated \u2014 not severely over or under-confident given the corpus limitations.",
+      "wall_seconds": {
+        "panel": 63.81,
+        "judge": 10.12
+      }
+    }
+  ]
+}

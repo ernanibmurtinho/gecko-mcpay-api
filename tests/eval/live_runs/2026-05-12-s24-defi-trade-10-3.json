@@ -1,0 +1,202 @@
+{
+  "date": "2026-05-12",
+  "tier": "basic",
+  "suite": "defi_trade_suite.json",
+  "n_fixtures_loaded": 10,
+  "n_scored": 10,
+  "aggregate": {
+    "n": 10,
+    "verdict_distribution": {
+      "act": 0,
+      "pass": 1,
+      "defer": 9
+    },
+    "act_30d_profit_rate": null,
+    "pass_drawdown_avoid_rate": 0.0,
+    "defer_rate": 0.9,
+    "brier_overall": 0.16,
+    "brier_by_bucket": {
+      "low": 0.16,
+      "med": null,
+      "high": null
+    }
+  },
+  "rows": [
+    {
+      "id": "kamino-2024Q3-jlpusdc-entry",
+      "protocol": "kamino",
+      "verdict": "defer",
+      "confidence": 0.65,
+      "dissent_count": 2,
+      "blocker_questions": [
+        "Does the total value locked in Kamino continue to increase over the next month?"
+      ],
+      "n_citations": 15,
+      "wall_seconds": 64.32,
+      "known_outcome": {
+        "profit_pct": 4.8,
+        "max_drawdown_pct": -3.1,
+        "label": "modest_profit_low_dd"
+      }
+    },
+    {
+      "id": "kamino-2024Q4-sol-leverage-entry",
+      "protocol": "kamino",
+      "verdict": "defer",
+      "confidence": 0.7,
+      "dissent_count": 2,
+      "blocker_questions": [
+        "What measures are being taken to address the potential vulnerabilities in the smart contracts?",
+        "3 of 4 primary analysts abstained \u2014 corpus too thin to support a directional call."
+      ],
+      "n_citations": 15,
+      "wall_seconds": 59.72,
+      "known_outcome": {
+        "profit_pct": 52.4,
+        "max_drawdown_pct": -8.2,
+        "label": "high_profit_moderate_dd"
+      }
+    },
+    {
+      "id": "kamino-2025Q1-jitosol-vault",
+      "protocol": "kamino",
+      "verdict": "defer",
+      "confidence": 0.65,
+      "dissent_count": 1,
+      "blocker_questions": [
+        "What is the current audit status of Kamino's smart contracts?",
+        "How does the distribution of deposits within the vault look, and is there a concentration risk?",
+        "3 of 4 primary analysts abstained \u2014 corpus too thin to support a directional call."
+      ],
+      "n_citations": 15,
+      "wall_seconds": 63.01,
+      "known_outcome": {
+        "profit_pct": 1.9,
+        "max_drawdown_pct": -1.2,
+        "label": "marginal_profit_low_dd"
+      }
+    },
+    {
+      "id": "kamino-2025Q3-usdc-pyusd-exit",
+      "protocol": "kamino",
+      "verdict": "defer",
+      "confidence": 0.7,
+      "dissent_count": 2,
+      "blocker_questions": [
+        "Does the TVL of the Kamino USDC-PYUSD vault remain above $1.4 billion over the next 30 days?"
+      ],
+      "n_citations": 15,
+      "wall_seconds": 51.57,
+      "known_outcome": {
+        "profit_pct": 0.3,
+        "max_drawdown_pct": -0.4,
+        "label": "yield_trap_underperform"
+      }
+    },
+    {
+      "id": "drift-2024Q4-sol-perp-long",
+      "protocol": "drift",
+      "verdict": "defer",
+      "confidence": 0.65,
+      "dissent_count": 1,
+      "blocker_questions": [
+        "Does SOL maintain a price above $230 through the next FOMC meeting?"
+      ],
+      "n_citations": 15,
+      "wall_seconds": 58.36,
+      "known_outcome": {
+        "profit_pct": -22.6,
+        "max_drawdown_pct": -27.4,
+        "label": "thesis_broken_dd_breach"
+      }
+    },
+    {
+      "id": "drift-2025Q2-jto-perp-short",
+      "protocol": "drift",
+      "verdict": "defer",
+      "confidence": 0.65,
+      "dissent_count": 2,
+      "blocker_questions": [
+        "Does Drift's TVL continue to grow beyond $300 million in the next 21 days?"
+      ],
+      "n_citations": 15,
+      "wall_seconds": 55.01,
+      "known_outcome": {
+        "profit_pct": 14.1,
+        "max_drawdown_pct": -6.0,
+        "label": "thesis_played_out"
+      }
+    },
+    {
+      "id": "jupiter-2024Q3-jlp-vs-jitosol",
+      "protocol": "jupiter",
+      "verdict": "pass",
+      "confidence": 0.4,
+      "dissent_count": 2,
+      "blocker_questions": [
+        "What measures are being taken to improve the Total Value Locked (TVL) in the Jupiter protocol?",
+        "Are there any recent audits or updates regarding the oracle systems used by the Jupiter protocol?"
+      ],
+      "n_citations": 15,
+      "wall_seconds": 74.43,
+      "known_outcome": {
+        "profit_pct": 6.7,
+        "max_drawdown_pct": -2.4,
+        "label": "rotation_won"
+      }
+    },
+    {
+      "id": "jupiter-2025Q1-lst-rotation-msol",
+      "protocol": "jupiter",
+      "verdict": "defer",
+      "confidence": 0.7,
+      "dissent_count": 2,
+      "blocker_questions": [
+        "Does Jupiter's Total Value Locked (TVL) increase above $0 within the next 30 days?"
+      ],
+      "n_citations": 15,
+      "wall_seconds": 128.83,
+      "known_outcome": {
+        "profit_pct": -1.2,
+        "max_drawdown_pct": -4.8,
+        "label": "rotation_lost_marginal"
+      }
+    },
+    {
+      "id": "jito-2025Q2-mev-tip-band",
+      "protocol": "jito",
+      "verdict": "defer",
+      "confidence": 0.65,
+      "dissent_count": 2,
+      "blocker_questions": [
+        "Does transaction volume on Jito remain above the current levels while maintaining protocol security over the next seven days?"
+      ],
+      "n_citations": 15,
+      "wall_seconds": 86.25,
+      "known_outcome": {
+        "profit_pct": null,
+        "max_drawdown_pct": null,
+        "label": "p75_landed_92pct_of_bundles",
+        "auxiliary_outcome": "Bundle land rate at P75 over 7d window was 92% \u2014 verdict 'act on P75' is correct; 'pass / wait for clearer band' is incorrect; 'defer for current mempool depth' is acceptable."
+      }
+    },
+    {
+      "id": "sanctum-2025Q3-unstake-vs-hold",
+      "protocol": "sanctum",
+      "verdict": "defer",
+      "confidence": 0.65,
+      "dissent_count": 1,
+      "blocker_questions": [
+        "Will the price of INF maintain its peg to SOL over the next 30 days while generating sufficient yield to justify holding?"
+      ],
+      "n_citations": 15,
+      "wall_seconds": 64.61,
+      "known_outcome": {
+        "profit_pct": 2.1,
+        "max_drawdown_pct": -0.6,
+        "label": "hold_won_marginal",
+        "auxiliary_outcome": "Holding INF returned 2.1% staking yield over 30d; instant-unstake LST router had a 0.1% spread cost. Hold wins by 2.0%."
+      }
+    }
+  ]
+}

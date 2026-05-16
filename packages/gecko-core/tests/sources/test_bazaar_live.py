@@ -24,12 +24,14 @@ from gecko_core.sources.bazaar_live import (
     PROVIDER_KIND,
     SOURCE_NAME,
     BudgetExceeded,
+    NonSolanaServiceError,
     PaidResponse,
     ServiceHTTPError,
     ServiceNotFoundError,
     _build_chunks,
     _endpoint_min_price_usd,
     _enforce_budget,
+    _has_solana_network,
     _hash_body,
     _is_safe_https,
     _ledger_entry,
@@ -105,8 +107,15 @@ def _make_service(
     endpoint_url: str = "https://api.exa.ai/search",
     min_amount: str = "0.007",
     category: str = "Search",
+    networks: list[str] | None = None,
 ) -> BazaarService:
-    """Light fake using ``model_construct``."""
+    """Light fake using ``model_construct``.
+
+    Default networks=['Solana'] post-S26 #14 Gap 2 — the chain filter in
+    ``fetch_paid`` refuses non-Solana services for the trade vertical,
+    so contract tests must advertise Solana. The cross-chain refusal
+    path has its own dedicated test (``test_non_solana_service_refused``).
+    """
     return BazaarService.model_construct(
         id=sid,
         name="Exa",
@@ -115,7 +124,7 @@ def _make_service(
         provider="exa.ai",
         providerUrl="",
         category=category,
-        networks=["Base"],
+        networks=networks if networks is not None else ["Solana"],
         enriched=True,
         endpoints=[_make_endpoint(endpoint_url, min_amount=min_amount)],
         integrationType="",
@@ -315,6 +324,54 @@ async def test_redaction_of_signature_in_error() -> None:
             catalog_services=[service],
         )
     assert leaking_sig not in str(exc_info.value)
+
+
+# ---------------------------------------------------------------------------
+# S26 #14 Gap 2 — chain filter (Solana-only trade-vertical corpus).
+# ---------------------------------------------------------------------------
+
+
+def test_has_solana_network_recognizes_canonical_labels() -> None:
+    """Solana-family labels (any case, with or without -mainnet suffix)
+    pass; non-Solana chains (Base, Polygon, Ethereum) fail."""
+    sol = _make_service(networks=["Solana"])
+    assert _has_solana_network(sol) is True
+    sol_lc = _make_service(networks=["solana-mainnet"])
+    assert _has_solana_network(sol_lc) is True
+    multi = _make_service(networks=["Base", "Solana", "Polygon"])
+    assert _has_solana_network(multi) is True
+    base = _make_service(networks=["Base"])
+    assert _has_solana_network(base) is False
+    empty = _make_service(networks=[])
+    assert _has_solana_network(empty) is False
+
+
+@pytest.mark.asyncio
+async def test_non_solana_service_refused_before_network_call() -> None:
+    """A Base-only service must raise NonSolanaServiceError BEFORE the
+    PaidRequester is touched. Mirrors the BudgetExceeded test shape:
+    the requester counts every call attempt and the test asserts zero.
+    """
+
+    class _ExplodingRequester:
+        called = False
+
+        async def request(self, **_: Any) -> PaidResponse:
+            type(self).called = True
+            raise AssertionError(
+                "request should never be called for a non-Solana service"
+            )
+
+    base_service = _make_service(networks=["Base"])
+    with pytest.raises(NonSolanaServiceError) as exc_info:
+        await fetch_paid(
+            "exa-ai",
+            "q",
+            x402_client=_ExplodingRequester(),
+            catalog_services=[base_service],
+        )
+    assert "Solana-family" in str(exc_info.value)
+    assert _ExplodingRequester.called is False
 
 
 # ---------------------------------------------------------------------------

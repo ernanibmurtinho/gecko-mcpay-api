@@ -1,0 +1,52 @@
+{
+  "generated_at": "2026-05-14T00:24:40.755875+00:00",
+  "mode": "confirm",
+  "classes": [
+    {
+      "code": "F",
+      "label": "web test fixtures (^chunk text \\d+$)",
+      "expected_approx": 44,
+      "matched_count": 10,
+      "sample_urls": [
+        [
+          "<no-url>",
+          10
+        ]
+      ],
+      "sample_chunks": [
+        {
+          "_id": "69f64eca5c55500997670ffe",
+          "source_url": "<no-url>",
+          "provider_kind": "web",
+          "text_preview": "chunk text 0"
+        },
+        {
+          "_id": "69f64eca5c55500997670fff",
+          "source_url": "<no-url>",
+          "provider_kind": "web",
+          "text_preview": "chunk text 1"
+        },
+        {
+          "_id": "69f64eca5c55500997671000",
+          "source_url": "<no-url>",
+          "provider_kind": "web",
+          "text_preview": "chunk text 2"
+        },
+        {
+          "_id": "69f64eca5c55500997671001",
+          "source_url": "<no-url>",
+          "provider_kind": "web",
+          "text_preview": "chunk text 3"
+        },
+        {
+          "_id": "69f64eca5c55500997671002",
+          "source_url": "<no-url>",
+          "provider_kind": "web",
+          "text_preview": "chunk text 4"
+        }
+      ],
+      "ids_count": 10
+    }
+  ],
+  "total_would_delete": 10
+}

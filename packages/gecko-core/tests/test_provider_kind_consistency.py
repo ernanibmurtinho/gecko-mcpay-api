@@ -87,7 +87,9 @@ def test_canonical_provider_kinds_value() -> None:
         "canon_youtube",
         "canon_berkshire",
         "canon_macro",
-        # S31-#50 — free, public protocol-native API + docs content.
+        # S24 WS-A — market-data grounding (Pyth + DefiLlama).
+        "market_data",
+        # S26 #14 — direct protocol-native API ingest.
         "protocol_native",
     )
 
@@ -188,21 +190,29 @@ def test_provider_modules_do_not_redeclare_provider_kind_literal() -> None:
 
 
 def test_freshness_tier_values_match_sql_check() -> None:
-    """Pattern A: Python literal must match SQL CHECK constraint exactly."""
+    """Pattern A: Python literal must match SQL CHECK constraint exactly.
+
+    Scans every migration that touches ``chunks_freshness_tier_check``;
+    each Python-side value must appear in at least one of them. The
+    original 20260508 migration introduced static/daily/live_only;
+    20260512 extended with 'hot' (S24 WS-A market-data).
+    """
     from pathlib import Path
 
     from gecko_core.sources.types import FRESHNESS_TIER_VALUES
 
-    migration = (
-        Path(__file__).parent.parent.parent.parent
-        / "infra"
-        / "supabase"
-        / "migrations"
-        / "20260508130000_chunk_freshness_tier.sql"
+    migrations_dir = (
+        Path(__file__).parent.parent.parent.parent / "infra" / "supabase" / "migrations"
     )
-    sql = migration.read_text()
+    sql_combined = "\n".join(
+        p.read_text()
+        for p in sorted(migrations_dir.glob("*.sql"))
+        if "freshness_tier" in p.read_text()
+    )
     for value in FRESHNESS_TIER_VALUES:
-        assert f"'{value}'" in sql, f"freshness tier {value!r} missing from SQL CHECK"
+        assert f"'{value}'" in sql_combined, (
+            f"freshness tier {value!r} missing from SQL CHECK migrations"
+        )
 
 
 def test_content_kind_values_match_sql_check() -> None:

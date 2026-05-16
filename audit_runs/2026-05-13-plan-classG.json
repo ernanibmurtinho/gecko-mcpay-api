@@ -1,0 +1,88 @@
+{
+  "generated_at": "2026-05-14T00:25:51.349003+00:00",
+  "mode": "confirm",
+  "classes": [
+    {
+      "code": "G",
+      "label": "assorted too_short (paysh_manifest+market_data+canon_damodaran+web-thin leftovers)",
+      "expected_approx": 10,
+      "matched_count": 44,
+      "sample_urls": [
+        [
+          "https://solana.com/x402/hackathon",
+          5
+        ],
+        [
+          "https://www.x402.org/ecosystem",
+          3
+        ],
+        [
+          "https://interexy.com/how-to-launch-neobank",
+          2
+        ],
+        [
+          "https://messari.io/report/state-of-solana-payments",
+          2
+        ],
+        [
+          "https://www.range.org/blog/introducing-solana-attestation-service",
+          2
+        ],
+        [
+          "https://mcp.so/tag/solana",
+          2
+        ],
+        [
+          "https://www.datamintelligence.com/research-report/creator-economy-market",
+          2
+        ],
+        [
+          "https://www.stern.nyu.edu/~adamodar/pdfiles/papers/ERP2012.pdf",
+          1
+        ],
+        [
+          "https://www.stern.nyu.edu/~adamodar/pdfiles/papers/ERP2011.pdf",
+          1
+        ],
+        [
+          "https://gecko.local/market_data/jupiter/2026-05-12T08:00:00Z",
+          1
+        ]
+      ],
+      "sample_chunks": [
+        {
+          "_id": "6a021a5c600a85667fd2c108",
+          "source_url": "https://www.stern.nyu.edu/~adamodar/pdfiles/papers/ERP2012.pdf",
+          "provider_kind": "canon_damodaran",
+          "text_preview": "% 27.98% 6.54% 4.82%\r 2004 10.74% 1.23% 4.49% 9.52% 6.25% 6.53% 4.84%\r 2005 4.83% 3.01% 2.87% 1.82% 1.97% 6.47% 4.80%"
+        },
+        {
+          "_id": "6a021a48600a85667fd2c08b",
+          "source_url": "https://www.stern.nyu.edu/~adamodar/pdfiles/papers/ERP2011.pdf",
+          "provider_kind": "canon_damodaran",
+          "text_preview": "2.21% 4.00% 6.43%\r 2009 1115.10 59.65 22.31 3.84% 7.20% 4.36%\r 2010 1257.64 83.66 23.12 3.29% 6.95% 5.20%"
+        },
+        {
+          "_id": "6a02e49d5fd7b227d635b3a0",
+          "source_url": "https://gecko.local/market_data/jupiter/2026-05-12T08:00:00Z",
+          "provider_kind": "market_data",
+          "text_preview": "DefiLlama TVL snapshot for jupiter (as of 2026-05-12T08:00:00Z). Current TVL: $0 USD. 7-day change: +0.00%. 30-day chang"
+        },
+        {
+          "_id": "6a02e4985fd7b227d635b39d",
+          "source_url": "https://gecko.local/market_data/drift/2026-05-12T08:00:00Z",
+          "provider_kind": "market_data",
+          "text_preview": "DefiLlama TVL snapshot for drift (as of 2026-05-12T08:00:00Z). Current TVL: $277,181,616 USD. 7-day change: +11.97%. 30-"
+        },
+        {
+          "_id": "6a02e48e5fd7b227d635b399",
+          "source_url": "https://gecko.local/market_data/kamino/2026-05-12T08:00:00Z",
+          "provider_kind": "market_data",
+          "text_preview": "DefiLlama TVL snapshot for kamino (as of 2026-05-12T08:00:00Z). Current TVL: $1,505,498,759 USD. 7-day change: +4.40%. 3"
+        }
+      ],
+      "ids_count": 44
+    }
+  ],
+  "total_would_delete": 44
+}

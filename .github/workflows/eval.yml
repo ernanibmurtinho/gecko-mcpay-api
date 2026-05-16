@@ -29,7 +29,7 @@ jobs:
         with:
           version: "0.5.30"
       - name: Sync workspace
-        run: uv sync
+        run: uv sync --all-packages
       - name: Run eval harness (mock)
         run: uv run python -m tests.eval.runner --no-save
       - name: Run eval self-tests

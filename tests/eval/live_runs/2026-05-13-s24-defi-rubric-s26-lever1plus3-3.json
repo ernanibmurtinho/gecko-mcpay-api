@@ -1,0 +1,194 @@
+{
+  "date": "2026-05-13",
+  "tier": "basic",
+  "suite": "defi_trade_rubric_suite.json",
+  "n_fixtures_loaded": 3,
+  "n_scored": 3,
+  "aggregate": {
+    "n": 3,
+    "overall_pass_rate": 0.0,
+    "per_dimension_means": {
+      "verdict_accuracy": 1.0,
+      "citation_relevance": 0.4,
+      "provider_kind_coverage": 0.333,
+      "hallucination_score": 0.0,
+      "dissent_grounding": 0.7,
+      "confidence_calibration": 0.65
+    },
+    "per_dimension_pass_rate": {
+      "verdict_accuracy": 1.0,
+      "citation_relevance": 0.0,
+      "provider_kind_coverage": 0.333,
+      "hallucination_score": 0.0,
+      "dissent_grounding": 1.0,
+      "confidence_calibration": 1.0
+    },
+    "thresholds": {
+      "verdict_accuracy": 1.0,
+      "citation_relevance": 0.7,
+      "provider_kind_coverage": 1.0,
+      "hallucination_score": 1.0,
+      "dissent_grounding": 0.5,
+      "confidence_calibration": 0.6
+    }
+  },
+  "rows": [
+    {
+      "id": "kamino-2024Q3-jlpusdc-entry",
+      "protocol": "kamino",
+      "vertical": "dex",
+      "as_of_date": "2024-08-12",
+      "panel": {
+        "verdict": "defer",
+        "confidence": 0.7,
+        "dissent_count": 2,
+        "blocker_questions": [
+          "What is the current status of the audit for the Kamino protocol's smart contracts?",
+          "When is the pending admin status expected to be resolved, and what implications might this have for governance?"
+        ],
+        "n_citations": 7,
+        "provider_kinds_present": [
+          "protocol_native"
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "ACT",
+        "expected_verdict_v2_set": [
+          "ACT",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "paysh_live",
+          "market_data",
+          "canon_marks",
+          "canon_damodaran",
+          "canon_berkshire"
+        ],
+        "expected_dissent_topics": [
+          "smart_contract_risk",
+          "leverage_unwind_risk",
+          "vault_parameter_change_risk"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.35,
+        "provider_kind_coverage": 0.0,
+        "hallucination_score": 0.0,
+        "dissent_grounding": 0.8,
+        "confidence_calibration": 0.7
+      },
+      "passed": false,
+      "judge_notes": "Citation relevance is low: all 7 citations are raw API JSON blobs from the Kamino vaults endpoint with no clear mapping to the specific JLP-USDC multiply vault parameters, no market_data source for JLP price context, and no canon sources (Marks, Damodaran) as expected. The fundamental analyst cited a TVL figure (~$10.1M) derived from a raw 'prevAum' field in the API blob without a proper paysh_live or market_data source \u2014 this constitutes a hallucination of a specific figure without a validated source, triggering hallucination_score=0.0. Dissent grounding is strong: smart_contract_risk and vault_parameter_change_risk (pending admin) are clearly surfaced by the risk_manager and bull_bear_debater; leverage_unwind_risk is not explicitly named but hinted at. Confidence of 0.7 for a DEFER verdict is reasonable given thin citation quality and genuine risk flags, though slightly overconfident given the near-total absence of on-topic structured data (no paysh_live manifest, no market_data for JLP).",
+      "wall_seconds": {
+        "panel": 49.48,
+        "judge": 8.59
+      }
+    },
+    {
+      "id": "kamino-2024Q4-sol-leverage-entry",
+      "protocol": "kamino",
+      "vertical": "lending",
+      "as_of_date": "2024-11-05",
+      "panel": {
+        "verdict": "defer",
+        "confidence": 0.7,
+        "dissent_count": 2,
+        "blocker_questions": [
+          "Will SOL maintain a price above $175 for the next 30 days, confirming bullish momentum?",
+          "What is the current audit status of the Kamino protocol, and are there any known vulnerabilities?"
+        ],
+        "n_citations": 7,
+        "provider_kinds_present": [
+          "bazaar_live",
+          "market_data"
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "DEFER",
+        "expected_verdict_v2_set": [
+          "ACT",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "market_data",
+          "canon_marks",
+          "canon_damodaran",
+          "canon_berkshire",
+          "paysh_live"
+        ],
+        "expected_dissent_topics": [
+          "liquidation_cascade_risk",
+          "drawdown_path_risk",
+          "audit_status_uncertainty",
+          "leverage_unwind_risk"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.45,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 0.0,
+        "dissent_grounding": 0.8,
+        "confidence_calibration": 0.65
+      },
+      "passed": false,
+      "judge_notes": "Citation relevance is weak: citations 1-2 are raw bazaar API cost blobs with no readable content; citations 3, 5, 6, 7 are 2026-dated mSOL/SOL candles from gecko.local (wrong date, partially wrong asset); only citation 4 (Pyth Hermes, 2024-11-05, SOL=$157.88) is genuinely on-topic and date-correct. Roughly 1-2 of 7 cites are truly relevant. Hallucination: the question states SOL at $165 but citation 4 shows $157.88 \u2014 the panel uses $165 as the entry price without a matching source, which is a must_not_hallucinate violation (specific USD price level cited without market_data source). Score 0.0. Dissent grounding: liquidation_cascade_risk and leverage_unwind_risk are clearly surfaced by risk_manager and bull_bear_debater (liquidation below $150/$175 thresholds); audit_status_uncertainty is raised in blocker questions and multiple turns. Drawdown_path_risk is hinted but not deeply developed. At least 2-3 expected topics are present, so score is high. Confidence calibration: 0.70 with a DEFER verdict, 2 dissenters, thin/stale citations, and genuine leverage risk is mildly over-confident but not severely so; 0.55-0.65 would be more appropriate given the citation weakness and hallucinated entry price.",
+      "wall_seconds": {
+        "panel": 46.82,
+        "judge": 11.27
+      }
+    },
+    {
+      "id": "kamino-2025Q1-jitosol-vault",
+      "protocol": "kamino",
+      "vertical": "dex",
+      "as_of_date": "2025-02-18",
+      "panel": {
+        "verdict": "defer",
+        "confidence": 0.65,
+        "dissent_count": 2,
+        "blocker_questions": [
+          "What is the current audit status of the Kamino protocol?",
+          "How will the pending governance changes impact the operational stability of the protocol?"
+        ],
+        "n_citations": 7,
+        "provider_kinds_present": [
+          "protocol_native"
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "DEFER",
+        "expected_verdict_v2_set": [
+          "PASS",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "paysh_live",
+          "market_data",
+          "canon_damodaran",
+          "canon_marks"
+        ],
+        "expected_dissent_topics": [
+          "marginal_yield_uplift_risk",
+          "peg_deviation_risk",
+          "transaction_cost_overhead"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.4,
+        "provider_kind_coverage": 0.0,
+        "hallucination_score": 0.0,
+        "dissent_grounding": 0.5,
+        "confidence_calibration": 0.6
+      },
+      "passed": false,
+      "judge_notes": "Citation relevance is low: all 7 citations are raw API JSON blobs from the Kamino vaults endpoint with no readable vault parameters, APY data, or JitoSOL-SOL specific context \u2014 they are on-protocol but essentially unintelligible snippets that don't substantiate any claim. Hallucination: the fundamental_analyst cites a specific TVL figure of ~$148,276,430 with no market_data or paysh_live source tag \u2014 this is a must_not_hallucinate violation (specific figure without proper source). Score = 0.0. Dissent grounding: peg_deviation_risk and marginal_yield_uplift_risk are not explicitly surfaced; transaction_cost_overhead is absent. The blocker questions focus on audit status and governance, not the expected dissent topics (peg deviation, marginal yield uplift, tx cost overhead). Only a vague hint at operational risk is present \u2014 not concrete enough for full credit. Confidence calibration: 0.65 defer with thin/unreadable citations and dissent focused on wrong topics is mildly miscalibrated but not severely so \u2014 the defer verdict is correct directionally.",
+      "wall_seconds": {
+        "panel": 48.74,
+        "judge": 9.73
+      }
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "total_chunks": 28139,
+  "by_reason_global": {
+    "ok": 28134,
+    "too_short": 5
+  },
+  "by_provider_kind": {
+    "bazaar": {
+      "total": 54,
+      "ok": 54,
+      "garbage": 0,
+      "reasons": {}
+    },
+    "bazaar_live": {
+      "total": 27,
+      "ok": 27,
+      "garbage": 0,
+      "reasons": {}
+    },
+    "bazaar_manifest": {
+      "total": 4,
+      "ok": 4,
+      "garbage": 0,
+      "reasons": {}
+    },
+    "canon_berkshire": {
+      "total": 1525,
+      "ok": 1520,
+      "garbage": 5,
+      "reasons": {
+        "too_short": 5
+      }
+    },
+    "canon_damodaran": {
+      "total": 2408,
+      "ok": 2408,
+      "garbage": 0,
+      "reasons": {}
+    },
+    "canon_marks": {
+      "total": 649,
+      "ok": 649,
+      "garbage": 0,
+      "reasons": {}
+    },
+    "market_data": {
+      "total": 81,
+      "ok": 81,
+      "garbage": 0,
+      "reasons": {}
+    },
+    "paysh_manifest": {
+      "total": 72,
+      "ok": 72,
+      "garbage": 0,
+      "reasons": {}
+    },
+    "protocol_native": {
+      "total": 958,
+      "ok": 958,
+      "garbage": 0,
+      "reasons": {}
+    },
+    "web": {
+      "total": 22361,
+      "ok": 22361,
+      "garbage": 0,
+      "reasons": {}
+    }
+  },
+  "samples": []
+}

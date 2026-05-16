@@ -289,6 +289,10 @@ async def _score_one(
         "vertical": fixture.get("vertical", "dex"),
         "tier": tier,
         "llm_config": llm_config,
+        # S25 #13 — thread the fixture's as_of_date into retrieval so the
+        # market_data date-alignment boost / demotion fires when the
+        # corpus carries a parseable timestamp. None when fixture omits.
+        "as_of_date": fixture.get("as_of_date"),
     }
     # Pattern E guardrail — judge ground-truth keys must not leak into the panel.
     forbidden = {

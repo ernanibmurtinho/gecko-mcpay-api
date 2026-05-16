@@ -67,10 +67,20 @@ ProviderKind = Literal[
     "canon_youtube",  # Patrick Boyle, Ben Felix, Mauboussin transcripts
     "canon_berkshire",  # Berkshire Hathaway shareholder letters 1965-now
     "canon_macro",  # Fed, BIS, IMF working papers
-    # S31-#50 — free, public protocol-native API + docs content. Distinct
-    # from paysh_live (paid x402 endpoints) and from canon_* (cross-cutting
-    # investor literature). Carries an exact protocol tag (e.g. ("jito",))
-    # so the protocol-exact retrieval boost applies. See
+    # S24 WS-A — live market-data grounding. Pyth historical daily candles
+    # + DefiLlama TVL snapshots per protocol. ai-ml-engineer review
+    # (2026-05-12): 3/7 panel voices structurally hallucinate without
+    # market data; technical_analyst cannot ground on Marks memos. Chunks
+    # surface alongside canon (cross-cutting) but tag the protocol so
+    # protocol-equality $match also catches them. See
+    # docs/strategy/2026-05-12-s24-plan.md §4 WS-A and
+    # packages/gecko-core/src/gecko_core/sources/market_data.py.
+    "market_data",
+    # S26 #14 — direct protocol-native API ingest. Free public-API/docs
+    # content (Kamino, Drift, Jupiter, Jito MEV, Sanctum). Distinct from
+    # paysh_live (paid x402) and canon_* (cross-cutting investor lit).
+    # Carries an exact protocol tag so the protocol-exact retrieval boost
+    # applies. See scripts/protocol_native/ingest_protocol_native.py and
     # scripts/protocol_native/ingest_jito_mev.py.
     "protocol_native",
 ]
@@ -85,8 +95,11 @@ PROVIDER_KINDS: Final[tuple[str, ...]] = get_args(ProviderKind)
 # paysh/bazaar snapshots refreshed on a cadence) from live_only (single-call
 # results never persisted to the vector store). Drift-guarded by
 # ``tests/test_provider_kind_consistency.py::test_freshness_tier_values_match_sql_check``.
-FreshnessTier = Literal["static", "daily", "live_only"]
-FRESHNESS_TIER_VALUES: tuple[FreshnessTier, ...] = ("static", "daily", "live_only")
+# 'hot' (S24 WS-A) = sub-hour cadence market data (Pyth, DefiLlama); embedded
+#   into the vector store so the panel can cite it. Distinct from
+#   'live_only' which is "fetch on request, never persist".
+FreshnessTier = Literal["static", "daily", "live_only", "hot"]
+FRESHNESS_TIER_VALUES: tuple[FreshnessTier, ...] = ("static", "daily", "live_only", "hot")
 
 # --- Content kind (Pattern A: SQL CHECK in 20260508140000 mirrors this) ---
 # 'quote'      = price/TVL/APY snapshots; 24h TTL.

@@ -79,9 +79,7 @@ class FixtureHistorySource:
                     "session_high": peak,
                 }
             return
-        raise ValueError(
-            "FixtureHistorySource: data must contain 'events' or 'prices'"
-        )
+        raise ValueError("FixtureHistorySource: data must contain 'events' or 'prices'")
 
     @property
     def events(self) -> list[dict[str, Any]]:

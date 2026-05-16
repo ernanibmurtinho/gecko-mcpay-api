@@ -1,0 +1,100 @@
+{
+  "total_chunks": 28570,
+  "by_reason_global": {
+    "ok": 28135,
+    "too_short": 286,
+    "repeated_chars": 149
+  },
+  "by_provider_kind": {
+    "bazaar": {
+      "total": 54,
+      "ok": 54,
+      "garbage": 0,
+      "reasons": {}
+    },
+    "bazaar_live": {
+      "total": 27,
+      "ok": 27,
+      "garbage": 0,
+      "reasons": {}
+    },
+    "bazaar_manifest": {
+      "total": 50,
+      "ok": 4,
+      "garbage": 46,
+      "reasons": {
+        "too_short": 46
+      }
+    },
+    "canon_berkshire": {
+      "total": 1674,
+      "ok": 1520,
+      "garbage": 154,
+      "reasons": {
+        "repeated_chars": 149,
+        "too_short": 5
+      }
+    },
+    "canon_damodaran": {
+      "total": 2410,
+      "ok": 2408,
+      "garbage": 2,
+      "reasons": {
+        "too_short": 2
+      }
+    },
+    "canon_marks": {
+      "total": 649,
+      "ok": 649,
+      "garbage": 0,
+      "reasons": {}
+    },
+    "market_data": {
+      "total": 84,
+      "ok": 81,
+      "garbage": 3,
+      "reasons": {
+        "too_short": 3
+      }
+    },
+    "paysh_live": {
+      "total": 64,
+      "ok": 0,
+      "garbage": 64,
+      "reasons": {
+        "too_short": 64
+      }
+    },
+    "paysh_manifest": {
+      "total": 77,
+      "ok": 72,
+      "garbage": 5,
+      "reasons": {
+        "too_short": 5
+      }
+    },
+    "protocol_native": {
+      "total": 958,
+      "ok": 958,
+      "garbage": 0,
+      "reasons": {}
+    },
+    "twitsh": {
+      "total": 118,
+      "ok": 1,
+      "garbage": 117,
+      "reasons": {
+        "too_short": 117
+      }
+    },
+    "web": {
+      "total": 22405,
+      "ok": 22361,
+      "garbage": 44,
+      "reasons": {
+        "too_short": 44
+      }
+    }
+  },
+  "samples": []
+}

@@ -35,9 +35,23 @@ files = ["packages", "apps"]
 [tool.pytest.ini_options]
 testpaths = ["tests", "packages", "apps"]
 python_files = "test_*.py"
-addopts = "-q --strict-markers --import-mode=importlib"
+# S24 W3 Task #10: deselect heavy markers by default so a plain
+# `uv run pytest` stays <60s on a laptop. Operators opt in to the
+# heavier slices via the Makefile recipes (`make test-mongo`,
+# `make test-live`, `make test-full`) or an explicit `-m` selector.
+# CI uses `make test-full` so coverage is preserved.
+addopts = "-q --strict-markers --import-mode=importlib -m 'not slow and not live and not live_solana and not live_cdp and not live_bazaar and not live_paysh and not live_x402_verdict and not e2e_smoke and not network and not integration and not mongo'"
 asyncio_mode = "auto"
 markers = [
+    # S24 W3 Task #10 — laptop-vs-CI split. Path-based auto-marker
+    # in repo-root conftest.py applies these by directory + filename;
+    # individual tests can still add explicit decorators.
+    "unit: default — pure-logic, no network, no DB, <2s",
+    "slow: takes >2s on a developer laptop (eval scripts, panel runs)",
+    "network: requires outbound HTTP (OpenAI/Anthropic/Tavily/Pyth/etc.)",
+    "integration: lives under tests/integration/; full-stack wires",
+    "mongo: hits MongoDB (mongomock OR a real instance)",
+    "live: hits a production or live external service",
     # S12.5-TEST-04: gated integration tests that hit the real CDP
     # facilitator's /verify endpoint (read-only, free). Skipped unless the
     # operator opts in via env, so CI doesn't burn credentials. We never
@@ -73,6 +87,13 @@ markers = [
     # GECKO_E2E_BASE_URL is set so a default `pytest` run never hits the network.
     # Pairs with scripts/falsifier_tavily.py, the manual Gecko-vs-Tavily probe.
     "e2e_smoke: end-to-end smoke against a live HTTP gecko-api (skipped unless GECKO_E2E_BASE_URL is set)",
+    # S24 WS-C Task #4: gated buyer-side x402 contract test for the live
+    # Solana settlement path (LiveBuyerX402Client). Replay mode runs in CI
+    # against recorded fixtures under tests/integration/fixtures/live_buyer/;
+    # live re-record requires GECKO_LIVE_SOLANA=1 + funded buyer wallet env
+    # (BUYER_WALLET_PRIVATE_KEY_PATH + BUYER_WALLET_PUBKEY). Mirrors the
+    # live_cdp Pattern-C template from S12.5-TEST-04 for the Solana lane.
+    "live_solana: gated buyer-side x402 contract test against real Solana facilitator (cassette replay by default)",
 ]
 
 [dependency-groups]

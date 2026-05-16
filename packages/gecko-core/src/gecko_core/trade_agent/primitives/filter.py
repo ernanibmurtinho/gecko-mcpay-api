@@ -35,9 +35,7 @@ def passes_filter(
     if spec_filter.block_honeypot and event.get("is_honeypot"):
         return False, "honeypot"
 
-    if spec_filter.require_oracle_act and (
-        verdict is None or verdict.get("verdict") != "act"
-    ):
+    if spec_filter.require_oracle_act and (verdict is None or verdict.get("verdict") != "act"):
         return False, "oracle_not_act"
 
     return True, None

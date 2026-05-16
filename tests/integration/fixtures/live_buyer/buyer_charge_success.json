@@ -1,0 +1,35 @@
+{
+  "_comment": "Stub fixture — replaced on Day 9 (2026-05-20) by a real recording. The shape is what the replay loader expects.",
+  "recorded_at": "2026-05-20T00:00:00Z",
+  "intent": {
+    "intent_id": "buyer-smoke-0001",
+    "amount_usd": "0.25",
+    "tier": "basic"
+  },
+  "buyer_pubkey": "BuYeRpUbKeYpLaCeHoLdEr1111111111111111111111",
+  "seller_pay_to": "SeLlErPaYtOpLaCeHoLdEr111111111111111111111",
+  "tx_signature": "1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+  "rpc_calls": [
+    {
+      "method": "sendTransaction",
+      "request_params_summary": "signed_usdc_transfer",
+      "response": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": "1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+      }
+    },
+    {
+      "method": "getSignatureStatuses",
+      "request_params_summary": "[[tx_signature], {searchTransactionHistory: true}]",
+      "response": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "context": {"slot": 250000000},
+          "value": [{"slot": 250000000, "confirmations": 32, "err": null, "confirmationStatus": "finalized"}]
+        }
+      }
+    }
+  ]
+}

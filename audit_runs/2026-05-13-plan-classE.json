@@ -1,0 +1,88 @@
+{
+  "generated_at": "2026-05-14T00:23:55.566262+00:00",
+  "mode": "confirm",
+  "classes": [
+    {
+      "code": "E",
+      "label": "bazaar_manifest thin (text length < 200)",
+      "expected_approx": 46,
+      "matched_count": 46,
+      "sample_urls": [
+        [
+          "https://agentic.market/services/docs-clado-ai",
+          1
+        ],
+        [
+          "https://agentic.market/services/agentcamo-xyz",
+          1
+        ],
+        [
+          "https://agentic.market/services/myceliasignal-com",
+          1
+        ],
+        [
+          "https://agentic.market/services/stablemerch-dev",
+          1
+        ],
+        [
+          "https://agentic.market/services/hyperbrowser-ai",
+          1
+        ],
+        [
+          "https://agentic.market/services/hyperbolic-xyz",
+          1
+        ],
+        [
+          "https://agentic.market/services/hunter-io",
+          1
+        ],
+        [
+          "https://agentic.market/services/ai-google-dev",
+          1
+        ],
+        [
+          "https://agentic.market/services/mesh-heurist-xyz",
+          1
+        ],
+        [
+          "https://agentic.market/services/gen-portalfoundation-ai",
+          1
+        ]
+      ],
+      "sample_chunks": [
+        {
+          "_id": "69fc3996c14f4b7af2b6b305",
+          "source_url": "https://agentic.market/services/docs-clado-ai",
+          "provider_kind": "bazaar_manifest",
+          "text_preview": "Clado [Data] Contact enrichment Networks: Base, Solana. Pricing: $0.2 USDC."
+        },
+        {
+          "_id": "69fc3996c14f4b7af2b6b304",
+          "source_url": "https://agentic.market/services/agentcamo-xyz",
+          "provider_kind": "bazaar_manifest",
+          "text_preview": "Agent Camo (VPN) [Infra] Residential proxy sessions with geo-targeting Networks: Base, Solana. Pricing: $0.01 USDC."
+        },
+        {
+          "_id": "69fc3994c14f4b7af2b6b301",
+          "source_url": "https://agentic.market/services/myceliasignal-com",
+          "provider_kind": "bazaar_manifest",
+          "text_preview": "Mycelia Signal [Trading] Cryptographic price oracle (7 feeds) Networks: Base. Pricing: $0.01 USDC."
+        },
+        {
+          "_id": "69fc3993c14f4b7af2b6b300",
+          "source_url": "https://agentic.market/services/stablemerch-dev",
+          "provider_kind": "bazaar_manifest",
+          "text_preview": "StableMerch [Other] Order custom t-shirts and mugs from images Networks: Base. Pricing: $15 \u2013 $25 USDC avg $20."
+        },
+        {
+          "_id": "69fc3992c14f4b7af2b6b2ff",
+          "source_url": "https://agentic.market/services/hyperbrowser-ai",
+          "provider_kind": "bazaar_manifest",
+          "text_preview": "Hyperbrowser [Search] Headless browser and web scraping - AI-native Networks: Base, Solana. Pricing: $0.001 \u2013 $0.005 USD"
+        }
+      ],
+      "ids_count": 46
+    }
+  ],
+  "total_would_delete": 46
+}

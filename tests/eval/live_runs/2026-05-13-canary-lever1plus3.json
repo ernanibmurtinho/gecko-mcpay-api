@@ -1,0 +1,70 @@
+{
+  "date": "2026-05-13",
+  "suite": "canary_suite.json",
+  "tier": "canary",
+  "row": {
+    "id": "kamino-2024Q3-jlpusdc-entry",
+    "protocol": "kamino",
+    "vertical": "dex",
+    "passed": false,
+    "dimensions": {
+      "d1_answered_back": {
+        "passed": true,
+        "failures": [],
+        "details": {
+          "verdict": "defer",
+          "confidence": 0.65,
+          "n_turns": 7
+        }
+      },
+      "d2_context_overflow": {
+        "passed": true,
+        "failures": [],
+        "warnings": [],
+        "details": {
+          "n_chunks_input": 7,
+          "n_chunks_rendered": 7,
+          "rendered_block_chars": 9174,
+          "char_cap": 60000,
+          "truncation_marker_present": false,
+          "estimated_prompt_tokens": 2532
+        }
+      },
+      "d3_citations_grounded": {
+        "passed": false,
+        "failures": [
+          "phantom citations: 2 of 7 \u2014 markers [3][7] never appear in any persona content"
+        ],
+        "details": {
+          "n_panel_cites": 7,
+          "n_valid_chunk_ids": 7,
+          "n_phantom_cites": 0,
+          "n_inline_markers_out_of_range": 0,
+          "n_phantom_markers": 2,
+          "persona_markers_seen": [
+            1,
+            2,
+            4,
+            5,
+            6
+          ],
+          "phantom_markers": [
+            3,
+            7
+          ]
+        }
+      }
+    },
+    "panel_error": null,
+    "wall_seconds": {
+      "retrieve": 2.62,
+      "panel": 43.41
+    },
+    "panel": {
+      "verdict": "defer",
+      "confidence": 0.65,
+      "n_citations": 7,
+      "n_chunks_input": 7
+    }
+  }
+}

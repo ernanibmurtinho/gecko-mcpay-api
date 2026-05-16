@@ -31,9 +31,18 @@ Safety
 ------
 - Default is dry-run; ``--apply`` is required for writes.
 - Patterns come from ``BLOCKLIST_PATTERNS`` — never redefined here.
-- Connection URI is read from ``MONGODB_URI``; database name from
-  ``MONGODB_DB_NAME`` (with ``MONGODB_CHUNK_DB`` accepted as an alias
-  for parity with the existing chunk-store config).
+- Connection URI is read from ``MONGODB_URI``; database name routes through
+  ``gecko_core.db.mongo.chunk_db_name()`` — the single source of truth for
+  ``MONGODB_CHUNK_DB`` (Pattern A).
+
+S30-#42 BREAKING CHANGE
+-----------------------
+Previously this script accepted ``MONGODB_DB_NAME`` as an alternate env
+alongside ``MONGODB_CHUNK_DB``. Per Pattern A (one canonical accessor for
+chunk-DB name) the alias was removed: operators relying on
+``MONGODB_DB_NAME`` for this script must switch to ``MONGODB_CHUNK_DB``
+(the same env every other chunk-touching script honors). Explicit ``--db``
+override still works for staging/test databases.
 """
 
 from __future__ import annotations
@@ -45,6 +54,7 @@ import os
 import sys
 from typing import Any
 
+from gecko_core.db.mongo import CHUNKS_COLLECTION, chunk_db_name
 from gecko_core.ingestion.blocklist import BLOCKLIST_PATTERNS, BlocklistPattern
 
 logger = logging.getLogger(__name__)
@@ -159,19 +169,24 @@ def _build_parser() -> argparse.ArgumentParser:
         default=os.environ.get("MONGODB_URI"),
         help="Mongo connection URI (default: $MONGODB_URI).",
     )
+    # S30-#42: defaults route through gecko_core.db.mongo (Pattern A).
+    # The legacy $MONGODB_DB_NAME alias was removed — operators must use
+    # $MONGODB_CHUNK_DB (the single source of truth) or pass --db explicitly.
     p.add_argument(
         "--db",
-        default=(
-            os.environ.get("MONGODB_DB_NAME") or os.environ.get("MONGODB_CHUNK_DB") or "gecko_rag"
-        ),
+        default=None,
         help=(
-            "Database name (default: $MONGODB_DB_NAME, then $MONGODB_CHUNK_DB, then 'gecko_rag')."
+            "Database override. Default: gecko_core.db.mongo.chunk_db_name() "
+            "(respects $MONGODB_CHUNK_DB; falls back to 'gecko_rag')."
         ),
     )
     p.add_argument(
         "--collection",
-        default="chunks",
-        help="Collection name (default: 'chunks').",
+        default=None,
+        help=(
+            f"Collection override. Default: {CHUNKS_COLLECTION!r} "
+            "(gecko_core.db.mongo.CHUNKS_COLLECTION)."
+        ),
     )
     return p
 
@@ -188,7 +203,10 @@ async def _run_cli(args: argparse.Namespace) -> int:
 
     client: Any = AsyncIOMotorClient(args.mongodb_uri)
     try:
-        coll = client[args.db][args.collection]
+        # Pattern A: resolve via canonical accessor when overrides absent.
+        db_name = args.db if args.db is not None else chunk_db_name()
+        coll_name = args.collection if args.collection is not None else CHUNKS_COLLECTION
+        coll = client[db_name][coll_name]
         summary = await evict_academic_gecko_chunks(coll, dry_run=not args.apply)
         _print_report(summary)
         return 0

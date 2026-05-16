@@ -1,0 +1,107 @@
+[
+  {
+    "executed_at": "2026-05-14T00:20:29.192831+00:00",
+    "class": "A",
+    "label": "web + binary (PDF extraction failures)",
+    "planned": 3229,
+    "deleted": 3229,
+    "drift": 0,
+    "sample_deleted_ids": [
+      "69fda6c13cc0ffe147e82318",
+      "69fda6c13cc0ffe147e82313",
+      "69fda6c13cc0ffe147e8230c",
+      "69fda6c13cc0ffe147e8232e",
+      "69fda6c13cc0ffe147e82323"
+    ]
+  },
+  {
+    "executed_at": "2026-05-14T00:21:31.308946+00:00",
+    "class": "B",
+    "label": "canon_berkshire + binary",
+    "planned": 149,
+    "deleted": 149,
+    "drift": 0,
+    "sample_deleted_ids": [
+      "6a02160e5ecb74368afd1b94",
+      "6a0216085ecb74368afd1b68",
+      "6a0216025ecb74368afd1b42",
+      "6a0215fb5ecb74368afd1b1a",
+      "6a02156f3169a51804eec468"
+    ]
+  },
+  {
+    "executed_at": "2026-05-14T00:22:19.910636+00:00",
+    "class": "C",
+    "label": "twitsh stub fixtures (twitsh://session/*)",
+    "planned": 118,
+    "deleted": 118,
+    "drift": 0,
+    "sample_deleted_ids": [
+      "69fda6d03cc0ffe147e8233f",
+      "69fda6d03cc0ffe147e8233e",
+      "69fd53953cc0ffe147e82281",
+      "69fd53953cc0ffe147e82282",
+      "69fd25fc170ac73a47866517"
+    ]
+  },
+  {
+    "executed_at": "2026-05-14T00:23:09.402524+00:00",
+    "class": "D",
+    "label": "paysh_live (whole-kind purge; all 64 empty)",
+    "planned": 64,
+    "deleted": 64,
+    "drift": 0,
+    "sample_deleted_ids": [
+      "6a020b8a171616cd80f33f9d",
+      "6a020b85171616cd80f33f9c",
+      "6a020b7d171616cd80f33f9b",
+      "6a020b78171616cd80f33f9a",
+      "6a020b73171616cd80f33f99"
+    ]
+  },
+  {
+    "executed_at": "2026-05-14T00:23:55.710832+00:00",
+    "class": "E",
+    "label": "bazaar_manifest thin (text length < 200)",
+    "planned": 46,
+    "deleted": 46,
+    "drift": 0,
+    "sample_deleted_ids": [
+      "69fc3996c14f4b7af2b6b305",
+      "69fc3996c14f4b7af2b6b304",
+      "69fc3994c14f4b7af2b6b301",
+      "69fc3993c14f4b7af2b6b300",
+      "69fc3992c14f4b7af2b6b2ff"
+    ]
+  },
+  {
+    "executed_at": "2026-05-14T00:24:40.883978+00:00",
+    "class": "F",
+    "label": "web test fixtures (^chunk text \\d+$)",
+    "planned": 10,
+    "deleted": 10,
+    "drift": 0,
+    "sample_deleted_ids": [
+      "69f64eca5c55500997670ffe",
+      "69f64eca5c55500997670fff",
+      "69f64eca5c55500997671000",
+      "69f64eca5c55500997671001",
+      "69f64eca5c55500997671002"
+    ]
+  },
+  {
+    "executed_at": "2026-05-14T00:25:51.480330+00:00",
+    "class": "G",
+    "label": "assorted too_short (paysh_manifest+market_data+canon_damodaran+web-thin leftovers)",
+    "planned": 44,
+    "deleted": 44,
+    "drift": 0,
+    "sample_deleted_ids": [
+      "6a021a5c600a85667fd2c108",
+      "6a021a48600a85667fd2c08b",
+      "6a02e49d5fd7b227d635b3a0",
+      "6a02e4985fd7b227d635b39d",
+      "6a02e48e5fd7b227d635b399"
+    ]
+  }
+]

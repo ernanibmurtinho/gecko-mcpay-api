@@ -1,0 +1,144 @@
+[
+  {
+    "id": "kamino-2024Q3-jlpusdc-entry",
+    "as_of_date": "2024-08-12",
+    "protocol": "kamino",
+    "vertical": "dex",
+    "question": "I'm considering depositing $5k into the Kamino JLP-USDC multiply vault at current parameters. Entry now or wait?",
+    "corpus_freeze_date": "2024-08-12",
+    "known_outcome_at_30d": {
+      "profit_pct": 4.8,
+      "max_drawdown_pct": -3.1,
+      "label": "modest_profit_low_dd"
+    },
+    "outcome_source": "https://api.llama.fi/protocol/kamino-liquidity (TVL+yield series snapshot 2024-08-12 to 2024-09-11)"
+  },
+  {
+    "id": "kamino-2024Q4-sol-leverage-entry",
+    "as_of_date": "2024-11-05",
+    "protocol": "kamino",
+    "vertical": "lending",
+    "question": "Open a 3x SOL-long leveraged position on Kamino Multiply with SOL at $165. 30d horizon. Sensible?",
+    "corpus_freeze_date": "2024-11-05",
+    "known_outcome_at_30d": {
+      "profit_pct": 52.4,
+      "max_drawdown_pct": -8.2,
+      "label": "high_profit_moderate_dd"
+    },
+    "outcome_source": "Pyth SOL/USD historical 2024-11-05 to 2024-12-05; CoinGecko OHLC cross-check"
+  },
+  {
+    "id": "kamino-2025Q1-jitosol-vault",
+    "as_of_date": "2025-02-18",
+    "protocol": "kamino",
+    "vertical": "dex",
+    "question": "Park idle SOL into the Kamino JitoSOL-SOL vault for 30d. Outperform straight JitoSOL holding?",
+    "corpus_freeze_date": "2025-02-18",
+    "known_outcome_at_30d": {
+      "profit_pct": 1.9,
+      "max_drawdown_pct": -1.2,
+      "label": "marginal_profit_low_dd"
+    },
+    "outcome_source": "https://api.llama.fi/protocol/kamino-liquidity 2025-02-18 to 2025-03-20"
+  },
+  {
+    "id": "kamino-2025Q3-usdc-pyusd-exit",
+    "as_of_date": "2025-07-22",
+    "protocol": "kamino",
+    "vertical": "dex",
+    "question": "Holding the Kamino USDC-PYUSD vault since June at +0.9%. Roll forward 30 more days or rotate?",
+    "corpus_freeze_date": "2025-07-22",
+    "known_outcome_at_30d": {
+      "profit_pct": 0.3,
+      "max_drawdown_pct": -0.4,
+      "label": "yield_trap_underperform"
+    },
+    "outcome_source": "https://api.llama.fi/protocol/kamino-liquidity 2025-07-22 to 2025-08-21"
+  },
+  {
+    "id": "drift-2024Q4-sol-perp-long",
+    "as_of_date": "2024-12-02",
+    "protocol": "drift",
+    "vertical": "perps",
+    "question": "Open 2x SOL-PERP long on Drift at $230 ahead of the Dec FOMC. 14d horizon. Sensible?",
+    "corpus_freeze_date": "2024-12-02",
+    "known_outcome_at_30d": {
+      "profit_pct": -22.6,
+      "max_drawdown_pct": -27.4,
+      "label": "thesis_broken_dd_breach"
+    },
+    "outcome_source": "Pyth SOL/USD 2024-12-02 to 2025-01-01; Drift funding rate archive"
+  },
+  {
+    "id": "drift-2025Q2-jto-perp-short",
+    "as_of_date": "2025-05-14",
+    "protocol": "drift",
+    "vertical": "perps",
+    "question": "Short JTO-PERP at $2.40 on Drift, 1x size, 21d horizon — unlock-supply thesis. Take it?",
+    "corpus_freeze_date": "2025-05-14",
+    "known_outcome_at_30d": {
+      "profit_pct": 14.1,
+      "max_drawdown_pct": -6.0,
+      "label": "thesis_played_out"
+    },
+    "outcome_source": "Pyth JTO/USD 2025-05-14 to 2025-06-13; Drift OI archive"
+  },
+  {
+    "id": "jupiter-2024Q3-jlp-vs-jitosol",
+    "as_of_date": "2024-09-09",
+    "protocol": "jupiter",
+    "vertical": "dex",
+    "question": "Rotate 100% of JitoSOL stack into JLP for 30d? Or stay in JitoSOL?",
+    "corpus_freeze_date": "2024-09-09",
+    "known_outcome_at_30d": {
+      "profit_pct": 6.7,
+      "max_drawdown_pct": -2.4,
+      "label": "rotation_won"
+    },
+    "outcome_source": "DefiLlama JLP TVL+yield 2024-09-09 to 2024-10-09; Pyth JitoSOL/USD same window"
+  },
+  {
+    "id": "jupiter-2025Q1-lst-rotation-msol",
+    "as_of_date": "2025-03-04",
+    "protocol": "jupiter",
+    "vertical": "dex",
+    "question": "Rotate 50% of mSOL position into bSOL via Jupiter for next 30d? bSOL yield+points narrative active.",
+    "corpus_freeze_date": "2025-03-04",
+    "known_outcome_at_30d": {
+      "profit_pct": -1.2,
+      "max_drawdown_pct": -4.8,
+      "label": "rotation_lost_marginal"
+    },
+    "outcome_source": "DefiLlama mSOL/bSOL yield 2025-03-04 to 2025-04-03; Pyth peg deviation series"
+  },
+  {
+    "id": "jito-2025Q2-mev-tip-band",
+    "as_of_date": "2025-04-21",
+    "protocol": "jito",
+    "vertical": "infra_devtool",
+    "question": "Setting tip strategy for a high-frequency arb bot on Jito. P75 tip band reasonable, or P90 needed for next 7d?",
+    "corpus_freeze_date": "2025-04-21",
+    "known_outcome_at_30d": {
+      "profit_pct": null,
+      "max_drawdown_pct": null,
+      "label": "p75_landed_92pct_of_bundles",
+      "auxiliary_outcome": "Bundle land rate at P75 over 7d window was 92% — verdict 'act on P75' is correct; 'pass / wait for clearer band' is incorrect; 'defer for current mempool depth' is acceptable."
+    },
+    "outcome_source": "Jito Block Engine tip-floor archive 2025-04-21 to 2025-04-28"
+  },
+  {
+    "id": "sanctum-2025Q3-unstake-vs-hold",
+    "as_of_date": "2025-08-05",
+    "protocol": "sanctum",
+    "vertical": "liquid_staking",
+    "question": "Holding 200 INF (Sanctum infinity LST). Unstake now for 1.001 SOL on Sanctum router, or hold 30d? Yield-vs-peg-risk call.",
+    "corpus_freeze_date": "2025-08-05",
+    "known_outcome_at_30d": {
+      "profit_pct": 2.1,
+      "max_drawdown_pct": -0.6,
+      "label": "hold_won_marginal",
+      "auxiliary_outcome": "Holding INF returned 2.1% staking yield over 30d; instant-unstake LST router had a 0.1% spread cost. Hold wins by 2.0%."
+    },
+    "outcome_source": "Sanctum router archive 2025-08-05; DefiLlama INF TVL+APY 2025-08-05 to 2025-09-04"
+  }
+]

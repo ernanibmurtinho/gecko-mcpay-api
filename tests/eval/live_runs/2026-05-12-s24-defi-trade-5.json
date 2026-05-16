@@ -1,0 +1,111 @@
+{
+  "date": "2026-05-12",
+  "tier": "pro",
+  "suite": "defi_trade_suite.json",
+  "n_fixtures_loaded": 5,
+  "n_scored": 5,
+  "aggregate": {
+    "n": 5,
+    "verdict_distribution": {
+      "act": 0,
+      "pass": 0,
+      "defer": 5
+    },
+    "act_30d_profit_rate": null,
+    "pass_drawdown_avoid_rate": null,
+    "defer_rate": 1.0,
+    "brier_overall": null,
+    "brier_by_bucket": {
+      "low": null,
+      "med": null,
+      "high": null
+    }
+  },
+  "rows": [
+    {
+      "id": "kamino-2024Q3-jlpusdc-entry",
+      "protocol": "kamino",
+      "verdict": "defer",
+      "confidence": 0.6,
+      "dissent_count": 1,
+      "blocker_questions": [
+        "Does Kamino release a comprehensive and favorable audit report addressing current security and operational risks?"
+      ],
+      "n_citations": 15,
+      "wall_seconds": 40.21,
+      "known_outcome": {
+        "profit_pct": 4.8,
+        "max_drawdown_pct": -3.1,
+        "label": "modest_profit_low_dd"
+      }
+    },
+    {
+      "id": "kamino-2024Q4-sol-leverage-entry",
+      "protocol": "kamino",
+      "verdict": "defer",
+      "confidence": 0.6,
+      "dissent_count": 0,
+      "blocker_questions": [
+        "Does Solana's price maintain an upward trend with increased trading volumes over the next 30 days?"
+      ],
+      "n_citations": 0,
+      "wall_seconds": 24.73,
+      "known_outcome": {
+        "profit_pct": 52.4,
+        "max_drawdown_pct": -8.2,
+        "label": "high_profit_moderate_dd"
+      }
+    },
+    {
+      "id": "kamino-2025Q1-jitosol-vault",
+      "protocol": "kamino",
+      "verdict": "defer",
+      "confidence": 0.6,
+      "dissent_count": 0,
+      "blocker_questions": [
+        "Does the Kamino JitoSOL-SOL vault consistently outperform JitoSOL in terms of yield over the next 30 days, while maintaining security and operational integrity?"
+      ],
+      "n_citations": 15,
+      "wall_seconds": 27.7,
+      "known_outcome": {
+        "profit_pct": 1.9,
+        "max_drawdown_pct": -1.2,
+        "label": "marginal_profit_low_dd"
+      }
+    },
+    {
+      "id": "kamino-2025Q3-usdc-pyusd-exit",
+      "protocol": "kamino",
+      "verdict": "defer",
+      "confidence": 0.65,
+      "dissent_count": 0,
+      "blocker_questions": [
+        "Does Kamino release a new audit report confirming the security robustness of its protocol within the next 30 days?"
+      ],
+      "n_citations": 15,
+      "wall_seconds": 70.8,
+      "known_outcome": {
+        "profit_pct": 0.3,
+        "max_drawdown_pct": -0.4,
+        "label": "yield_trap_underperform"
+      }
+    },
+    {
+      "id": "drift-2024Q4-sol-perp-long",
+      "protocol": "drift",
+      "verdict": "defer",
+      "confidence": 0.4,
+      "dissent_count": 0,
+      "blocker_questions": [
+        "Does the FOMC meeting result in a dovish stance that positively impacts risk asset prices, including SOL, within the 14-day horizon?"
+      ],
+      "n_citations": 0,
+      "wall_seconds": 22.12,
+      "known_outcome": {
+        "profit_pct": -22.6,
+        "max_drawdown_pct": -27.4,
+        "label": "thesis_broken_dd_breach"
+      }
+    }
+  ]
+}

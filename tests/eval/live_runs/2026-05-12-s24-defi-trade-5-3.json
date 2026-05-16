@@ -1,0 +1,115 @@
+{
+  "date": "2026-05-12",
+  "tier": "basic",
+  "suite": "defi_trade_suite.json",
+  "n_fixtures_loaded": 5,
+  "n_scored": 5,
+  "aggregate": {
+    "n": 5,
+    "verdict_distribution": {
+      "act": 2,
+      "pass": 2,
+      "defer": 1
+    },
+    "act_30d_profit_rate": 1.0,
+    "pass_drawdown_avoid_rate": 0.5,
+    "defer_rate": 0.2,
+    "brier_overall": 0.188,
+    "brier_by_bucket": {
+      "low": null,
+      "med": null,
+      "high": 0.188
+    }
+  },
+  "rows": [
+    {
+      "id": "kamino-2024Q3-jlpusdc-entry",
+      "protocol": "kamino",
+      "verdict": "act",
+      "confidence": 0.75,
+      "dissent_count": 2,
+      "blocker_questions": [
+        "What is the current audit status of the Kamino protocol?",
+        "How does the TVL trend evolve over the next month?"
+      ],
+      "n_citations": 15,
+      "wall_seconds": 52.88,
+      "known_outcome": {
+        "profit_pct": 4.8,
+        "max_drawdown_pct": -3.1,
+        "label": "modest_profit_low_dd"
+      }
+    },
+    {
+      "id": "kamino-2024Q4-sol-leverage-entry",
+      "protocol": "kamino",
+      "verdict": "defer",
+      "confidence": 0.75,
+      "dissent_count": 2,
+      "blocker_questions": [
+        "Will SOL maintain a price above $150 over the next 30 days?"
+      ],
+      "n_citations": 15,
+      "wall_seconds": 45.86,
+      "known_outcome": {
+        "profit_pct": 52.4,
+        "max_drawdown_pct": -8.2,
+        "label": "high_profit_moderate_dd"
+      }
+    },
+    {
+      "id": "kamino-2025Q1-jitosol-vault",
+      "protocol": "kamino",
+      "verdict": "act",
+      "confidence": 0.75,
+      "dissent_count": 1,
+      "blocker_questions": [
+        "What is the current audit status of Kamino's smart contracts?",
+        "Will the Total Value Locked in Kamino increase by more than 5% over the next 30 days?"
+      ],
+      "n_citations": 15,
+      "wall_seconds": 62.78,
+      "known_outcome": {
+        "profit_pct": 1.9,
+        "max_drawdown_pct": -1.2,
+        "label": "marginal_profit_low_dd"
+      }
+    },
+    {
+      "id": "kamino-2025Q3-usdc-pyusd-exit",
+      "protocol": "kamino",
+      "verdict": "pass",
+      "confidence": 0.75,
+      "dissent_count": 2,
+      "blocker_questions": [
+        "Will the TVL maintain an upward trajectory above $1.55 billion over the next 30 days?",
+        "Are there any recent audits or governance changes that could impact the protocol's stability?"
+      ],
+      "n_citations": 15,
+      "wall_seconds": 47.66,
+      "known_outcome": {
+        "profit_pct": 0.3,
+        "max_drawdown_pct": -0.4,
+        "label": "yield_trap_underperform"
+      }
+    },
+    {
+      "id": "drift-2024Q4-sol-perp-long",
+      "protocol": "drift",
+      "verdict": "pass",
+      "confidence": 0.75,
+      "dissent_count": 2,
+      "blocker_questions": [
+        "What is the current audit status of Drift's smart contracts?",
+        "How will the market react to the outcomes of the December FOMC meeting?"
+      ],
+      "n_citations": 15,
+      "wall_seconds": 44.78,
+      "known_outcome": {
+        "profit_pct": -22.6,
+        "max_drawdown_pct": -27.4,
+        "label": "thesis_broken_dd_breach"
+      }
+    }
+  ]
+}

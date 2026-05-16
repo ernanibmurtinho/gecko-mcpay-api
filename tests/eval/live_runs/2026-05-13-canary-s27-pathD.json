@@ -1,0 +1,79 @@
+{
+  "date": "2026-05-13",
+  "suite": "canary_suite.json",
+  "tier": "canary",
+  "row": {
+    "id": "kamino-2024Q3-jlpusdc-entry",
+    "protocol": "kamino",
+    "vertical": "dex",
+    "passed": false,
+    "dimensions": {
+      "d1_answered_back": {
+        "passed": true,
+        "failures": [],
+        "details": {
+          "verdict": "defer",
+          "confidence": 0.75,
+          "n_turns": 7
+        }
+      },
+      "d2_context_overflow": {
+        "passed": true,
+        "failures": [],
+        "warnings": [],
+        "details": {
+          "n_chunks_input": 15,
+          "n_chunks_rendered": 15,
+          "rendered_block_chars": 27364,
+          "char_cap": 60000,
+          "truncation_marker_present": false,
+          "estimated_prompt_tokens": 7081
+        }
+      },
+      "d3_citations_grounded": {
+        "passed": false,
+        "failures": [
+          "3 citation(s) reference chunk_ids not in retrieval set: [{'cite_id': 6, 'chunk_id': '6a03d76b83de92abcb720094', 'source': 'protocol_native'}, {'cite_id': 9, 'chunk_id': '6a02e48e5fd7b227d635b397', 'source': 'market_data'}, {'cite_id': 12, 'chunk_id': '6a021b3e600a85667fd2c5eb', 'source': 'web'}]",
+          "phantom citations: 9 of 15 \u2014 markers [3][4][5][6][10][11][12][13] ... never appear in any persona content"
+        ],
+        "details": {
+          "n_panel_cites": 15,
+          "n_valid_chunk_ids": 15,
+          "n_phantom_cites": 3,
+          "n_inline_markers_out_of_range": 0,
+          "n_phantom_markers": 9,
+          "persona_markers_seen": [
+            1,
+            2,
+            7,
+            8,
+            9,
+            14
+          ],
+          "phantom_markers": [
+            3,
+            4,
+            5,
+            6,
+            10,
+            11,
+            12,
+            13,
+            15
+          ]
+        }
+      }
+    },
+    "panel_error": null,
+    "wall_seconds": {
+      "retrieve": 3.78,
+      "panel": 85.44
+    },
+    "panel": {
+      "verdict": "defer",
+      "confidence": 0.75,
+      "n_citations": 15,
+      "n_chunks_input": 15
+    }
+  }
+}

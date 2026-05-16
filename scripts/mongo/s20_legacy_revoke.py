@@ -69,6 +69,7 @@ import sys
 from datetime import UTC, datetime
 from typing import Any
 
+from gecko_core.db.mongo import CHUNKS_COLLECTION, chunk_db_name
 from gecko_core.db.mongo_chunks import CHUNKS_VERTICAL_CATEGORY_INDEX
 from gecko_core.knowledge.taxonomy import LEGACY_CATEGORY
 
@@ -253,15 +254,24 @@ def _build_parser() -> argparse.ArgumentParser:
         default=os.environ.get("MONGODB_URI"),
         help="Mongo connection URI (default: $MONGODB_URI).",
     )
+    # S30-#42: defaults route through gecko_core.db.mongo (Pattern A).
+    # When --db / --collection are omitted, we resolve via chunk_db_name() /
+    # CHUNKS_COLLECTION — the single source of truth for chunk-DB config.
     p.add_argument(
         "--db",
-        default=os.environ.get("MONGODB_CHUNK_DB", "gecko_rag"),
-        help="Database name (default: $MONGODB_CHUNK_DB or 'gecko_rag').",
+        default=None,
+        help=(
+            "Database override. Default: gecko_core.db.mongo.chunk_db_name() "
+            "(respects $MONGODB_CHUNK_DB; falls back to 'gecko_rag')."
+        ),
     )
     p.add_argument(
         "--collection",
-        default="chunks",
-        help="Collection name (default: 'chunks').",
+        default=None,
+        help=(
+            f"Collection override. Default: {CHUNKS_COLLECTION!r} "
+            "(gecko_core.db.mongo.CHUNKS_COLLECTION)."
+        ),
     )
     p.add_argument(
         "--batch-size",
@@ -282,7 +292,10 @@ async def _run_cli(args: argparse.Namespace) -> int:
 
     client: Any = AsyncIOMotorClient(args.mongodb_uri)
     try:
-        coll = client[args.db][args.collection]
+        # Pattern A: resolve via canonical accessor when overrides absent.
+        db_name = args.db if args.db is not None else chunk_db_name()
+        coll_name = args.collection if args.collection is not None else CHUNKS_COLLECTION
+        coll = client[db_name][coll_name]
         dry_run = not args.apply
         summary = await revoke_legacy_chunks(
             coll,

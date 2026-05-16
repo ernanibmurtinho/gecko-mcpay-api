@@ -1,0 +1,11 @@
+{
+  "date": "2026-05-12",
+  "tier": "basic",
+  "suite": "defi_trade_suite.json",
+  "n_fixtures_loaded": 10,
+  "n_scored": 0,
+  "aggregate": {
+    "n": 0
+  },
+  "rows": []
+}

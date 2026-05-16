@@ -1,0 +1,88 @@
+{
+  "generated_at": "2026-05-14T00:20:27.968611+00:00",
+  "mode": "confirm",
+  "classes": [
+    {
+      "code": "A",
+      "label": "web + binary (PDF extraction failures)",
+      "expected_approx": 3229,
+      "matched_count": 3229,
+      "sample_urls": [
+        [
+          "https://solana.com/x402/hackathon",
+          901
+        ],
+        [
+          "https://synthesis.mandate.md/tracks/pl-genesis-agents-with-receipts-8004",
+          527
+        ],
+        [
+          "https://synthesis.mandate.md/tracks/synthesis-open-track",
+          337
+        ],
+        [
+          "https://n8n.io/integrations/if/",
+          213
+        ],
+        [
+          "https://mcp.so/tag/solana",
+          135
+        ],
+        [
+          "https://solana.com/x402",
+          100
+        ],
+        [
+          "https://solana.com/x402/what-is-x402",
+          85
+        ],
+        [
+          "https://www.indiehackers.com/post/welcome-introduce-yourself-week-of-may-24th-welcomeIntro-2020-05-24",
+          82
+        ],
+        [
+          "https://www.x402.org/ecosystem",
+          79
+        ],
+        [
+          "https://cryptoweekly.co/top-100-people-in-crypto/",
+          76
+        ]
+      ],
+      "sample_chunks": [
+        {
+          "_id": "69fda6c13cc0ffe147e82318",
+          "source_url": "http://rebelfi.io/blog/solana-vs-ethereum-stablecoin-yield-comparison",
+          "provider_kind": "web",
+          "text_preview": "XQ\ufffd2o\ufffd\ufffd+,\u07afz\ufffdY\ufffdW \u07ef\ufffd2+\ufffd\ufffdd;f\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\u02b8d\ufffd\ufffdcH\ufffd7\ufffd7\ufffdb\ufffd\ufffd^`\ufffd\ufffd\\\ufffdX\u3d5fT\ufffd\ufffd\ufffd>\ufffd\ufffd\ufffdp \ufffd\ufffd!^ <\ufffd\\\ufffd2Z5\u027c\ufffd'\u04c2\ufffd\ufffd\ufffd\ufffd\ufffdB\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd6_6Z\ufffd\ufffd\ufffdi\\2\ufffd\ufffd\ufffdg\ufffd[\ufffd{\ufffd\ufffd\ufffd x\ufffdC\ufffd\ufffd&"
+        },
+        {
+          "_id": "69fda6c13cc0ffe147e82313",
+          "source_url": "http://rebelfi.io/blog/solana-vs-ethereum-stablecoin-yield-comparison",
+          "provider_kind": "web",
+          "text_preview": "R\ufffd\ufffd\ufffd\ufffd.-\ufffdH\ufffd\ufffdY\ufffd\ufffd;`a\ufffd\ufffdAz\ufffd\ufffd\ufffdy8\u07f2\ufffdZd'\ufffd {n3\ufffd~\ufffd\ufffd\u015e\ufffd[t\ufffd\ufffd\ufffd\ufffd\"a#\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdoD q\u007fi\ufffd\ufffd\ufffdI\u03b7\ufffd\ufffd$\ufffd\ufffd\ufffdd\ufffd -\ufffdH\ufffd9\ufffdgz\ufffd^\ufffd\ufffd\ufffd~/\ufffd\ufffd6\ufffduZ&\ufffd \ufffd\ufffd\ufffd\ufffdf2]h\ufffdI\ufffd\ufffd\ufffd0{\ufffd\u0516`"
+        },
+        {
+          "_id": "69fda6c13cc0ffe147e8230c",
+          "source_url": "http://rebelfi.io/blog/solana-vs-ethereum-stablecoin-yield-comparison",
+          "provider_kind": "web",
+          "text_preview": "\ufffd*Q\ufffd\ufffd\ufffd \"\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdp\ufffd\ufffd\ufffd7\ufffd\ufffd\ufffds9\ufffd\ufffd\ufffd \ufffd Q\ufffd^K\ufffd\ufffd\ufffd$\ufffd8\ufffdIL\ufffd\ufffdR\ufffd\ufffd\ufffd \ufffd\ufffd\ufffd\ufffdi}?M\ufffd\ufffd\ufffd\ufffd\ufffd$\ufffd \ufffdlK\ufffd\ufffdUv\ufffd\ufffd\\R8\ufffd\ufffdT.\ufffd\uf8a8\ufffd\ufffd\ufffdR\ufffd$<\ufffd PX\ufffd \ufffd\ufffd\ufffds\ufffdH#0\ufffdY\ufffd\ufffd\ufffd\ufffd\ufffdV\ufffd\u03bd\ufffd\ufffd\ufffd)r"
+        },
+        {
+          "_id": "69fda6c13cc0ffe147e8232e",
+          "source_url": "http://rebelfi.io/blog/solana-vs-ethereum-stablecoin-yield-comparison",
+          "provider_kind": "web",
+          "text_preview": " \ufffdz>N\ufffd\ufffd\u05b1\ufffd5\u055d\ufffdw\ufffd \u018d(\ufffda\ufffd\ufffd.\ufffd(\ufffd\ufffd3O\ufffd\ufffd5a\ufffd6\u0600\ufffd\ufffd\ufffd\ufffd\ufffd!(\ufffd\ufffd\ufffd\ufffdk^t`\ufffd\ufffd*\ufffda\ufffd\ufffd$O\ufffd+\ufffdS\ufffdG\ufffd\ufffd\ufffd]9t]\ufffd\ufffdZ\ufffd\ufffd5\ufffd\ufffd\ufffd\ufffd\ufffd*\ufffd\ufffd8B\ufffd0X\ufffdU' cO\ufffdx \ufffd\ufffdS\ufffd_\u0728\ufffd8\ufffdA\ufffd;4\ufffd\ufffd\ufffd2\ufffd\ufffd\u04be"
+        },
+        {
+          "_id": "69fda6c13cc0ffe147e82323",
+          "source_url": "http://rebelfi.io/blog/solana-vs-ethereum-stablecoin-yield-comparison",
+          "provider_kind": "web",
+          "text_preview": "b\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd/S A \ufffdeSp\ufffd\ufffd 1\ufffd\ufffd\u0210 `KH\ufffd\ufffdE\ufffd\\\ufffdl8\ufffdu \ufffd$\ufffd If\ufffd\ufffd\ufffd\ufffd=e\ufffdX.xx\ufffd=\ufffdK\ufffd/ \\\ufffd\ufffd\ufffd\ufffd2S\ufffdw}\ufffd.3\ufffd&l$\ufffd_A@df\ufffd\ufffd\ufffd f\ufffd \ufffd#\ufffd+\ufffd\ufffd\ufffd *DL \ufffd\ufffdA\ufffdL1\ufffd\ufffd\ufffd,\ufffd\ufffd!\ufffd\ufffd3"
+        }
+      ],
+      "ids_count": 3229
+    }
+  ],
+  "total_would_delete": 3229
+}

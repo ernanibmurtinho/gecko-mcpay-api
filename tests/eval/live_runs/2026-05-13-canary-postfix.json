@@ -1,0 +1,56 @@
+{
+  "date": "2026-05-12",
+  "suite": "canary_suite.json",
+  "tier": "canary",
+  "branch": "s26/cap-fix",
+  "notes": "After applying _RAG_CONTEXT_CHAR_CAP 8000 -> 60000 and strengthening D3 with phantom-marker detection. D2 now PASS (no chunk dropout, 29676/60000 chars, ~7530 estimated tokens). D3 now FAIL — but honestly: build_citations_from_chunks decorates the verdict with 10 markers the personas never wrote. That's a separate panel-prompt bug filed as follow-up; out of scope for s26/cap-fix.",
+  "row": {
+    "id": "kamino-2024Q3-jlpusdc-entry",
+    "protocol": "kamino",
+    "vertical": "dex",
+    "passed": false,
+    "dimensions": {
+      "d1_answered_back": {
+        "passed": true,
+        "failures": [],
+        "details": {"verdict": "defer", "confidence": 0.7, "n_turns": 7}
+      },
+      "d2_context_overflow": {
+        "passed": true,
+        "failures": [],
+        "warnings": [],
+        "details": {
+          "n_chunks_input": 15,
+          "n_chunks_rendered": 15,
+          "rendered_block_chars": 29676,
+          "char_cap": 60000,
+          "truncation_marker_present": false,
+          "estimated_prompt_tokens": 7530
+        }
+      },
+      "d3_citations_grounded": {
+        "passed": false,
+        "failures": [
+          "phantom citations: 10 of 15 — markers [4][5][6][7][8][9][10][11] ... never appear in any persona content"
+        ],
+        "details": {
+          "n_panel_cites": 15,
+          "n_valid_chunk_ids": 15,
+          "n_phantom_cites": 0,
+          "n_inline_markers_out_of_range": 0,
+          "n_phantom_markers": 10,
+          "persona_markers_seen": [1, 2, 3, 14, 15],
+          "phantom_markers": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+        }
+      }
+    },
+    "panel_error": null,
+    "wall_seconds": {"retrieve": 7.5, "panel": 52.74},
+    "panel": {
+      "verdict": "defer",
+      "confidence": 0.7,
+      "n_citations": 15,
+      "n_chunks_input": 15
+    }
+  }
+}

@@ -173,6 +173,23 @@ def _extract_text_sync(content: bytes, *, url: str) -> str:
             )
             continue
         if text and text.strip():
+            # S29-#32 — quality gate at extraction time. A parser can
+            # "succeed" but return binary-byte garbage (pypdf has done
+            # this on Berkshire PDFs — 1,674 chunks of \x00\x01... slipped
+            # through pre-S29). Reject non-printable output and try the
+            # next parser so the fallback chain hunts a parser that
+            # produces actual text.
+            printable = sum(1 for c in text if c.isprintable() or c.isspace())
+            ratio = printable / max(1, len(text))
+            if ratio < 0.95:
+                attempted.append((name, f"BinaryOutput({ratio:.2f})"))
+                logger.warning(
+                    "pdf.parser.binary_output url=%s parser=%s printable_ratio=%.2f",
+                    url,
+                    name,
+                    ratio,
+                )
+                continue
             if attempted:
                 logger.info(
                     "pdf.parser.fallback_succeeded url=%s parser=%s prior=%s",

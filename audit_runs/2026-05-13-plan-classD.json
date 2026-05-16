@@ -1,0 +1,52 @@
+{
+  "generated_at": "2026-05-14T00:23:09.251214+00:00",
+  "mode": "confirm",
+  "classes": [
+    {
+      "code": "D",
+      "label": "paysh_live (whole-kind purge; all 64 empty)",
+      "expected_approx": 64,
+      "matched_count": 64,
+      "sample_urls": [
+        [
+          "paysponge/coingecko",
+          64
+        ]
+      ],
+      "sample_chunks": [
+        {
+          "_id": "6a020b8a171616cd80f33f9d",
+          "source_url": "paysponge/coingecko",
+          "provider_kind": "paysh_live",
+          "text_preview": "{ \"data\": [] }"
+        },
+        {
+          "_id": "6a020b85171616cd80f33f9c",
+          "source_url": "paysponge/coingecko",
+          "provider_kind": "paysh_live",
+          "text_preview": "{ \"data\": [] }"
+        },
+        {
+          "_id": "6a020b7d171616cd80f33f9b",
+          "source_url": "paysponge/coingecko",
+          "provider_kind": "paysh_live",
+          "text_preview": "{ \"data\": [] }"
+        },
+        {
+          "_id": "6a020b78171616cd80f33f9a",
+          "source_url": "paysponge/coingecko",
+          "provider_kind": "paysh_live",
+          "text_preview": "{ \"data\": [] }"
+        },
+        {
+          "_id": "6a020b73171616cd80f33f99",
+          "source_url": "paysponge/coingecko",
+          "provider_kind": "paysh_live",
+          "text_preview": "{ \"data\": [] }"
+        }
+      ],
+      "ids_count": 64
+    }
+  ],
+  "total_would_delete": 64
+}

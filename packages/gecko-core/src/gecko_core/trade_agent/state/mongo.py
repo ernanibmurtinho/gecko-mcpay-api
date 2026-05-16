@@ -54,6 +54,9 @@ class StateStore(Protocol):
         self, agent_id: str, idea_hash: str
     ) -> AgentVerdictCacheEntry | None: ...
     async def upsert_verdict_cache(self, entry: AgentVerdictCacheEntry) -> None: ...
+    async def write_hotpath_snapshot(
+        self, agent_id: str, protocol: str, snapshot: dict[str, Any]
+    ) -> None: ...
 
 
 # --------------------------------------------------------------------------
@@ -70,6 +73,7 @@ class InMemoryStateStore:
         self._positions: dict[tuple[str, str], AgentPosition] = {}
         self._journal: list[AgentJournalEntry] = []
         self._verdict_cache: dict[tuple[str, str], AgentVerdictCacheEntry] = {}
+        self._hotpath: dict[tuple[str, str], dict[str, Any]] = {}
         self._lock = asyncio.Lock()
 
     async def upsert_agent_state(self, state: AgentState) -> None:
@@ -142,6 +146,17 @@ class InMemoryStateStore:
         async with self._lock:
             self._verdict_cache[(entry.agent_id, entry.idea_hash)] = entry
 
+    async def write_hotpath_snapshot(
+        self, agent_id: str, protocol: str, snapshot: dict[str, Any]
+    ) -> None:
+        async with self._lock:
+            self._hotpath[(agent_id, protocol)] = {
+                "agent_id": agent_id,
+                "protocol": protocol,
+                "as_of": datetime.now(UTC),
+                "snapshot": dict(snapshot),
+            }
+
 
 # --------------------------------------------------------------------------
 # Mongo implementation. Imported only when MONGODB_URI is configured; the
@@ -163,6 +178,19 @@ class MongoStateStore:
 
     async def upsert_agent_state(self, state: AgentState) -> None:
         payload = state.model_dump()
+        # S24 schema requires `spec_name` + `created_at` + `last_tick_at` on
+        # the doc. We carry the Pydantic-side names (`spec_id`,
+        # `started_at`, `last_heartbeat_at`) for back-compat with tests +
+        # existing call sites, and additionally write the validator-
+        # required aliases. The Mongo validator (moderate) accepts extras.
+        snapshot = payload.get("spec_snapshot") or {}
+        if isinstance(snapshot, dict):
+            payload.setdefault("spec_name", snapshot.get("name") or state.spec_id)
+        else:
+            payload.setdefault("spec_name", state.spec_id)
+        payload.setdefault("created_at", payload.get("started_at"))
+        payload.setdefault("last_tick_at", payload.get("last_heartbeat_at"))
+        payload.setdefault("journal_count", 0)
         await self._db["agent_state"].update_one(
             {"agent_id": state.agent_id}, {"$set": payload}, upsert=True
         )
@@ -190,8 +218,12 @@ class MongoStateStore:
         return out
 
     async def update_heartbeat(self, agent_id: str, ts: datetime) -> None:
+        # Write both the legacy `last_heartbeat_at` (consumed by the
+        # Python AgentState model + tests) and `last_tick_at` (S24 schema
+        # field consumed by the observability lane).
         await self._db["agent_state"].update_one(
-            {"agent_id": agent_id}, {"$set": {"last_heartbeat_at": ts}}
+            {"agent_id": agent_id},
+            {"$set": {"last_heartbeat_at": ts, "last_tick_at": ts}},
         )
 
     async def update_status(self, agent_id: str, status: str) -> None:
@@ -217,13 +249,29 @@ class MongoStateStore:
         return out
 
     async def write_journal(self, entry: AgentJournalEntry) -> None:
-        await self._db["agent_journal"].insert_one(entry.model_dump())
+        # S24 validator requires `event_type` (closed AgentJournalEvent
+        # literal). The Python model field is `event` for back-compat with
+        # the test suite + existing log readers; we mirror both on write.
+        payload = entry.model_dump()
+        payload.setdefault("event_type", payload.get("event"))
+        await self._db["agent_journal"].insert_one(payload)
+        # Best-effort journal_count bump; failure is non-fatal.
+        try:
+            await self._db["agent_state"].update_one(
+                {"agent_id": entry.agent_id}, {"$inc": {"journal_count": 1}}
+            )
+        except Exception:
+            logger.exception("journal_count.bump_failed agent_id=%s", entry.agent_id)
 
     async def tail_journal(self, agent_id: str, limit: int = 20) -> list[AgentJournalEntry]:
         cursor = self._db["agent_journal"].find({"agent_id": agent_id}).sort("ts", -1).limit(limit)
         out: list[AgentJournalEntry] = []
         async for doc in cursor:
             doc.pop("_id", None)
+            # Tolerate docs written under the new `event_type` field
+            # without the legacy `event` mirror (e.g. by future writers).
+            if "event" not in doc and "event_type" in doc:
+                doc["event"] = doc["event_type"]
             out.append(AgentJournalEntry.model_validate(doc))
         return out
 
@@ -243,6 +291,28 @@ class MongoStateStore:
         await self._db["agent_verdict_cache"].update_one(
             {"agent_id": entry.agent_id, "idea_hash": entry.idea_hash},
             {"$set": payload},
+            upsert=True,
+        )
+
+    async def write_hotpath_snapshot(
+        self, agent_id: str, protocol: str, snapshot: dict[str, Any]
+    ) -> None:
+        """Upsert one (agent_id, protocol) row in ``agent_hotpath_snapshot``.
+
+        TTL is enforced server-side via the 5-minute index on ``as_of``;
+        we just refresh ``as_of`` on every write so the doc stays warm
+        while the agent is ticking.
+        """
+        await self._db["agent_hotpath_snapshot"].update_one(
+            {"agent_id": agent_id, "protocol": protocol},
+            {
+                "$set": {
+                    "agent_id": agent_id,
+                    "protocol": protocol,
+                    "as_of": datetime.now(UTC),
+                    "snapshot": dict(snapshot),
+                }
+            },
             upsert=True,
         )
 

@@ -31,8 +31,10 @@ import json
 import logging
 import re
 from collections.abc import Callable
+from datetime import datetime
 from typing import Any, Protocol, cast
 
+from gecko_core.observability import emit_event
 from gecko_core.orchestration.trade_panel.agents import build_groupchat
 from gecko_core.orchestration.trade_panel.models import (
     Citation,
@@ -95,7 +97,8 @@ _CLOSING_RE: dict[str, re.Pattern[str]] = {
 # Per-voice timeout. Trade-panel v1 keeps the same default as Pro to start;
 # tune separately when we have eval data.
 _PER_VOICE_TIMEOUT_S: float = 120.0
-_RAG_CONTEXT_CHAR_CAP: int = 8000
+# 60k chars ~= 15k tokens; gpt-4o-mini context is 128k; raises ceiling without removing the safety
+_RAG_CONTEXT_CHAR_CAP: int = 60000
 
 
 class _LLMReplier(Protocol):
@@ -135,11 +138,57 @@ def _format_chunks(chunks: list[dict[str, Any]]) -> str:
 
 
 def _opening_prompt(idea: str, protocol: str, chunks: list[dict[str, Any]]) -> str:
-    """Seed message for the panel — stable shape across all 7 personas."""
+    """Seed message for the panel — stable shape across all 7 personas.
+
+    S26 #19: a CITATION BREADTH directive is appended so non-coordinator
+    voices spread their inline ``[N]`` markers across the full chunk
+    range. Without it, gpt-4o-mini consistently cites 3-5 edge markers
+    only (see canary 2026-05-13-canary-postfix). This is a persona-
+    structure directive, not a coordinator verdict-shape edit, and is
+    safe under the plateau-memory caveat.
+    """
+    n_chunks = len(chunks)
+    # S28 #25 — softened from the S26 #19 "cite-broadly" directive. With
+    # Cohere rerank serving 5 high-relevance chunks, breadth pressure was
+    # producing citations padded for coverage rather than for grounding.
+    # New directive: cite what you reason over, do NOT cite for breadth,
+    # and do NOT mistake a chunk's numeric content for the target metric
+    # unless the chunk names the target.
+    breadth_block = (
+        ""
+        if n_chunks == 0
+        else (
+            "\n\nCITATION DISCIPLINE (mandatory for every non-coordinator voice):\n"
+            f"  You have {n_chunks} reranked corpus chunks of high semantic "
+            "relevance. Cite the chunks you actually reason over in body text "
+            "(typically 3-5). Do NOT cite chunks just for breadth or coverage.\n"
+            "  If a chunk reports a specific number (TVL, APR, price, volume), "
+            "do NOT treat that number as the answer to a question unless the "
+            "chunk explicitly identifies the same pool/vault/asset/protocol "
+            "the question asks about.\n"
+            "  Phantom citation (claiming a chunk you did not read in body "
+            "text) is a panel failure mode and disqualifies the turn.\n"
+            "\nQUANTITATIVE GROUNDING (mandatory for every non-coordinator voice):\n"
+            "  When you write a specific number — TVL, APR/APY, price, volume, "
+            "ratio, percentage, dollar figure — you MUST either:\n"
+            "    (a) QUOTE the exact substring from the cited chunk that "
+            "contains that number, in the same line — "
+            "e.g. `TVL is $1,505,498,759 [3: 'tvl: 1505498759']`, OR\n"
+            "    (b) Write the claim WITHOUT a citation and prefix it "
+            "`unsourced:` — e.g. `unsourced: yields appear competitive vs peers`.\n"
+            "  Do NOT cite a chunk number for a figure that does not appear "
+            "verbatim in that chunk. Inferring a plausible TVL/APR/price from "
+            "field names, related magnitudes, or surrounding context is a "
+            "hallucination and disqualifies the turn. When in doubt, write "
+            "the qualitative claim with `unsourced:` rather than fabricate a "
+            "specific number.\n"
+        )
+    )
     return (
         f"Research question: {idea}\n\n"
         f"Protocol in scope: {protocol}\n\n"
-        f"Retrieved corpus chunks (numbered for citation):\n{_format_chunks(chunks)}\n\n"
+        f"Retrieved corpus chunks (numbered for citation):\n{_format_chunks(chunks)}"
+        f"{breadth_block}\n\n"
         "Each persona contributes once, in this order: "
         "technical_analyst → sentiment_analyst → fundamental_analyst → "
         "risk_manager → strategist → bull_bear_debater → coordinator. "
@@ -258,6 +307,42 @@ def _count_dissent(turns: list[TradePanelTurn], final_verdict: str) -> int:
     return count
 
 
+# Tokens that mean "this voice did not pick a direction" — S24 night-shift.
+# Used by both the abstain-count defer rule AND the confidence-penalty
+# normalization in _build_verdict_from_coordinator.
+_ABSTAIN_TOKENS: dict[str, set[str]] = {
+    TECHNICAL_ANALYST: {"mixed"},
+    SENTIMENT_ANALYST: {"neutral"},
+    FUNDAMENTAL_ANALYST: {"stable"},
+    RISK_MANAGER: {"elevated"},
+}
+
+
+def _count_abstains(turns: list[TradePanelTurn]) -> int:
+    """How many of the four primary analysts abstained from a direction."""
+    count = 0
+    for turn in turns:
+        if turn.agent not in _ABSTAIN_TOKENS:
+            continue
+        parsed = turn.parsed_verdict or {}
+        if not parsed:
+            continue
+        val = next(iter(parsed.values()), None)
+        if isinstance(val, str) and val.strip().lower() in _ABSTAIN_TOKENS[turn.agent]:
+            count += 1
+    return count
+
+
+# S24 night-shift confidence anchor — coordinator prompt instructs the
+# model to start from 0.70 and apply penalties. We re-apply the same
+# rules in code as a safety net against collapsed-band failure mode.
+_CONF_ANCHOR = 0.70
+_CONF_PENALTY_PER_DISSENT = 0.10
+_CONF_PENALTY_PER_ABSTAIN = 0.05
+_CONF_FLOOR = 0.30
+_CONF_CEILING = 0.85
+
+
 def _coerce_verdict_token(raw: Any) -> TradeVerdictLiteral:
     """Squash a free-form verdict string into the Literal — strict whitelist."""
     if isinstance(raw, str):
@@ -306,21 +391,73 @@ def _build_verdict_from_coordinator(
     closing = coord_turn.parsed_verdict or {}
 
     verdict = _coerce_verdict_token(block.get("verdict") or closing.get("verdict"))
-    confidence = _coerce_confidence(block.get("confidence", 0.5))
+    raw_confidence = _coerce_confidence(block.get("confidence", 0.5))
     key_drivers = _coerce_str_list(block.get("key_drivers"))
     blocker_questions = _coerce_str_list(block.get("blocker_questions"))
 
-    # Dissent count: trust the coordinator's self-report when present and
-    # non-negative-int; otherwise compute from analyst turns.
+    # S24 night-shift: always re-derive dissent + abstain from analyst turns.
+    # The coordinator's self-report is advisory but not authoritative — we've
+    # seen the model under-count both in practice (jupiter-2025Q1 fixture
+    # reported dissent=3 but coordinator still passed at 0.75).
+    derived_dissent = _count_dissent(turns, verdict)
+    derived_abstains = _count_abstains(turns)
     raw_dissent = block.get("dissent_count")
     if isinstance(raw_dissent, int) and raw_dissent >= 0:
-        dissent_count = raw_dissent
+        dissent_count = max(raw_dissent, derived_dissent)
     else:
-        dissent_count = _count_dissent(turns, verdict)
+        dissent_count = derived_dissent
+
+    # S24 night-shift defer override (rule iii in coordinator prompt):
+    # high-conviction dissent against a 'pass' call → flip to defer and
+    # surface the disagreement as a blocker. Mirror for 'act' for
+    # symmetry. Three voices opposing a directional call is structural
+    # disagreement, not noise.
+    if verdict in {"act", "pass"} and dissent_count >= 3:
+        blocker_questions = [
+            *blocker_questions,
+            f"3+ analysts dissent against the '{verdict}' call — resolve which voice's "
+            "lens is wrong before committing.",
+        ]
+        verdict = "defer"
+
+    # S24 night-shift abstain-floor defer rule: 3+ genuine abstains across
+    # the four primary analysts means the panel lacks evidence to call.
+    # This catches the case where the coordinator forces a direction despite
+    # most voices declining to call. Skipped when verdict is already defer.
+    if verdict in {"act", "pass"} and derived_abstains >= 3:
+        blocker_questions = [
+            *blocker_questions,
+            f"{derived_abstains} of 4 primary analysts abstained — corpus too thin "
+            "to support a directional call.",
+        ]
+        verdict = "defer"
+
+    # S24 night-shift confidence-band normalization. Coordinator prompt
+    # asks the model to start at 0.70 and subtract penalties; we enforce
+    # the same shape in code as a safety net (the model collapsed to
+    # 0.75 across all 10 fixtures on 2026-05-12 despite the prompt).
+    # We take the MIN of (model's self-report, anchor - penalties) so the
+    # model can lower confidence further on its own judgment but cannot
+    # silently inflate past the penalty-adjusted ceiling.
+    penalty = (
+        _CONF_PENALTY_PER_DISSENT * dissent_count + _CONF_PENALTY_PER_ABSTAIN * derived_abstains
+    )
+    anchored = _CONF_ANCHOR - penalty
+    if verdict == "defer":
+        # Defer carries its own meaning; keep model's self-report but
+        # clamp to ceiling. No anchoring penalty applied — a defer
+        # IS the response to weak signal.
+        confidence = min(raw_confidence, _CONF_CEILING)
+    else:
+        # Take the model's confidence but cap it at the anchored ceiling.
+        # If the model under-reports relative to penalties, trust the
+        # model (it may see a clean signal the heuristic missed).
+        confidence = min(raw_confidence, anchored)
+        confidence = max(_CONF_FLOOR, min(_CONF_CEILING, confidence))
 
     return TradePanelVerdict(
         verdict=verdict,
-        confidence=confidence,
+        confidence=round(confidence, 2),
         key_drivers=key_drivers,
         dissent_count=dissent_count,
         blocker_questions=blocker_questions,
@@ -341,6 +478,8 @@ async def run_trade_panel(
     tier: str = "basic",
     llm_config: dict[str, Any] | None = None,
     agent_factory: AgentFactory | None = None,
+    agent_id: str | None = None,
+    wallet: str | None = None,
 ) -> TradePanelVerdict:
     """Run the 7-agent trade research panel.
 
@@ -414,6 +553,51 @@ async def run_trade_panel(
         turns.append(TradePanelTurn(agent=agent_name, content=text, parsed_verdict=parsed))
         messages.append({"role": "assistant", "content": text})
 
+    # S24 WS-F #6 — emit oracle.cost_usd. AG2 ConversableAgents don't
+    # surface the OpenAI usage object cleanly; we estimate from tiktoken
+    # over the seed prompt (shared by all 7 voices) and each turn's
+    # content. tokens_in = seed_tokens * len(voices) (each voice sees the
+    # accumulating message log; approximate as seed * N since per-voice
+    # context grows but is dominated by the seed + previous turns). To
+    # avoid over-estimating, count once and add accumulating prior-turn
+    # tokens explicitly. embed_tokens = idea tokens (the retrieval embed
+    # call is upstream but we attribute its cost to the panel run).
+    try:
+        from gecko_core.routing.costs import estimate_cost_usd, estimate_tokens
+
+        seed_tokens = estimate_tokens(seed)
+        turn_tokens = [estimate_tokens(t.content) for t in turns]
+        # Each voice sees seed + prior turns => sum_i (seed + sum_{j<i} turn_j)
+        tokens_in = 0
+        accum = seed_tokens
+        for tt in turn_tokens:
+            tokens_in += accum
+            accum += tt
+        tokens_out = sum(turn_tokens)
+        embed_tokens = estimate_tokens(idea)
+        # Default model — basic = gpt-4o-mini, pro = gpt-4o.
+        model_id = "gpt-4o" if tier == "pro" else "gpt-4o-mini"
+        llm_cost = estimate_cost_usd(model_id, tokens_in=tokens_in, tokens_out=tokens_out)
+        # text-embedding-3-small is ~$0.02 per 1M tokens.
+        embed_cost = embed_tokens * 0.02 / 1_000_000
+        total_usd = round(llm_cost + embed_cost, 6)
+        await emit_event(
+            "oracle.cost_usd",
+            {
+                "agent_id": agent_id,
+                "tier": tier,
+                "model": model_id,
+                "llm_tokens_in": tokens_in,
+                "llm_tokens_out": tokens_out,
+                "embed_tokens": embed_tokens,
+                "total_usd": total_usd,
+                "protocol": protocol,
+            },
+            wallet=wallet,
+        )
+    except Exception as exc:  # never block verdict synthesis on cost-emit
+        _log.warning("trade_panel.cost_emit_failed err=%s", exc)
+
     return _build_verdict_from_coordinator(turns)
 
 
@@ -434,7 +618,275 @@ async def run_trade_panel(
 # trade-research surface.
 # ---------------------------------------------------------------------------
 
-_DEFAULT_TRADE_TOP_K: int = 15
+_DEFAULT_TRADE_TOP_K: int = 5  # S29 #34 — ablation: revert top_k bump (10→5) while keeping the quota-before-rerank order swap. Hypothesis: pkCov win is from the order swap; the top_k=10 bump diluted dissent_grounding/calibration via wider-slate attention spread. See docs/strategy/2026-05-14-s29-34-ablation-handoff.md.
+
+# S25 #13 — scoring boost terms. Empirical: Atlas vectorSearchScore on the
+# corpus sits in [0.69, 0.78] for typical queries; a +0.15 boost pushes a
+# protocol-exact chunk past a tangentially-relevant canon chunk without
+# crowding genuinely top-scored content. Date demotion is bounded so that
+# market_data outside the fixture window doesn't fall off the result —
+# the panel still sees it but pays attention to protocol manifest first.
+_BOOST_PROTOCOL_EXACT: float = 0.15
+_BOOST_PROVIDER_SPECIFIC: float = 0.10  # paysh_live / bazaar_live with protocol match
+_BOOST_DATE_ALIGNED: float = 0.05
+_DEMOTE_DATE_MISALIGNED: float = -0.10
+_DATE_WINDOW_DAYS: int = 7
+
+
+def _parse_chunk_date(chunk: dict[str, Any]) -> str | None:
+    """Best-effort extract of an ISO date string (YYYY-MM-DD) from a chunk.
+
+    Looks at, in order:
+      1. ``metadata.timestamp`` (ingest-set; canonical when present)
+      2. ``metadata.as_of_iso`` (ingest-set on some market_data writes)
+      3. ``captured_at`` (Mongo write-time timestamp; falls back to ingest
+         time if no domain-level date is available)
+      4. ``source_url`` suffix ``#<iso>`` (the market_data plan hashes the
+         hour bucket into the URL; we strip the time portion)
+      5. ``text`` regex for ``as of YYYY-MM-DDTHH:MM`` or ``YYYY-MM-DD``
+
+    Returns None when no parseable date is found. Caller treats None as
+    "do not apply date scoring" (neutral).
+    """
+    md = chunk.get("metadata") or {}
+    for key in ("timestamp", "as_of_iso"):
+        val = md.get(key) if isinstance(md, dict) else None
+        if isinstance(val, str) and len(val) >= 10:
+            return val[:10]
+        # Pymongo returns BSON datetimes as native datetime objects;
+        # support both shapes so the date demotion fires regardless.
+        if isinstance(val, datetime):
+            try:
+                return val.strftime("%Y-%m-%d")
+            except Exception:
+                pass
+    captured = chunk.get("captured_at")
+    # Only use captured_at for hot/live chunks — for static canon the
+    # ingest date is not a content date.
+    if (
+        isinstance(captured, str)
+        and len(captured) >= 10
+        and chunk.get("freshness_tier") in {"hot", "live_only", "daily"}
+    ):
+        return captured[:10]
+    url = str(chunk.get("source_url") or "")
+    if "#" in url:
+        tail = url.rsplit("#", 1)[-1]
+        if len(tail) >= 10 and tail[4] == "-" and tail[7] == "-":
+            return tail[:10]
+    text = chunk.get("text") or ""
+    m = re.search(r"(?<!\d)(20\d{2}-\d{2}-\d{2})(?!\d)", text)
+    if m:
+        return m.group(1)
+    return None
+
+
+def _days_between(a: str, b: str) -> int | None:
+    """Absolute days between two YYYY-MM-DD strings. None on parse failure."""
+    from datetime import date
+
+    try:
+        da = date.fromisoformat(a)
+        db = date.fromisoformat(b)
+    except ValueError:
+        return None
+    return abs((da - db).days)
+
+
+def _apply_retrieval_boosts(
+    rows: list[dict[str, Any]],
+    *,
+    protocol: str,
+    as_of_date: str | None,
+) -> list[dict[str, Any]]:
+    """Re-score retrieved chunks with protocol/provider/date boosts.
+
+    Pure function — input rows carry an ``Atlas vectorSearchScore`` in the
+    ``score`` field; this writes back the boosted score and preserves the
+    original under ``raw_score`` for diagnostics. Sorted descending by the
+    boosted score on return.
+
+    Boost terms:
+      - +0.15 when ``protocol`` appears in the chunk's protocol tag list
+        (treats array-typed and scalar-typed protocol fields uniformly).
+      - +0.10 additional when provider_kind is paysh_live/bazaar_live AND
+        the protocol match also fires (these are protocol-manifest sources
+        whose semantic content is often sparse but on-topic and structurally
+        what the panel needs to ground a directional verdict).
+      - +0.05 when chunk's parseable date is within the date window of
+        ``as_of_date``; -0.10 when outside. Skipped entirely when
+        ``as_of_date`` is None or the chunk is not freshness=hot/live/daily.
+
+    Boosts compose additively. A protocol-exact paysh_live chunk dated
+    in-window stacks to +0.30 over the raw Atlas score.
+    """
+    proto_norm = (protocol or "").strip().lower()
+    PROVIDER_SPECIFIC_KINDS = {"paysh_live", "bazaar_live", "protocol_native"}
+
+    for row in rows:
+        raw = float(row.get("score") or 0.0)
+        row["raw_score"] = raw
+        boost = 0.0
+        chunk_protos = row.get("protocol")
+        proto_match = False
+        if isinstance(chunk_protos, list):
+            proto_match = proto_norm in {str(p).strip().lower() for p in chunk_protos}
+        elif isinstance(chunk_protos, str):
+            proto_match = chunk_protos.strip().lower() == proto_norm
+        if proto_match and proto_norm:
+            boost += _BOOST_PROTOCOL_EXACT
+            if row.get("provider_kind") in PROVIDER_SPECIFIC_KINDS:
+                boost += _BOOST_PROVIDER_SPECIFIC
+        # Date alignment — only for hot/live/daily chunks where the date
+        # carries information. Static canon (Marks, Damodaran, Berkshire)
+        # is intentionally date-agnostic.
+        if as_of_date and row.get("freshness_tier") in {"hot", "live_only", "daily"}:
+            chunk_date = _parse_chunk_date(row)
+            if chunk_date is not None:
+                days = _days_between(as_of_date, chunk_date)
+                if days is not None:
+                    if days <= _DATE_WINDOW_DAYS:
+                        boost += _BOOST_DATE_ALIGNED
+                    else:
+                        boost += _DEMOTE_DATE_MISALIGNED
+        row["score"] = raw + boost
+        row["score_boost"] = boost
+
+    rows.sort(key=lambda r: float(r.get("score") or 0.0), reverse=True)
+    return rows
+
+
+# ---------------------------------------------------------------------------
+# S27 #21 — provider_kind quota allocator (fixed-slot, post-boost).
+#
+# Problem: S25 #13's protocol-exact + provider-specific boosts stack to +0.25
+# on protocol_native chunks. A pure top_k-by-boosted-score slice then routinely
+# fills all 15 slots with protocol_native, even though the rubric judge grades
+# against `must_cite_provider_kinds = {paysh_live, market_data, canon_marks,
+# canon_damodaran, canon_berkshire}`. S26 lost-in-middle handoff documents
+# `provider_kinds_present=['protocol_native']` on 2/3 fixtures, giving
+# provider_kind_coverage=0.33 against threshold 1.00.
+#
+# Fix: after _apply_retrieval_boosts has scored the candidate pool, partition
+# by provider_kind and fill per-bucket quotas first. Unfilled slots overflow
+# to other buckets by global boosted score. Boost still informs ranking
+# within each bucket — the allocator only decides who gets into top_k.
+#
+# Universal V1 quota (question-class-blind). Sum (19) intentionally exceeds
+# top_k (15) so higher-quota buckets win when supply is plentiful and lower-
+# quota buckets get squeezed. Question-class-aware quotas are S28+ work.
+_PROVIDER_QUOTAS: dict[str, int] = {
+    "protocol_native": 5,
+    "canon_marks": 3,
+    "canon_damodaran": 3,
+    "canon_berkshire": 2,
+    "market_data": 2,
+    "bazaar_live": 1,
+    "paysh_live": 1,
+    "canon_youtube": 1,
+    "canon_macro": 1,
+}
+
+# Minimum text length for a chunk to count toward its provider_kind quota.
+# paysh_live chunks for many protocols are empty `{"data":[]}` API dumps
+# (Mongo audit 2026-05-13: paysh_live kamino total=7, substantive=0).
+# Forcing a quota slot on those is worse than leaving the slot empty for
+# overflow into a substantive bucket.
+_QUOTA_MIN_CHUNK_CHARS: int = 200
+
+
+def _provider_quota_floor(
+    rows: list[dict[str, Any]],
+    *,
+    top_k: int,
+    quotas: dict[str, int] | None = None,
+    min_chars: int = _QUOTA_MIN_CHUNK_CHARS,
+) -> list[dict[str, Any]]:
+    """Allocate ``top_k`` slots across provider_kinds via fixed quotas.
+
+    Algorithm:
+      1. Drop candidates whose text is shorter than ``min_chars`` from
+         quota eligibility (they can still surface via the last-resort
+         filler if no eligible chunk is available).
+      2. Partition the eligible pool by ``provider_kind``; within each
+         bucket sort by boosted score desc.
+      3. For each provider_kind in ``quotas``, take up to its quota
+         from the bucket. Buckets shorter than their quota leave
+         unfilled slots.
+      4. Overflow: fill any remaining slots from the global eligible
+         pool by boosted score, skipping anything already picked.
+      5. Last-resort: ineligible (short-text) chunks fill out top_k
+         when the corpus is genuinely thin.
+      6. Final sort by boosted score desc so the panel sees strongest first.
+
+    Pure function — returns a new list; input rows are not mutated.
+    """
+    if top_k <= 0 or not rows:
+        return []
+    quotas = quotas if quotas is not None else _PROVIDER_QUOTAS
+
+    def _eligible(row: dict[str, Any]) -> bool:
+        text = row.get("text") or ""
+        return len(text) >= min_chars
+
+    by_kind: dict[str, list[dict[str, Any]]] = {}
+    for row in rows:
+        pk = str(row.get("provider_kind") or "web")
+        by_kind.setdefault(pk, []).append(row)
+    for bucket in by_kind.values():
+        bucket.sort(key=lambda r: float(r.get("score") or 0.0), reverse=True)
+
+    picked: list[dict[str, Any]] = []
+    picked_ids: set[int] = set()
+
+    # Pass 1 — per-bucket quotas over eligible chunks.
+    for pk, quota in quotas.items():
+        bucket = by_kind.get(pk, [])
+        taken = 0
+        for row in bucket:
+            if taken >= quota:
+                break
+            if not _eligible(row):
+                continue
+            rid = id(row)
+            if rid in picked_ids:
+                continue
+            picked.append(row)
+            picked_ids.add(rid)
+            taken += 1
+            if len(picked) >= top_k:
+                break
+        if len(picked) >= top_k:
+            break
+
+    # Pass 2 — overflow. Fill remaining slots from the global eligible
+    # pool by boosted score desc.
+    if len(picked) < top_k:
+        remaining = sorted(
+            (r for r in rows if id(r) not in picked_ids),
+            key=lambda r: float(r.get("score") or 0.0),
+            reverse=True,
+        )
+        for row in remaining:
+            if not _eligible(row):
+                continue
+            picked.append(row)
+            picked_ids.add(id(row))
+            if len(picked) >= top_k:
+                break
+        # Last-resort: ineligible chunks. Keeps top_k honest when the
+        # corpus is thin. Rare in practice.
+        if len(picked) < top_k:
+            for row in remaining:
+                if id(row) in picked_ids:
+                    continue
+                picked.append(row)
+                picked_ids.add(id(row))
+                if len(picked) >= top_k:
+                    break
+
+    picked.sort(key=lambda r: float(r.get("score") or 0.0), reverse=True)
+    return picked
 
 # S33-#82 — canon retrieval floor. The trade-idea query embeds ~0.55 cosine
 # to protocol_native API text and only ~0.38-0.41 to canon investor-canon
@@ -587,6 +1039,7 @@ async def retrieve_trade_corpus_chunks(
     protocol: str,
     vertical: str = "dex",
     top_k: int = _DEFAULT_TRADE_TOP_K,
+    as_of_date: str | None = None,
 ) -> list[dict[str, Any]]:
     """Embed ``idea`` and read top-K chunks scoped to ``(vertical, protocol)``.
 
@@ -662,11 +1115,45 @@ async def retrieve_trade_corpus_chunks(
                 "index": VECTOR_INDEX_NAME,
                 "path": "embedding",
                 "queryVector": query_vector,
-                "numCandidates": max(200, top_k * 20),
-                "limit": top_k * 5,
+                # S27 Path D — bumped numCandidates from 20x to 40x so the
+                # ANN graph has enough slack for the wider 12x post-filter
+                # pool (below). limit raised from 10x to 15x for the same
+                # reason. Atlas charges by candidate scan; this is one
+                # wider scan, not 4x cost.
+                "numCandidates": max(400, top_k * 40),
+                "limit": top_k * 15,
                 "exact": False,
+                # S24 WS-A Pattern F — the vertical pre-filter must admit
+                # cross-cutting chunks (canon literature, market_data macro
+                # feeds) regardless of the requested vertical, otherwise
+                # perps/lending/infra/lst requests see zero canon citations
+                # because canon is currently tagged vertical="dex". Same
+                # spirit as the post-$match: cross-cutting chunks reach the
+                # panel for every protocol.
+                #
+                # S25 #13 — paysh_live + bazaar_live chunks also admitted
+                # across verticals (they carry a specific protocol tag but
+                # protocol-manifest content is useful regardless of which
+                # vertical bucket the caller asked for; e.g. Kamino
+                # paysh_live chunks tagged vertical=dex must still reach
+                # a vertical=lending request because the protocol manifest
+                # documents both vault types).
                 "filter": {
-                    "vertical": {"$eq": vertical},
+                    "$or": [
+                        {"vertical": {"$eq": vertical}},
+                        {
+                            "provider_kind": {
+                                "$in": [
+                                    "market_data",
+                                    "canon_marks",
+                                    "canon_damodaran",
+                                    "canon_berkshire",
+                                    "paysh_live",
+                                    "bazaar_live",
+                                ]
+                            }
+                        },
+                    ],
                     "metadata.deprecated": {"$ne": True},
                 },
             }
@@ -677,12 +1164,22 @@ async def retrieve_trade_corpus_chunks(
         # cross-cutting frameworks. See docs/strategy/2026-05-11-
         # retrieval-wedge-sprint.md — this is the wedge: canon corpus
         # must reach the panel regardless of named protocol.
+        #
+        # S24 WS-A — market_data chunks (Pyth candles + DefiLlama TVL)
+        # surface alongside canon. They carry a specific protocol tag for
+        # provenance but cross-protocol macro feeds (SOL/USD, BTC/USD)
+        # are useful to every voice, so the provider_kind clause admits
+        # them regardless of protocol match. Pattern F.
         {
             "$match": {
                 "$or": [
                     {"protocol": proto_norm},
                     {"protocol": {"$size": 0}},
                     {"protocol": {"$exists": False}},
+                    # S24 WS-A — market_data chunks carry a specific
+                    # protocol tag for provenance; admit them post-$match
+                    # regardless of the requested protocol (Pattern F).
+                    {"provider_kind": "market_data"},
                 ]
             }
         },
@@ -691,6 +1188,14 @@ async def retrieve_trade_corpus_chunks(
         # to re-score. The true top_k truncation happens *after* rerank
         # (see voyage_rerank_dicts below); on the legacy / flag-off path the
         # reranker no-ops and returns the vector-order slate[:top_k].
+        #
+        # S25 #13 protocol-exact / date-alignment scoring boosts
+        # (_apply_retrieval_boosts) still run on this slate in Python
+        # below — they re-rank the protocol pool *before* the cross-encoder
+        # sees it. The S27 12x over-fetch was sized for the now-superseded
+        # _provider_quota_floor allocator; the S33 canon-floor leg solves
+        # canon coverage structurally (a dedicated canon $vectorSearch),
+        # so the protocol slate only needs the 5x rerank window.
         {"$limit": top_k * 5},
         {
             "$project": {
@@ -721,7 +1226,11 @@ async def retrieve_trade_corpus_chunks(
                     "source": (doc.get("source") or doc.get("provider_kind") or "unknown"),
                     "provider_kind": doc.get("provider_kind") or "web",
                     "freshness_tier": doc.get("freshness_tier") or "static",
-                    "protocol": doc.get("protocol") or proto_norm,
+                    # Preserve raw ingest-side protocol tag (incl. empty
+                    # list for canon). Do NOT fall back to proto_norm —
+                    # the boost step relies on truthful tagging to avoid
+                    # crediting canon chunks with a protocol-exact match.
+                    "protocol": doc.get("protocol"),
                     "vertical": doc.get("vertical") or vertical,
                     "score": float(doc.get("score") or 0.0),
                 }
@@ -729,6 +1238,21 @@ async def retrieve_trade_corpus_chunks(
     except Exception as exc:  # pragma: no cover - defensive
         _log.warning("trade_panel.retrieve.error err=%s", exc)
         return []
+
+    # S25 #13 — apply protocol-exact + provider-specific + date-alignment
+    # scoring boosts in Python over the oversampled protocol pool. Atlas raw
+    # vectorSearchScore alone buries sparse protocol-manifest chunks beneath
+    # tangentially-on-topic prose; the boost re-orders the protocol slate so
+    # the cross-encoder reranker (below) sees protocol-grounded chunks first.
+    # The boost terms live in _apply_retrieval_boosts.
+    #
+    # S33 note: _provider_quota_floor (the S27 provider-kind allocator) is
+    # intentionally NOT called here. The S33-#81 diagnosis proved canon is
+    # 0/75 in the single-pool $vectorSearch slate — the allocator had no
+    # canon candidates to allocate. The dedicated canon-floor leg below
+    # solves canon coverage structurally; the boost still tunes intra-
+    # protocol ranking, which remains useful.
+    rows = _apply_retrieval_boosts(rows, protocol=proto_norm, as_of_date=as_of_date)
 
     # S33-#82 — canon retrieval floor with a POST-rerank quota.
     #
@@ -956,6 +1480,9 @@ async def run_trade_panel_with_retrieval(
     agent_factory: AgentFactory | None = None,
     enable_backtest: bool = False,
     history_source: Any | None = None,
+    agent_id: str | None = None,
+    wallet: str | None = None,
+    as_of_date: str | None = None,
 ) -> TradePanelVerdict:
     """Convenience wrapper — fetch corpus chunks, then run the 7-agent panel.
 
@@ -971,7 +1498,11 @@ async def run_trade_panel_with_retrieval(
     on the Phase 8 contract.
     """
     chunks = await retrieve_trade_corpus_chunks(
-        idea=idea, protocol=protocol, vertical=vertical, top_k=top_k
+        idea=idea,
+        protocol=protocol,
+        vertical=vertical,
+        top_k=top_k,
+        as_of_date=as_of_date,
     )
 
     # Issue #12 — panel kickoff log. Truthy chunks here but empty
@@ -997,6 +1528,8 @@ async def run_trade_panel_with_retrieval(
         tier=tier,
         llm_config=llm_config,
         agent_factory=agent_factory,
+        agent_id=agent_id,
+        wallet=wallet,
     )
 
     # Issue #15: attach the structured citation list sourced from the same

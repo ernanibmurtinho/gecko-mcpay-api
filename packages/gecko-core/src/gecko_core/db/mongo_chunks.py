@@ -239,6 +239,50 @@ async def insert_chunks_mongo(
                 kind="dim_mismatch",
             )
 
+    # S29-#32 — chunk-quality invariant. Per founder principle:
+    # re-ingestion is cheap; garbage chunks are the real liability. The
+    # gate is a single function call per chunk and runs AFTER the cheap
+    # dim/empty validators so structural errors still raise loudly.
+    # Failed chunks are filtered out + counted; the batch as a whole is
+    # NOT failed (re-ingestion of a 1000-doc PDF should not be wasted by
+    # one binary page). Quality skips surface via structured log alongside
+    # the existing pioneer_call signal — keeping the int return contract
+    # stable per the documented "structured-log over return-type churn"
+    # convention earlier in this file.
+    from gecko_core.ingestion.chunk_quality import assess_chunk_quality
+
+    quality_skips: dict[str, int] = {}
+    surviving_chunks: list[tuple[int, str, list[float]]] = []
+    for idx, text, embedding in chunks:
+        verdict = assess_chunk_quality(text)
+        if verdict.is_substantive:
+            surviving_chunks.append((idx, text, embedding))
+            continue
+        quality_skips[verdict.reason] = quality_skips.get(verdict.reason, 0) + 1
+        logger.warning(
+            "mongo.insert_chunks.quality_skip",
+            extra={
+                "event": "mongo.insert_chunks.quality_skip",
+                "session_id": str(session_id),
+                "source_id": str(source_id),
+                "chunk_index": idx,
+                "reason": verdict.reason,
+                "text_len": len(text),
+            },
+        )
+    chunks = surviving_chunks
+    if not chunks:
+        logger.warning(
+            "mongo.insert_chunks.all_skipped",
+            extra={
+                "event": "mongo.insert_chunks.all_skipped",
+                "session_id": str(session_id),
+                "source_id": str(source_id),
+                "quality_skips": quality_skips,
+            },
+        )
+        return 0
+
     coll = chunks_collection()
     if coll is None:
         raise _MongoUnavailable(
@@ -363,6 +407,10 @@ async def insert_chunks_mongo(
             "category": category,
             "vertical": vertical,
             "source": source,
+            # S29-#32 — surface the quality-gate counter so callers (and
+            # the audit script) know how many were rejected pre-write.
+            "quality_skips": quality_skips,
+            "quality_skips_total": sum(quality_skips.values()),
         },
     )
     # S20-A7 — emit the pioneer_call signal as a structured INFO row so
