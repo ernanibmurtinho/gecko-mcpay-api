@@ -113,6 +113,7 @@ async def insert_chunks_mongo(
     protocol: list[str] | tuple[str, ...] = (),
     content_kind: ContentKind = "unknown",
     is_stale: bool = False,
+    as_of_date: str | None = None,
     metadata_extra: dict[str, Any] | None = None,
 ) -> int:
     """Bulk-insert chunks. Returns count of *new* documents written.
@@ -127,6 +128,10 @@ async def insert_chunks_mongo(
     REQUIRED for new callers; ``provider_kind`` is the deprecated alias
     for ``source`` and emits a ``DeprecationWarning`` for one sprint
     (S21 removes it).
+
+    S33-#68 — ``as_of_date`` carries the data's as-of date (a string day
+    bucket, e.g. ``"2026-05-16"``), distinct from ``captured_at`` (the
+    ingest wall-clock). ``None`` when the caller doesn't supply it.
     """
     if not chunks:
         return 0
@@ -282,6 +287,11 @@ async def insert_chunks_mongo(
             "provider_kind": provider_kind if provider_kind is not None else source,
             "project_id": str(project_id) if project_id is not None else None,
             "captured_at": now,
+            # S33-#68 — the data's as-of date (e.g. a protocol_native day
+            # bucket "2026-05-16"), distinct from captured_at (ingest
+            # wall-clock). None for callers that don't supply it so
+            # existing chunk shapes are unchanged.
+            "as_of_date": as_of_date,
             # Trading-oracle ingest axis (Pattern A: mirrors SQL CHECK in
             # 20260508130000_chunk_freshness_tier.sql). Defaults to 'static'
             # so existing callers are unaffected.
