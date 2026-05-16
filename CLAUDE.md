@@ -76,7 +76,7 @@ gecko-mcp doctor
 
 ## Subagent team
 
-Eight specialists. Seven own work in this repo; `frontend-engineer` is a cross-repo stub that surfaces coordination notes for their full counterpart in `gecko-mcpay-app`.
+Core team: twelve specialists. Eleven own work in this repo; `frontend-engineer` is a cross-repo stub that surfaces coordination notes for their full counterpart in `gecko-mcpay-app`. Plus three Solana-specialist advisors (`solana-architect`, `defi-engineer`, `solana-researcher`) imported from Superteam's `solana-claude` config.
 
 **Engineering (staff-engineer arbitrates across these lanes):**
 
@@ -87,6 +87,18 @@ Eight specialists. Seven own work in this repo; `frontend-engineer` is a cross-r
 | `software-engineer` | Feature implementation in `packages/` and `apps/` (Python) |
 | `data-engineer` | Supabase schema, pgvector, ingestion pipeline, embeddings storage |
 | `web3-engineer` | x402, Solana, Base/CDP, wallet flows, frames.ag integration, on-chain settlement |
+| `devops-engineer` | CI/CD (`.github/workflows`), `./infra/deploy.sh` + CloudFormation, ECS, Supabase migration-apply, monitoring, RPC infra, middleware/rate-limit ops |
+| `quant-analyst` | Statistical rigor on eval/rubric results (significance, confidence intervals, sample-size, variance-vs-signal) + quant finance (returns, drawdown, Sharpe, PnL attribution, backtest stats). "Is this number real." |
+
+**Solana specialists (Superteam `solana-claude` agents — advisory backup for `web3-engineer`):**
+
+| Agent | When |
+|---|---|
+| `solana-architect` | System design, account structures, PDA schemes, token economics, multi-program architecture, "which on-chain design" calls |
+| `defi-engineer` | DeFi protocol integration — Jupiter, Drift, Kamino, Raydium, Orca, Meteora, Marginfi, Sanctum; swap routing, oracle feeds, composability |
+| `solana-researcher` | Ecosystem research, protocol/SDK investigation, comparing implementation approaches |
+
+These three are read/research-oriented advisors. `web3-engineer` still owns the lane and the code; route architecture/DeFi-design questions to the specialists, then `web3-engineer` implements. Skill links inside these agent files point at the `solana-claude` skill tree, which is NOT installed here — those references degrade gracefully.
 
 **Product:**
 
@@ -106,6 +118,8 @@ Default to `staff-engineer` for any change that touches more than one package, m
 - `data-engineer` owns "the data is correctly stored"
 - `ai-ml-engineer` owns "the model gives the right answer"
 - `web3-engineer` owns "the payment settles correctly"
+- `devops-engineer` owns "the system deploys and stays up"
+- `quant-analyst` owns "the number is trustworthy and means what we say it means"
 
 When a problem touches more than one of these, route to `staff-engineer` first.
 
