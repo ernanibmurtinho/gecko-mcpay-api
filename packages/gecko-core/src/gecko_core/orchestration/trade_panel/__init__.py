@@ -476,6 +476,7 @@ async def retrieve_trade_corpus_chunks(
     from gecko_core.db import get_chunk_store
     from gecko_core.db.mongo import VECTOR_INDEX_NAME, chunks_collection
     from gecko_core.ingestion.embedder import embed
+    from gecko_core.rag.voyage_rerank import voyage_rerank_dicts
 
     if get_chunk_store() != "mongo":
         _log.warning(
@@ -488,7 +489,13 @@ async def retrieve_trade_corpus_chunks(
         _log.warning("trade_panel.retrieve.skip reason=no_collection")
         return []
 
-    vectors, _tokens = await embed([idea])
+    # S33-#79 — Voyage asymmetric retrieval: the query side embeds with
+    # input_type="query"; corpus chunks should embed with "document". This
+    # is consistent ONLY once the corpus is re-embedded as "document"
+    # (tracked as a combined re-embed with data-engineer #80); a "query"
+    # embed against the pre-S33 input_type=None corpus is a mixed space
+    # until that re-embed lands.
+    vectors, _tokens = await embed([idea], input_type="query")
     if not vectors:
         _log.warning("trade_panel.retrieve.skip reason=empty_embed_vector")
         return []
@@ -519,12 +526,21 @@ async def retrieve_trade_corpus_chunks(
         # cross-cutting frameworks. See docs/strategy/2026-05-11-
         # retrieval-wedge-sprint.md — this is the wedge: canon corpus
         # must reach the panel regardless of named protocol.
-        {"$match": {"$or": [
-            {"protocol": proto_norm},
-            {"protocol": {"$size": 0}},
-            {"protocol": {"$exists": False}},
-        ]}},
-        {"$limit": top_k},
+        {
+            "$match": {
+                "$or": [
+                    {"protocol": proto_norm},
+                    {"protocol": {"$size": 0}},
+                    {"protocol": {"$exists": False}},
+                ]
+            }
+        },
+        # S33-#79 — keep the full over-fetch slate (top_k * 5) here so the
+        # Voyage cross-encoder reranker downstream has a wide candidate set
+        # to re-score. The true top_k truncation happens *after* rerank
+        # (see voyage_rerank_dicts below); on the legacy / flag-off path the
+        # reranker no-ops and returns the vector-order slate[:top_k].
+        {"$limit": top_k * 5},
         {
             "$project": {
                 "_id": 1,
@@ -562,6 +578,24 @@ async def retrieve_trade_corpus_chunks(
     except Exception as exc:  # pragma: no cover - defensive
         _log.warning("trade_panel.retrieve.error err=%s", exc)
         return []
+
+    # S33-#79 — semantic rerank. $vectorSearch returns a flat cosine band
+    # (live probe: top-15 in a 0.804-0.818 spread); cosine alone cannot
+    # separate on-target from loosely-related chunks at that resolution. A
+    # Voyage rerank-2 cross-encoder re-scores the wide over-fetch slate by
+    # true query relevance and truncates to top_k. Flag-gated on
+    # GECKO_RERANKER=voyage; graceful-degrades to the vector-order slate
+    # (rows[:top_k]) on flag-off, missing key, timeout, or any API error —
+    # retrieval never breaks on a rerank failure.
+    pre_rerank_count = len(rows)
+    rows = await voyage_rerank_dicts(idea, rows, top_n=top_k)
+    reranked = bool(rows) and rows[0].get("rerank_score") is not None
+    _log.info(
+        "trade_panel.retrieve.rerank candidates=%d returned=%d reranked=%s",
+        pre_rerank_count,
+        len(rows),
+        reranked,
+    )
 
     # Issue #12 — exit log. hit_count + top_score disambiguate "Atlas returned
     # nothing" (likely filter-shape / ingest-tag drift) from "Atlas returned

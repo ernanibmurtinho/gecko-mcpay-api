@@ -334,7 +334,11 @@ async def _process_one(
                     len(missing_texts),
                 )
                 try:
-                    new_embeddings, embed_tokens = await embed_texts(missing_texts)
+                    # S33-#79 — ingest-side chunks embed as "document" for
+                    # Voyage asymmetric retrieval (query side uses "query").
+                    new_embeddings, embed_tokens = await embed_texts(
+                        missing_texts, input_type="document"
+                    )
                 except openai.OpenAIError as exc:
                     detail = _openai_error_detail(exc)
                     logger.warning(
@@ -735,7 +739,11 @@ async def ingest_provider_chunks(
         if missing_idxs:
             missing_texts = [pieces[i] for i in missing_idxs]
             try:
-                new_embeddings, embed_tokens = await embed_texts(missing_texts)
+                # S33-#79 — ingest-side chunks embed as "document" for
+                # Voyage asymmetric retrieval (query side uses "query").
+                new_embeddings, embed_tokens = await embed_texts(
+                    missing_texts, input_type="document"
+                )
             except openai.OpenAIError as exc:
                 # Persistent embed failure across the whole missing set.
                 # Surface the audit row + degrade — no partial write.

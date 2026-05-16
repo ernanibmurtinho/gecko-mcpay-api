@@ -80,15 +80,42 @@ _MAX_ATTEMPTS = 5
 # ticket spec.
 _RATE_LIMIT_SHED_THRESHOLD = 2
 
-# Published list prices per 1M tokens (2026-04).
-# Surfaced on the per-session economics view so dashboards reflect real spend.
+# Published list prices per 1M tokens (refreshed 2026-05-15 against
+# https://docs.voyageai.com/docs/embeddings.md). Surfaced on the per-session
+# economics view so dashboards reflect real spend.
+#
+# Voyage model catalog (ctx / default dim):
+#   voyage-4-large    32K / 1024  — best general + multilingual retrieval
+#   voyage-4          32K / 1024  — general + multilingual retrieval
+#   voyage-4-lite     32K / 1024  — latency/cost-optimized
+#   voyage-code-3     32K / 1024  — code retrieval
+#   voyage-finance-2  32K / 1024  — finance retrieval + RAG (relevant to trade-panel)
+#   voyage-law-2      16K / 1024  — legal retrieval + RAG
+#   voyage-code-2     16K / 1536  — legacy code embeddings
+#   voyage-3-large    32K / 1024  — previous-gen RAG default (S20-RAG-04)
+#   voyage-3          32K / 1024  — previous-gen general
+#   voyage-context-3  32K / 1024  — MongoDB-hosted only (ai.mongodb.com/v1/embeddings)
+#
+# Series-4 embeddings are cross-compatible (1024/256/512/2048 truncatable).
+# Prices below are best-effort; verify against
+# https://docs.voyageai.com/docs/pricing before billing changes.
 _EMBED_RATES_USD_PER_1M: dict[str, float] = {
     "text-embedding-3-small": 0.02,
     "text-embedding-3-large": 0.13,
     "text-embedding-ada-002": 0.10,
-    "voyage-3": 0.06,  # Voyage published list price per 1M tokens
-    "voyage-3-large": 0.18,  # RAG-optimal default (S20-RAG-04 → voyage-3-large)
-    "voyage-context-3": 0.18,  # MongoDB-hosted only (ai.mongodb.com/v1/embeddings)
+    # Voyage v4 series (current)
+    "voyage-4-large": 0.18,
+    "voyage-4": 0.06,
+    "voyage-4-lite": 0.02,
+    # Domain-tuned
+    "voyage-code-3": 0.18,
+    "voyage-finance-2": 0.12,
+    "voyage-law-2": 0.12,
+    "voyage-code-2": 0.12,
+    # Voyage v3 series (previous-gen, kept for backfill compatibility)
+    "voyage-3": 0.06,
+    "voyage-3-large": 0.18,
+    "voyage-context-3": 0.18,  # MongoDB-hosted only
 }
 
 
@@ -317,6 +344,7 @@ async def embed(
     client: AsyncOpenAI | None = None,
     model: str | None = None,
     batch_size: int = EMBED_BATCH_SIZE,
+    input_type: str | None = None,
 ) -> tuple[list[list[float]], int]:
     """Embed `texts`, batching at `batch_size`. Order-preserving.
 
@@ -329,6 +357,16 @@ async def embed(
       callers).
     - Otherwise, `EMBED_PROVIDER` from settings controls dispatch.
       `voyage` → `_embed_voyage()`; `openai` → OpenAI embeddings.create path.
+
+    `input_type` (S33-#79): Voyage asymmetric retrieval hint. Pass
+    `"query"` for retrieval-side query embeds and `"document"` for
+    ingest-side chunk embeds — `voyage-3-large` prepends instruction
+    prefixes tuned per side, a documented relevance gain over symmetric
+    (`None`/`None`) embedding. OpenAI ignores it (no asymmetric API).
+    CRITICAL: query/document embeds must be *consistent with the stored
+    corpus*. Corpus chunks pre-S33 were embedded `input_type=None`; a
+    `"query"` query embed against an `input_type=None` corpus is mixed
+    until the corpus is re-embedded as `"document"`.
     """
     if not texts:
         return [], 0
@@ -353,6 +391,7 @@ async def embed(
             texts,
             api_key=key.get_secret_value(),
             model=model_name,
+            input_type=input_type,
             batch_size=batch_size,
         )
 

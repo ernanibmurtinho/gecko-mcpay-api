@@ -19,6 +19,7 @@ from gecko_core.rag.query import RagChunk
 from gecko_core.rag.voyage_rerank import (
     RERANK_TOP_K_INPUT,
     voyage_rerank,
+    voyage_rerank_dicts,
 )
 
 # ---------------------------------------------------------------------------
@@ -221,3 +222,79 @@ async def test_rerank_generic_exception_falls_through(
         out = await voyage_rerank("query", chunks, top_n=4)
     assert len(out) == 4
     assert any("voyage 503" in rec.message for rec in caplog.records)
+
+
+# ---------------------------------------------------------------------------
+# voyage_rerank_dicts — dict-native sibling (S33-#79, trade-panel path)
+# ---------------------------------------------------------------------------
+
+
+def _make_dict(idx: int, score: float = 0.8) -> dict[str, Any]:
+    return {"id": str(idx), "text": f"chunk {idx} content", "score": score}
+
+
+@pytest.mark.asyncio
+async def test_rerank_dicts_off_returns_input_truncated(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Flag unset -> no-op, returns chunks[:top_n], no rerank_score key."""
+    monkeypatch.delenv("GECKO_RERANKER", raising=False)
+    chunks = [_make_dict(i) for i in range(12)]
+    out = await voyage_rerank_dicts("query", chunks, top_n=8)
+    assert len(out) == 8
+    assert [c["id"] for c in out] == [str(i) for i in range(8)]
+    assert all("rerank_score" not in c for c in out)
+
+
+@pytest.mark.asyncio
+async def test_rerank_dicts_reorders_and_populates_score(
+    monkeypatch: pytest.MonkeyPatch,
+    fake_voyage: type[_FakeAsyncClient],
+) -> None:
+    """Flag on -> dicts reordered by Voyage score, rerank_score populated,
+    original cosine `score` field left untouched."""
+    monkeypatch.setenv("GECKO_RERANKER", "voyage")
+    monkeypatch.setenv("VOYAGE_API_KEY", "pa-test-key")
+    chunks = [_make_dict(i, score=0.81) for i in range(5)]
+    fake_voyage.next_response = _FakeRerankResponse(
+        [
+            _FakeRerankResult(4, 0.99),
+            _FakeRerankResult(0, 0.70),
+            _FakeRerankResult(2, 0.40),
+        ]
+    )
+    out = await voyage_rerank_dicts("query", chunks, top_n=3)
+    assert [c["id"] for c in out] == ["4", "0", "2"]
+    assert [round(c["rerank_score"], 2) for c in out] == [0.99, 0.70, 0.40]
+    # Cosine score field untouched.
+    assert all(c["score"] == 0.81 for c in out)
+
+
+@pytest.mark.asyncio
+async def test_rerank_dicts_timeout_falls_through(
+    monkeypatch: pytest.MonkeyPatch,
+    fake_voyage: type[_FakeAsyncClient],
+) -> None:
+    """Timeout -> graceful degrade to vector-order slate[:top_n]."""
+    monkeypatch.setenv("GECKO_RERANKER", "voyage")
+    monkeypatch.setenv("VOYAGE_API_KEY", "pa-test-key")
+    fake_voyage.next_response = TimeoutError()
+    chunks = [_make_dict(i) for i in range(10)]
+    out = await voyage_rerank_dicts("query", chunks, top_n=4)
+    assert [c["id"] for c in out] == ["0", "1", "2", "3"]
+    assert all("rerank_score" not in c for c in out)
+
+
+@pytest.mark.asyncio
+async def test_rerank_dicts_caps_input_at_20(
+    monkeypatch: pytest.MonkeyPatch,
+    fake_voyage: type[_FakeAsyncClient],
+) -> None:
+    """Over-fetch slate of 50 -> Voyage called with exactly 20 docs."""
+    monkeypatch.setenv("GECKO_RERANKER", "voyage")
+    monkeypatch.setenv("VOYAGE_API_KEY", "pa-test-key")
+    chunks = [_make_dict(i) for i in range(50)]
+    out = await voyage_rerank_dicts("query", chunks, top_n=8)
+    assert fake_voyage.last_call_kwargs is not None
+    assert len(fake_voyage.last_call_kwargs["documents"]) == RERANK_TOP_K_INPUT == 20
+    assert len(out) == 8

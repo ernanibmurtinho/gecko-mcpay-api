@@ -26,7 +26,7 @@ import asyncio
 import logging
 import os
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from gecko_core.rag.query import RagChunk
@@ -217,6 +217,103 @@ async def voyage_rerank_batch(
     return out
 
 
+async def voyage_rerank_dicts(
+    query: str,
+    chunks: list[dict[str, Any]],
+    top_n: int = RERANK_TOP_N_OUTPUT,
+    *,
+    text_key: str = "text",
+    score_key: str = "rerank_score",
+) -> list[dict[str, Any]]:
+    """Re-score plain-dict chunks against ``query`` using Voyage ``rerank-2``.
+
+    Dict-native sibling of :func:`voyage_rerank` for retrieval paths that
+    carry chunks as plain dicts rather than ``RagChunk`` models — notably
+    ``orchestration.trade_panel.retrieve_trade_corpus_chunks`` (S33-#79).
+    Converting those dicts into ``RagChunk`` just to rerank would force
+    synthesising required fields (``source_id`` UUID, ``chunk_index``); this
+    helper avoids that round-trip and keeps the Voyage call logic in one
+    module.
+
+    Contract mirrors :func:`voyage_rerank` exactly:
+
+    * If ``GECKO_RERANKER`` != "voyage": no-op, returns ``chunks[:top_n]``.
+    * If ``VOYAGE_API_KEY`` unset / ``voyageai`` missing / call times out or
+      raises / Voyage returns empty: warn, return ``chunks[:top_n]`` (the
+      input vector-order slate). Retrieval never breaks on a rerank failure.
+    * On success: returns up to ``top_n`` dicts ordered by Voyage's
+      ``relevance_score``; each surviving dict gets ``score_key`` populated.
+      The original cosine ``score`` field is left untouched.
+
+    Input is capped at ``RERANK_TOP_K_INPUT`` before Voyage is called.
+    """
+    if not chunks:
+        return []
+    if top_n <= 0:
+        return []
+    if not _flag_enabled():
+        return chunks[:top_n]
+
+    api_key = os.environ.get("VOYAGE_API_KEY", "").strip()
+    if not api_key:
+        logger.warning("rag.voyage_rerank_dicts.no_key (falling back to input slate)")
+        return chunks[:top_n]
+
+    candidates = chunks[:RERANK_TOP_K_INPUT]
+
+    try:
+        import voyageai
+    except Exception as exc:  # pragma: no cover - import guard
+        logger.warning("rag.voyage_rerank_dicts.import_failed err=%s", exc)
+        return chunks[:top_n]
+
+    documents = [str(c.get(text_key) or "") for c in candidates]
+
+    try:
+        client = voyageai.AsyncClient(api_key=api_key)  # type: ignore[attr-defined]
+        result = await asyncio.wait_for(
+            client.rerank(
+                query=query,
+                documents=documents,
+                model=RERANK_MODEL,
+                top_k=len(documents),
+            ),
+            timeout=RERANK_TIMEOUT_S,
+        )
+    except TimeoutError:
+        logger.warning(
+            "rag.voyage_rerank_dicts.fallback err=timeout timeout_s=%.2f",
+            RERANK_TIMEOUT_S,
+        )
+        return chunks[:top_n]
+    except Exception as exc:
+        logger.warning("rag.voyage_rerank_dicts.fallback err=%s", exc)
+        return chunks[:top_n]
+
+    voyage_results = getattr(result, "results", None)
+    if not voyage_results:
+        logger.warning("rag.voyage_rerank_dicts.fallback err=empty_results")
+        return chunks[:top_n]
+
+    reordered: list[dict[str, Any]] = []
+    for r in voyage_results:
+        idx = getattr(r, "index", None)
+        score = getattr(r, "relevance_score", None)
+        if idx is None or not isinstance(idx, int) or idx < 0 or idx >= len(candidates):
+            continue
+        chunk = dict(candidates[idx])
+        chunk[score_key] = float(score) if score is not None else None
+        reordered.append(chunk)
+        if len(reordered) >= top_n:
+            break
+
+    if not reordered:
+        logger.warning("rag.voyage_rerank_dicts.fallback err=no_usable_results")
+        return chunks[:top_n]
+
+    return reordered
+
+
 __all__ = [
     "RERANK_MODEL",
     "RERANK_TIMEOUT_S",
@@ -224,4 +321,5 @@ __all__ = [
     "RERANK_TOP_N_OUTPUT",
     "voyage_rerank",
     "voyage_rerank_batch",
+    "voyage_rerank_dicts",
 ]
