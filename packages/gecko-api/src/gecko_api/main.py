@@ -1113,6 +1113,46 @@ app.add_middleware(
 app.add_middleware(_BodySizeLimitMiddleware, max_bytes=_MAX_REQUEST_BODY_BYTES)
 
 
+# Bot-probe block. Known vuln-scanner paths — WordPress, .git, .env,
+# phpMyAdmin, PHP/CGI extensions — get an instant 404 before routing.
+# Deliberately a plain 404, NOT a 402: a payment challenge on a junk path
+# tells a scanner the host is "interesting" and worth revisiting, whereas a
+# 404 is a boring dead end. No tarpit — holding the connection open would
+# be a self-DoS lever for an attacker who controls request volume.
+_BOT_PROBE_EXTENSIONS: tuple[str, ...] = (
+    ".php",
+    ".asp",
+    ".aspx",
+    ".jsp",
+    ".cgi",
+    ".env",
+    ".sql",
+    ".bak",
+)
+_BOT_PROBE_SUBSTRINGS: tuple[str, ...] = (
+    "/wp-admin",
+    "/wp-includes",
+    "/wp-login",
+    "/wordpress",
+    "/cgi-bin",
+    "/.git",
+    "/.env",
+    "/phpmyadmin",
+    "/xmlrpc",
+    "/vendor/",
+    "/.aws",
+)
+
+
+@app.middleware("http")
+async def _bot_probe_block(request: Request, call_next: Any) -> Response:
+    path = request.url.path.lower()
+    if path.endswith(_BOT_PROBE_EXTENSIONS) or any(s in path for s in _BOT_PROBE_SUBSTRINGS):
+        return Response(status_code=404)
+    response: Response = await call_next(request)
+    return response
+
+
 # Internal ops routes (S2X-09: /internal/twitsh/balance for EventBridge).
 # Mounted after middleware so x402 doesn't gate them; they're free and
 # read-only. Discovery: not advertised in /.well-known/x402.

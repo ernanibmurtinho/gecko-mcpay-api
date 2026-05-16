@@ -119,6 +119,11 @@ declare -A PARAMS=(
   # MONGODB_CHUNK_DB: Atlas database for chunks (default gecko_rag)
   [GECKO_CHUNK_STORE]="GECKO_CHUNK_STORE"
   [MONGODB_CHUNK_DB]="MONGODB_CHUNK_DB"
+
+  # S33-#79 — Voyage cross-encoder reranker on the trade-panel retrieval path.
+  # GECKO_RERANKER: voyage (enable rerank) | none (off). Off by default;
+  # set GECKO_RERANKER=voyage in .env to turn it on in prod.
+  [GECKO_RERANKER]="GECKO_RERANKER"
 )
 
 echo "==> Region:     $REGION"
@@ -167,6 +172,9 @@ declare -A REQUIRED_AT_BOOT=(
   # before Atlas is wired up.
   [GECKO_CHUNK_STORE]="mongo"
   [MONGODB_CHUNK_DB]="gecko_rag"
+  # S33-#79 — reranker OFF by default; sentinel keeps boot clean. Set
+  # GECKO_RERANKER=voyage in .env to enable the trade-panel reranker in prod.
+  [GECKO_RERANKER]="none"
 )
 
 SKIPPED=()

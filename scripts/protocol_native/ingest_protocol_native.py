@@ -262,7 +262,9 @@ async def ingest_endpoint(
         return {"chunks": len(embed_texts), "skipped": 0}
 
     # S33-#80 — embed the SIGNAL-ONLY text, store the DISPLAY text.
-    vectors, _tokens = await embed(embed_texts)
+    # S33-#79 follow-up — embed corpus chunks as "document" so they sit in
+    # the same asymmetric space as the input_type="query" retrieval queries.
+    vectors, _tokens = await embed(embed_texts, input_type="document")
     rows: list[tuple[int, str, list[float]]] = [
         (i, display_texts[i], list(vectors[i])) for i in range(len(embed_texts))
     ]

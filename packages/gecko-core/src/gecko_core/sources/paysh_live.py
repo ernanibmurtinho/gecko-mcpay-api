@@ -58,7 +58,6 @@ ledger per ``BazaarChunk`` convention).
 from __future__ import annotations
 
 import hashlib
-import json
 import logging
 import re
 from dataclasses import dataclass, field
@@ -81,9 +80,12 @@ PAYSH_LIVE_BUDGET_USD: float = 5.0
 # N3-sim-against-live tests on devnet.
 DEFAULT_TIMEOUT_SECONDS: float = 12.0
 
-# Each chunk targets ~500 words of provider response body. Below the
-# embedding-token cap, above the citation-utility floor.
-DEFAULT_CHUNK_WORDS: int = 500
+# Each chunk targets ~150 words of provider response body. S33-#66 follow-up:
+# paysh paid responses post-JSON-flattening run ~150-400 words; at 500 each
+# call collapsed to a single chunk (observed: 16 protocols → 16 chunks).
+# 150 yields ~3-5× more chunks per call without dropping below the
+# citation-utility floor or breaching the embedding-token cap.
+DEFAULT_CHUNK_WORDS: int = 150
 
 SOURCE_NAME: str = "paysh_live"
 

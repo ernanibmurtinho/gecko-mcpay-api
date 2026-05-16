@@ -99,6 +99,7 @@ async def research(
     tier_preset: str | None = None,
     journal: bool = True,
     calibration: str | None = None,
+    vertical: str | None = None,
 ) -> ResearchResult:
     """Run the full discover → approve → pay → index → generate workflow.
 
@@ -112,6 +113,11 @@ async def research(
             returns True to proceed. Required when `auto_approve` is False.
         store: Inject a SessionStore (for tests). Defaults to env-built.
         progress_callback: Optional sync callable for UI progress strings.
+        vertical: Accepted for API-signature parity with the trade-research
+            path (S23-FIX-12 added it to ``ResearchRequest``). The founder-
+            advisory workflow is session-scoped — it has no vertical-scoped
+            corpus consumer — so this value is intentionally ignored here.
+            Vertical scoping applies only to ``gecko_trade_research``.
 
     Returns:
         ResearchResult with business_plan, validation_report, prd, and sources.
