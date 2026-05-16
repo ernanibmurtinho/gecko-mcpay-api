@@ -81,7 +81,7 @@ class _FakeChunksCollection:
         ]
         return _FakeCursor(matches)
 
-    async def delete_many(self, query: dict[str, Any]) -> None:
+    async def delete_many(self, query: dict[str, Any]) -> Any:
         before = len(self.docs)
         self.docs = [
             d
@@ -96,6 +96,11 @@ class _FakeChunksCollection:
             )
         ]
         self.deleted = before - len(self.docs)
+
+        class _DeleteResult:
+            deleted_count = self.deleted
+
+        return _DeleteResult()
 
     async def count_documents(self, query: dict[str, Any]) -> int:
         def _matches(d: dict[str, Any]) -> bool:
@@ -438,6 +443,77 @@ class TestInsertChunksPioneerSignal:
         # The newly inserted doc is the LAST one in fake_chunks_coll.docs.
         new_doc = fake_chunks_coll.docs[-1]
         assert new_doc["metadata"]["pioneer"] is False
+
+
+# ---------------------------------------------------------------------------
+# S33-#80 — delete_chunks_for_source_mongo (replace-before-insert)
+# ---------------------------------------------------------------------------
+
+
+class TestDeleteChunksForSource:
+    @pytest.mark.asyncio
+    async def test_deletes_only_matching_provider_url_protocol(
+        self, fake_chunks_coll: _FakeChunksCollection
+    ) -> None:
+        # Two protocol_native chunks for the kamino-vaults endpoint, plus
+        # one unrelated chunk that must survive.
+        fake_chunks_coll.docs.extend(
+            [
+                {
+                    "provider_kind": "protocol_native",
+                    "source_url": "https://api.kamino.finance/kvaults/vaults",
+                    "protocol": ["kamino"],
+                    "text": "stale day 1",
+                },
+                {
+                    "provider_kind": "protocol_native",
+                    "source_url": "https://api.kamino.finance/kvaults/vaults",
+                    "protocol": ["kamino"],
+                    "text": "stale day 2",
+                },
+                {
+                    "provider_kind": "protocol_native",
+                    "source_url": "https://api.kamino.finance/strategies",
+                    "protocol": ["kamino"],
+                    "text": "different endpoint — keep",
+                },
+            ]
+        )
+        deleted = await mongo_chunks.delete_chunks_for_source_mongo(
+            provider_kind="protocol_native",
+            source_url="https://api.kamino.finance/kvaults/vaults",
+            protocol="kamino",
+        )
+        assert deleted == 2
+        assert len(fake_chunks_coll.docs) == 1
+        assert fake_chunks_coll.docs[0]["text"] == "different endpoint — keep"
+
+    @pytest.mark.asyncio
+    async def test_no_match_deletes_nothing(self, fake_chunks_coll: _FakeChunksCollection) -> None:
+        fake_chunks_coll.docs.append(
+            {
+                "provider_kind": "protocol_native",
+                "source_url": "https://api.kamino.finance/strategies",
+                "protocol": ["kamino"],
+                "text": "x",
+            }
+        )
+        deleted = await mongo_chunks.delete_chunks_for_source_mongo(
+            provider_kind="protocol_native",
+            source_url="https://example.com/nope",
+            protocol="kamino",
+        )
+        assert deleted == 0
+        assert len(fake_chunks_coll.docs) == 1
+
+    @pytest.mark.asyncio
+    async def test_unconfigured_returns_zero(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(mongo_chunks, "chunks_collection", lambda: None)
+        deleted = await mongo_chunks.delete_chunks_for_source_mongo(
+            provider_kind="protocol_native",
+            source_url="https://api.kamino.finance/kvaults/vaults",
+        )
+        assert deleted == 0
 
 
 def test_compound_index_constant_exported() -> None:

@@ -383,6 +383,64 @@ async def insert_chunks_mongo(
 
 
 # ---------------------------------------------------------------------------
+# chunks (replace-before-insert — S33-#80)
+# ---------------------------------------------------------------------------
+
+
+async def delete_chunks_for_source_mongo(
+    *,
+    provider_kind: str,
+    source_url: str,
+    protocol: str | None = None,
+) -> int:
+    """Delete every chunk for one ingest source. Returns the deleted count.
+
+    S33-#80 — daily re-ingest idempotency. The ``protocol_native`` ingest
+    keyed ``source_id`` on ``uuid5(url + day_bucket)``, so a re-run on a
+    new calendar day minted a fresh ``source_id`` and the
+    ``(source_id, chunk_index)`` unique index let every chunk be inserted
+    AGAIN — the corpus accreted one full duplicate set per ingest day
+    (verified: 1,807 redundant copies = 19.9% of the dex corpus).
+
+    The fix is replace-before-insert: the ingest calls this with the
+    endpoint's ``(provider_kind, source_url, protocol)`` to drop the prior
+    day's chunks, then inserts the fresh set. The match is on the stable
+    ``source_url`` (NOT ``source_id``, which still varies day-to-day) so a
+    re-ingest is a true replace regardless of how ``source_id`` is minted.
+
+    No-op (returns 0) when the chunks collection is unavailable — the
+    caller treats that the same as "nothing to delete" and the insert that
+    follows will surface the real Mongo-unavailable error.
+    """
+    coll = chunks_collection()
+    if coll is None:
+        return 0
+
+    query: dict[str, Any] = {
+        "provider_kind": provider_kind,
+        "source_url": source_url,
+    }
+    if protocol is not None:
+        # protocol is stored as a list; match the single-element list the
+        # protocol_native ingest writes (one protocol slug per endpoint).
+        query["protocol"] = [protocol]
+
+    result = await coll.delete_many(query)
+    deleted = int(getattr(result, "deleted_count", 0))
+    logger.info(
+        "mongo.delete_chunks_for_source.done",
+        extra={
+            "event": "mongo.delete_chunks_for_source.done",
+            "provider_kind": provider_kind,
+            "source_url": source_url,
+            "protocol": protocol,
+            "deleted_count": deleted,
+        },
+    )
+    return deleted
+
+
+# ---------------------------------------------------------------------------
 # chunks_write_audit
 # ---------------------------------------------------------------------------
 
@@ -663,6 +721,7 @@ __all__ = [
     "MONGO_VECTOR_DIM_EXPECTED",
     "bump_usage_counts",
     "chunks_write_audit_rollup_recent_mongo",
+    "delete_chunks_for_source_mongo",
     "evict_chunk_cache_mongo",
     "get_chunk_cache_mongo",
     "insert_chunks_mongo",

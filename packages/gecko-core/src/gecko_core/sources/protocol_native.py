@@ -58,6 +58,7 @@ helpers. The ingest is driven by
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from typing import Any, Final
 
@@ -447,8 +448,32 @@ def _provenance_header(ep: ProtocolEndpoint, as_of_iso: str) -> str:
     The rubric judge sees only ``snippet[:240]`` of each citation, so the
     protocol + endpoint + as-of date must lead. Note: contains no ``{`` /
     ``}`` — the whole point of S33-#61.
+
+    S33-#80 — this header is part of every chunk's DISPLAY text (the panel
+    cites it for provenance) but is deliberately STRIPPED from the EMBEDDED
+    text by :func:`render_chunk_pairs`. The header is identical across
+    hundreds of chunks; including it in the embedding vector pulls every
+    short ``protocol_native`` chunk toward a shared centroid and compresses
+    the cosine spread that ranking depends on (S33 retrieval-quality
+    diagnosis §4). Display text keeps it; embedded text drops it.
     """
     return f"Protocol-native API: {ep.protocol}/{ep.slug} (as of {as_of_iso})."
+
+
+def _strip_provenance_header(chunk: str, header: str) -> str:
+    """Return ``chunk`` with a leading provenance ``header`` removed.
+
+    Pure helper for S33-#80. The renderers below emit chunks as
+    ``f"{header} {body}"``; this peels the header (and the single joining
+    space) back off so the embedder sees signal-only text. If the chunk
+    does not start with the header — e.g. a docs-prose chunk the chunker
+    re-split so a later segment carries no header — it is returned
+    unchanged. Whitespace-collapsed on the way out so an empty residue is
+    caught by the caller's empty guard.
+    """
+    if header and chunk.startswith(header):
+        return chunk[len(header) :].strip()
+    return chunk.strip()
 
 
 def _fmt_num(value: Any) -> str:
@@ -768,6 +793,66 @@ def render_chunk(ep: ProtocolEndpoint, body_text: str, as_of_iso: str) -> str:
     return "\n\n".join(render_chunks(ep, body_text, as_of_iso))
 
 
+# S33-#80 — minimum SIGNAL length. A rendered chunk whose signal (text
+# minus the provenance header AND minus the trailing ``Source: <url>.``
+# boilerplate) is shorter than this is degenerate — the empty
+# ``kamino-vaults`` case the diagnosis flagged rendered to a bare
+# ``"Kamino kamino-vaults."`` because the payload entities lacked the
+# expected name/field keys. The ``_fetch`` empty guard catches
+# ``{"data":[]}`` at the wire; it does NOT catch a *rendered* near-empty
+# chunk. This is the second, post-render guard.
+_MIN_SIGNAL_CHARS: Final[int] = 32
+
+# Trailing ``Source: <url>.`` clause appended by _render_entity_list /
+# _render_drift_funding_payload. Stripped before the signal measurement so
+# the boilerplate URL does not mask a content-free chunk.
+_SOURCE_CLAUSE = re.compile(r"\s*Source:\s*https?://\S+\.?\s*$", re.IGNORECASE)
+
+
+def _is_degenerate_body(embed_body: str) -> bool:
+    """True if an embed-body carries no citable signal.
+
+    Strips the trailing ``Source: <url>.`` boilerplate (every entity chunk
+    carries one, so leaving it in would make the guard never fire), then a
+    body is degenerate if its remaining signal is shorter than
+    ``_MIN_SIGNAL_CHARS``. Length-only by design: a long docs-prose chunk
+    (e.g. Sanctum mechanism prose) is legitimately citable even with few
+    digits, so a digit requirement would wrongly drop it. The case being
+    caught is the bare ``"Kamino kamino-vaults."`` — an entity-list payload
+    whose entities lacked the expected name/field keys, so the renderer
+    emitted the protocol name + slug and nothing else.
+    """
+    signal = _SOURCE_CLAUSE.sub("", embed_body).strip()
+    return len(signal) < _MIN_SIGNAL_CHARS
+
+
+def render_chunk_pairs(
+    ep: ProtocolEndpoint, body_text: str, as_of_iso: str
+) -> list[tuple[str, str]]:
+    """Render an endpoint body into ``(display_text, embed_text)`` pairs.
+
+    S33-#80 — the ingest path embeds ``embed_text`` (provenance header
+    stripped: signal-only) but stores/cites ``display_text`` (header +
+    body: provenance intact). Decoupling the two stops the shared boiler-
+    plate header from dominating short chunks' embedding vectors and
+    compressing cosine spread (retrieval-quality diagnosis §4).
+
+    Degenerate chunks — a body with no citable signal (see
+    :func:`_is_degenerate_body`) — are dropped here, the post-render
+    empty-chunk guard the diagnosis §3 asked for. The fetch-time guard in
+    ``_fetch`` catches an empty *wire* payload; this catches a near-empty
+    *rendered* chunk.
+    """
+    header = _provenance_header(ep, as_of_iso)
+    pairs: list[tuple[str, str]] = []
+    for display in render_chunks(ep, body_text, as_of_iso):
+        embed_body = _strip_provenance_header(display, header)
+        if _is_degenerate_body(embed_body):
+            continue
+        pairs.append((display, embed_body))
+    return pairs
+
+
 __all__ = [
     "ALL_PROTOCOL_ENDPOINTS",
     "DRIFT_ENDPOINTS",
@@ -777,5 +862,6 @@ __all__ = [
     "ProtocolEndpoint",
     "endpoints_for_protocol",
     "render_chunk",
+    "render_chunk_pairs",
     "render_chunks",
 ]
