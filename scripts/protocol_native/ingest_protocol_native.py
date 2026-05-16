@@ -50,8 +50,15 @@ _HTML_ENTITY = re.compile(r"&(#\d+|#x[0-9a-fA-F]+|[a-zA-Z]+);")
 _MULTI_WS = re.compile(r"\s+")
 
 _ENTITY_MAP = {
-    "amp": "&", "lt": "<", "gt": ">", "quot": '"', "apos": "'",
-    "nbsp": " ", "ndash": "-", "mdash": "—", "hellip": "…",
+    "amp": "&",
+    "lt": "<",
+    "gt": ">",
+    "quot": '"',
+    "apos": "'",
+    "nbsp": " ",
+    "ndash": "-",
+    "mdash": "—",
+    "hellip": "…",
 }
 
 
@@ -89,6 +96,7 @@ def html_to_text(html: str) -> str:
     # the whole site.
     return text[:40000]
 
+
 _REPO = Path(__file__).resolve().parents[2]
 _GC_SRC = _REPO / "packages" / "gecko-core" / "src"
 if str(_GC_SRC) not in sys.path:
@@ -101,7 +109,7 @@ from gecko_core.sources.protocol_native import (  # noqa: E402
     ALL_PROTOCOL_ENDPOINTS,
     ProtocolEndpoint,
     endpoints_for_protocol,
-    render_chunk,
+    render_chunks,
 )
 
 log = logging.getLogger("protocol_native.ingest")
@@ -205,11 +213,19 @@ async def ingest_endpoint(
     if body is None:
         return {"chunks": 0, "skipped": 1}
 
-    rendered = render_chunk(ep, body, day_iso)
-    chunks_list = chunk_text(rendered) or [rendered]
+    # S33-#61/#63/#64 — render_chunks emits per-entity prose chunks (one
+    # per kamino vault / jupiter token; tip-floor ladder flattened). Each
+    # prose chunk is then run through the token-window chunker so any
+    # long docs-prose chunk is still split for embedding. Per-entity
+    # chunks are short and pass through the chunker as a single segment.
+    prose_chunks = render_chunks(ep, body, day_iso)
+    chunks_list: list[str] = []
+    for prose in prose_chunks:
+        chunks_list.extend(chunk_text(prose) or [prose])
     log.info(
-        "RENDER %s chunks=%d total_chars=%d",
+        "RENDER %s prose_chunks=%d embed_chunks=%d total_chars=%d",
         ep.slug,
+        len(prose_chunks),
         len(chunks_list),
         sum(len(c) for c in chunks_list),
     )
@@ -242,6 +258,10 @@ async def ingest_endpoint(
         freshness_tier="daily",
         protocol=(ep.protocol,),
         content_kind=ep.content_kind,  # type: ignore[arg-type]
+        # S33-#68 — the data's as-of date (the day bucket), distinct from
+        # captured_at (ingest wall-clock). Lets retrieval + the panel
+        # reason about freshness without parsing the chunk text.
+        as_of_date=day_iso,
     )
     log.info(
         "INSERT %s new_chunks=%d (day_bucket=%s) source_id=%s",
@@ -253,9 +273,7 @@ async def ingest_endpoint(
     return {"chunks": inserted, "skipped": 0}
 
 
-async def amain(
-    *, endpoints: list[ProtocolEndpoint], dry_run: bool, sleep_seconds: float
-) -> int:
+async def amain(*, endpoints: list[ProtocolEndpoint], dry_run: bool, sleep_seconds: float) -> int:
     log.info(
         "=== protocol_native ingest: %d endpoints (dry_run=%s) ===",
         len(endpoints),

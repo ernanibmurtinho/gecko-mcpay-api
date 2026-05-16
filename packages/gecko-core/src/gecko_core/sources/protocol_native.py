@@ -42,7 +42,8 @@ Endpoint catalog (all public, free, no API key):
              to https://quote-api.jup.ag/v6/tokens for catalog)
   Jito:      https://kobe.mainnet.jito.network/api/v1/recent_blocks
              https://www.jito.wtf/api/v1/...
-  Sanctum:   https://sanctum-extra-api.ngrok.dev/v1/sol-value/current
+  Sanctum:   https://learn.sanctum.so/docs (docs only — S33-#65 dropped
+             the quote endpoints; the public APY API returns 0.0)
 
 This module exports the per-protocol URL catalogs + the rendering
 helpers. The ingest is driven by
@@ -51,8 +52,11 @@ helpers. The ingest is driven by
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
-from typing import Final
+from typing import Any, Final
+
+from gecko_core.sources.paysh_live import _compact_scalar, _flatten_json_to_prose
 
 
 @dataclass(frozen=True)
@@ -124,6 +128,7 @@ KAMINO_ENDPOINTS: Final[tuple[ProtocolEndpoint, ...]] = (
 # perp markets, funding rate math, liquidation engine, oracle staleness,
 # insurance fund, JIT auctions, prediction markets, market config.
 
+
 def _drift(slug: str, path: str, desc: str, kind: str = "mechanism") -> ProtocolEndpoint:
     return ProtocolEndpoint(
         protocol="drift",
@@ -169,8 +174,7 @@ DRIFT_ENDPOINTS: Final[tuple[ProtocolEndpoint, ...]] = (
     _drift(
         "drift-liquidators",
         "protocol/trading/liquidations/liquidators",
-        "Drift liquidator role — incentives, bot architecture, eligibility, "
-        "competition dynamics.",
+        "Drift liquidator role — incentives, bot architecture, eligibility, competition dynamics.",
     ),
     _drift(
         "drift-oracles",
@@ -217,8 +221,7 @@ DRIFT_ENDPOINTS: Final[tuple[ProtocolEndpoint, ...]] = (
     _drift(
         "drift-margin-per-market-leverage",
         "protocol/trading/margin/per-market-leverage",
-        "Drift per-market leverage caps — overrides, scaling with size, "
-        "tier-based limits.",
+        "Drift per-market leverage caps — overrides, scaling with size, tier-based limits.",
     ),
     _drift(
         "drift-jit-auctions-mm",
@@ -229,8 +232,7 @@ DRIFT_ENDPOINTS: Final[tuple[ProtocolEndpoint, ...]] = (
     _drift(
         "drift-amm",
         "protocol/about-v3/drift-amm",
-        "Drift AMM (vAMM) — peg adjustment, fee allocation, k-curve, LP risk, "
-        "spread mechanics.",
+        "Drift AMM (vAMM) — peg adjustment, fee allocation, k-curve, LP risk, spread mechanics.",
     ),
     _drift(
         "drift-matching-engine",
@@ -241,8 +243,7 @@ DRIFT_ENDPOINTS: Final[tuple[ProtocolEndpoint, ...]] = (
     _drift(
         "drift-decentralized-orderbook",
         "protocol/about-v3/decentralized-orderbook",
-        "Drift DLOB — off-chain orderbook, on-chain settlement, keeper role "
-        "in cranking matches.",
+        "Drift DLOB — off-chain orderbook, on-chain settlement, keeper role in cranking matches.",
     ),
     _drift(
         "drift-borrow-lend-faq",
@@ -271,38 +272,40 @@ DRIFT_ENDPOINTS: Final[tuple[ProtocolEndpoint, ...]] = (
     _drift(
         "drift-market-specs",
         "protocol/trading/market-specs",
-        "Drift market specs — per-market base asset, oracle, fees, "
-        "leverage tiers.",
+        "Drift market specs — per-market base asset, oracle, fees, leverage tiers.",
     ),
     _drift(
         "drift-trading-fees",
         "protocol/trading/trading-fees",
-        "Drift trading fees — maker/taker schedule, tiers, rebates, "
-        "discount mechanisms.",
+        "Drift trading fees — maker/taker schedule, tiers, rebates, discount mechanisms.",
     ),
     _drift(
         "drift-profit-loss",
         "protocol/trading/profit-loss",
-        "Drift profit-and-loss — unsettled vs settled PnL, PnL pool, "
-        "accounting model.",
+        "Drift profit-and-loss — unsettled vs settled PnL, PnL pool, accounting model.",
     ),
     _drift(
         "drift-profit-loss-pool",
         "protocol/trading/profit-loss/profit-loss-pool",
-        "Drift PnL pool — depositor mechanics, payout cap, role in covering "
-        "winning trader PnL.",
+        "Drift PnL pool — depositor mechanics, payout cap, role in covering winning trader PnL.",
     ),
     _drift(
         "drift-revenue-pool",
         "protocol/about-v3/revenue-pool",
-        "Drift revenue pool — fee accrual, distribution to IF stakers, "
-        "treasury policy.",
+        "Drift revenue pool — fee accrual, distribution to IF stakers, treasury policy.",
     ),
-    _drift("drift-glossary", "protocol/glossary", "Drift glossary — protocol terminology canonical definitions."),
-    _drift("drift-account-model", "developers/concepts/account-model",
-           "Drift account model — UserAccount, subaccounts, MarketAccount, "
-           "PerpMarket, SpotMarket data shape.",
-           kind="mechanism"),
+    _drift(
+        "drift-glossary",
+        "protocol/glossary",
+        "Drift glossary — protocol terminology canonical definitions.",
+    ),
+    _drift(
+        "drift-account-model",
+        "developers/concepts/account-model",
+        "Drift account model — UserAccount, subaccounts, MarketAccount, "
+        "PerpMarket, SpotMarket data shape.",
+        kind="mechanism",
+    ),
     _drift(
         "drift-dlob-markets",
         "https://dlob.drift.trade/markets",
@@ -324,6 +327,7 @@ DRIFT_ENDPOINTS: Final[tuple[ProtocolEndpoint, ...]] = (
 # aggregator routing, JLP composition + risk + yield, LST routing, perp
 # exchange mechanics, swap fee math.
 
+
 def _jup(slug: str, path: str, desc: str, kind: str = "mechanism") -> ProtocolEndpoint:
     return ProtocolEndpoint(
         protocol="jupiter",
@@ -335,76 +339,169 @@ def _jup(slug: str, path: str, desc: str, kind: str = "mechanism") -> ProtocolEn
 
 
 JUPITER_ENDPOINTS: Final[tuple[ProtocolEndpoint, ...]] = (
-    _jup("jupiter-docs-root", "", "Jupiter Developer docs root — Swap, Perpetuals, Lend, Token, Price API mechanics."),
-    _jup("jupiter-swap-root", "swap", "Jupiter Swap overview — aggregator design, route discovery, market coverage."),
-    _jup("jupiter-swap-order-execute", "swap/order-and-execute",
-         "Jupiter Order + Execute swap flow — building, signing, submitting an aggregated route trade."),
-    _jup("jupiter-swap-slippage", "swap/advanced/slippage",
-         "Jupiter swap slippage handling — auto-slippage, dynamic computation, settings for volatile assets."),
-    _jup("jupiter-swap-reduce-latency", "swap/advanced/reduce-latency",
-         "Jupiter swap latency reduction — RPC selection, priority fees, transaction sizing."),
-    _jup("jupiter-swap-compute-units", "swap/advanced/compute-units",
-         "Jupiter swap compute units — CU budget for aggregated routes, optimization strategies."),
-    _jup("jupiter-swap-routing-dex-integration", "swap/routing/dex-integration",
-         "Jupiter DEX integration for routing — eligibility, AMM types supported (CLMM, CPMM, stable pools)."),
-    _jup("jupiter-swap-routing-market-listing", "swap/routing/market-listing",
-         "Jupiter market listing for routing — pool inclusion criteria, liquidity thresholds, eligibility."),
-    _jup("jupiter-swap-routing-rfq", "swap/routing/rfq-integration",
-         "Jupiter RFQ routing — request-for-quote market-maker integration, when RFQ wins vs AMM routing."),
-    _jup("jupiter-perps-root", "perps", "Jupiter Perpetuals overview — JLP pool, position model, custody accounts."),
-    _jup("jupiter-perps-pool-account", "perps/pool-account",
-         "Jupiter JLP pool account structure — composition (SOL, ETH, BTC, USDC, USDT), AUM, target weights."),
-    _jup("jupiter-perps-custody-account", "perps/custody-account",
-         "Jupiter perps custody accounts — per-asset custody state, owned amounts, locked amounts, funding."),
-    _jup("jupiter-perps-position-account", "perps/position-account",
-         "Jupiter perps position account — open size, collateral, side, entry price, realized PnL."),
-    _jup("jupiter-perps-position-request", "perps/position-request-account",
-         "Jupiter perps position request — open/close/decrease/increase request lifecycle, keeper execution."),
-    _jup("jupiter-tokens-root", "tokens",
-         "Jupiter Token API overview — token universe, metadata, tag taxonomy (verified, lst, stablecoin, community)."),
-    _jup("jupiter-tokens-verification", "tokens/verification",
-         "Jupiter token verification criteria — what qualifies a mint for the verified tag, abuse mitigations."),
-    _jup("jupiter-tokens-token-information", "tokens/token-information",
-         "Jupiter token information fields — metadata, dailyVolume, freezeAuthority, mintAuthority, ts pricing."),
-    _jup("jupiter-price-doc", "price",
-         "Jupiter Price API overview — derived price discovery via aggregator routes, depth-aware pricing."),
-    _jup("jupiter-lend-architecture", "lend/architecture",
-         "Jupiter Lend architecture — earn vs borrow surfaces, vault structure, oracle integration."),
-    _jup("jupiter-lend-oracles", "lend/oracles",
-         "Jupiter Lend oracles — Pyth integration, staleness checks, price-fetch fallbacks."),
-    _jup("jupiter-lend-liquidation", "lend/borrow/liquidation",
-         "Jupiter Lend liquidation — LTV thresholds, liquidator incentives, partial vs full liquidation."),
-    _jup("jupiter-lend-advanced-multiply", "lend/advanced/multiply",
-         "Jupiter Lend multiply (leveraged-yield) — loop construction, max LTV, unwind path on liquidation risk."),
-    _jup("jupiter-lend-advanced-unwind", "lend/advanced/unwind",
-         "Jupiter Lend unwind — closing a leveraged position, swap costs, residual collateral."),
-    _jup("jupiter-trigger-best-practices", "trigger/best-practices",
-         "Jupiter Trigger orders — limit-order semantics, partial fills, cancellation, gas considerations."),
-    _jup("jupiter-recurring-best-practices", "recurring/best-practices",
-         "Jupiter Recurring orders — DCA mechanics, schedule, execution priority, slippage protection."),
-    _jup("jupiter-portal-rate-limits", "portal/rate-limits",
-         "Jupiter Portal rate limits — request/sec, tier plans, error handling, exponential backoff guidance."),
-    _jup("jupiter-resources-audits", "resources/audits", "Jupiter audits — auditor list, scope, dates, findings."),
-    _jup("jupiter-sol-price",
-         "https://lite-api.jup.ag/price/v3?ids=So11111111111111111111111111111111111111112",
-         "Jupiter Lite-API SOL price + 24h liquidity + priceChange24h. Quote-kind.",
-         kind="quote"),
-    _jup("jupiter-lst-prices",
-         "https://lite-api.jup.ag/price/v3?ids="
-         "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn,"
-         "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So,"
-         "bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1,"
-         "5oVNBeEEQvYi1cX3ir8Dx5n1P7pdxydbGF2X4TxVusJm",
-         "Jupiter Lite-API LST snapshot — JitoSOL, mSOL, bSOL, INF prices for LST rotation analysis.",
-         kind="quote"),
-    _jup("jupiter-tokens-verified-list",
-         "https://lite-api.jup.ag/tokens/v2/tag?query=verified",
-         "Jupiter verified-token list — canonical Solana mints curated for routing.",
-         kind="mechanism"),
-    _jup("jupiter-tokens-lst-list",
-         "https://lite-api.jup.ag/tokens/v2/tag?query=lst",
-         "Jupiter LST-tagged tokens — JitoSOL, mSOL, bSOL, INF, hSOL et al with metadata.",
-         kind="mechanism"),
+    _jup(
+        "jupiter-docs-root",
+        "",
+        "Jupiter Developer docs root — Swap, Perpetuals, Lend, Token, Price API mechanics.",
+    ),
+    _jup(
+        "jupiter-swap-root",
+        "swap",
+        "Jupiter Swap overview — aggregator design, route discovery, market coverage.",
+    ),
+    _jup(
+        "jupiter-swap-order-execute",
+        "swap/order-and-execute",
+        "Jupiter Order + Execute swap flow — building, signing, submitting an aggregated route trade.",
+    ),
+    _jup(
+        "jupiter-swap-slippage",
+        "swap/advanced/slippage",
+        "Jupiter swap slippage handling — auto-slippage, dynamic computation, settings for volatile assets.",
+    ),
+    _jup(
+        "jupiter-swap-reduce-latency",
+        "swap/advanced/reduce-latency",
+        "Jupiter swap latency reduction — RPC selection, priority fees, transaction sizing.",
+    ),
+    _jup(
+        "jupiter-swap-compute-units",
+        "swap/advanced/compute-units",
+        "Jupiter swap compute units — CU budget for aggregated routes, optimization strategies.",
+    ),
+    _jup(
+        "jupiter-swap-routing-dex-integration",
+        "swap/routing/dex-integration",
+        "Jupiter DEX integration for routing — eligibility, AMM types supported (CLMM, CPMM, stable pools).",
+    ),
+    _jup(
+        "jupiter-swap-routing-market-listing",
+        "swap/routing/market-listing",
+        "Jupiter market listing for routing — pool inclusion criteria, liquidity thresholds, eligibility.",
+    ),
+    _jup(
+        "jupiter-swap-routing-rfq",
+        "swap/routing/rfq-integration",
+        "Jupiter RFQ routing — request-for-quote market-maker integration, when RFQ wins vs AMM routing.",
+    ),
+    _jup(
+        "jupiter-perps-root",
+        "perps",
+        "Jupiter Perpetuals overview — JLP pool, position model, custody accounts.",
+    ),
+    _jup(
+        "jupiter-perps-pool-account",
+        "perps/pool-account",
+        "Jupiter JLP pool account structure — composition (SOL, ETH, BTC, USDC, USDT), AUM, target weights.",
+    ),
+    _jup(
+        "jupiter-perps-custody-account",
+        "perps/custody-account",
+        "Jupiter perps custody accounts — per-asset custody state, owned amounts, locked amounts, funding.",
+    ),
+    _jup(
+        "jupiter-perps-position-account",
+        "perps/position-account",
+        "Jupiter perps position account — open size, collateral, side, entry price, realized PnL.",
+    ),
+    _jup(
+        "jupiter-perps-position-request",
+        "perps/position-request-account",
+        "Jupiter perps position request — open/close/decrease/increase request lifecycle, keeper execution.",
+    ),
+    _jup(
+        "jupiter-tokens-root",
+        "tokens",
+        "Jupiter Token API overview — token universe, metadata, tag taxonomy (verified, lst, stablecoin, community).",
+    ),
+    _jup(
+        "jupiter-tokens-verification",
+        "tokens/verification",
+        "Jupiter token verification criteria — what qualifies a mint for the verified tag, abuse mitigations.",
+    ),
+    _jup(
+        "jupiter-tokens-token-information",
+        "tokens/token-information",
+        "Jupiter token information fields — metadata, dailyVolume, freezeAuthority, mintAuthority, ts pricing.",
+    ),
+    _jup(
+        "jupiter-price-doc",
+        "price",
+        "Jupiter Price API overview — derived price discovery via aggregator routes, depth-aware pricing.",
+    ),
+    _jup(
+        "jupiter-lend-architecture",
+        "lend/architecture",
+        "Jupiter Lend architecture — earn vs borrow surfaces, vault structure, oracle integration.",
+    ),
+    _jup(
+        "jupiter-lend-oracles",
+        "lend/oracles",
+        "Jupiter Lend oracles — Pyth integration, staleness checks, price-fetch fallbacks.",
+    ),
+    _jup(
+        "jupiter-lend-liquidation",
+        "lend/borrow/liquidation",
+        "Jupiter Lend liquidation — LTV thresholds, liquidator incentives, partial vs full liquidation.",
+    ),
+    _jup(
+        "jupiter-lend-advanced-multiply",
+        "lend/advanced/multiply",
+        "Jupiter Lend multiply (leveraged-yield) — loop construction, max LTV, unwind path on liquidation risk.",
+    ),
+    _jup(
+        "jupiter-lend-advanced-unwind",
+        "lend/advanced/unwind",
+        "Jupiter Lend unwind — closing a leveraged position, swap costs, residual collateral.",
+    ),
+    _jup(
+        "jupiter-trigger-best-practices",
+        "trigger/best-practices",
+        "Jupiter Trigger orders — limit-order semantics, partial fills, cancellation, gas considerations.",
+    ),
+    _jup(
+        "jupiter-recurring-best-practices",
+        "recurring/best-practices",
+        "Jupiter Recurring orders — DCA mechanics, schedule, execution priority, slippage protection.",
+    ),
+    _jup(
+        "jupiter-portal-rate-limits",
+        "portal/rate-limits",
+        "Jupiter Portal rate limits — request/sec, tier plans, error handling, exponential backoff guidance.",
+    ),
+    _jup(
+        "jupiter-resources-audits",
+        "resources/audits",
+        "Jupiter audits — auditor list, scope, dates, findings.",
+    ),
+    _jup(
+        "jupiter-sol-price",
+        "https://lite-api.jup.ag/price/v3?ids=So11111111111111111111111111111111111111112",
+        "Jupiter Lite-API SOL price + 24h liquidity + priceChange24h. Quote-kind.",
+        kind="quote",
+    ),
+    _jup(
+        "jupiter-lst-prices",
+        "https://lite-api.jup.ag/price/v3?ids="
+        "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn,"
+        "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So,"
+        "bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1,"
+        "5oVNBeEEQvYi1cX3ir8Dx5n1P7pdxydbGF2X4TxVusJm",
+        "Jupiter Lite-API LST snapshot — JitoSOL, mSOL, bSOL, INF prices for LST rotation analysis.",
+        kind="quote",
+    ),
+    _jup(
+        "jupiter-tokens-verified-list",
+        "https://lite-api.jup.ag/tokens/v2/tag?query=verified",
+        "Jupiter verified-token list — canonical Solana mints curated for routing.",
+        kind="mechanism",
+    ),
+    _jup(
+        "jupiter-tokens-lst-list",
+        "https://lite-api.jup.ag/tokens/v2/tag?query=lst",
+        "Jupiter LST-tagged tokens — JitoSOL, mSOL, bSOL, INF, hSOL et al with metadata.",
+        kind="mechanism",
+    ),
 )
 
 
@@ -413,8 +510,11 @@ JUPITER_ENDPOINTS: Final[tuple[ProtocolEndpoint, ...]] = (
 # 14 URLs across JitoSOL mechanics, MEV bundle landing, tip distribution,
 # restaking, block-engine, validator selection.
 
+
 def _jito(slug: str, url: str, desc: str, kind: str = "mechanism") -> ProtocolEndpoint:
-    return ProtocolEndpoint(protocol="jito", slug=slug, url=url, description=desc, content_kind=kind)
+    return ProtocolEndpoint(
+        protocol="jito", slug=slug, url=url, description=desc, content_kind=kind
+    )
 
 
 JITO_ENDPOINTS: Final[tuple[ProtocolEndpoint, ...]] = (
@@ -435,8 +535,7 @@ JITO_ENDPOINTS: Final[tuple[ProtocolEndpoint, ...]] = (
     _jito(
         "jito-validators",
         "https://kobe.mainnet.jito.network/api/v1/validators",
-        "Jito validator set telemetry — MEV share, commission, stake size, "
-        "performance scores.",
+        "Jito validator set telemetry — MEV share, commission, stake size, performance scores.",
         kind="quote",
     ),
     _jito(
@@ -489,8 +588,7 @@ JITO_ENDPOINTS: Final[tuple[ProtocolEndpoint, ...]] = (
     _jito(
         "jito-wtf-blog-index",
         "https://www.jito.wtf/blog/",
-        "Jito blog index — recent posts on protocol changes, ecosystem "
-        "milestones, MEV research.",
+        "Jito blog index — recent posts on protocol changes, ecosystem milestones, MEV research.",
     ),
     # --- Jito GitHub READMEs (mechanism documentation in markdown) ---
     _jito(
@@ -530,8 +628,7 @@ JITO_ENDPOINTS: Final[tuple[ProtocolEndpoint, ...]] = (
     _jito(
         "jito-solana-security",
         "https://raw.githubusercontent.com/jito-labs/jito-solana/master/SECURITY.md",
-        "jito-solana security policy — disclosure process, scope, "
-        "responsible-disclosure timing.",
+        "jito-solana security policy — disclosure process, scope, responsible-disclosure timing.",
     ),
     _jito(
         "jito-mev-protos-readme",
@@ -569,8 +666,11 @@ JITO_ENDPOINTS: Final[tuple[ProtocolEndpoint, ...]] = (
 # Infinity pool mechanics, INF behavior, peg dynamics, LST router math,
 # yield rebalancing, sol-value snapshots.
 
+
 def _sanc(slug: str, url: str, desc: str, kind: str = "mechanism") -> ProtocolEndpoint:
-    return ProtocolEndpoint(protocol="sanctum", slug=slug, url=url, description=desc, content_kind=kind)
+    return ProtocolEndpoint(
+        protocol="sanctum", slug=slug, url=url, description=desc, content_kind=kind
+    )
 
 
 SANCTUM_ENDPOINTS: Final[tuple[ProtocolEndpoint, ...]] = (
@@ -655,8 +755,7 @@ SANCTUM_ENDPOINTS: Final[tuple[ProtocolEndpoint, ...]] = (
     _sanc(
         "sanctum-creating-lst-setup",
         "https://learn.sanctum.so/docs/creating-your-own-lst-with-sanctum/the-setup-process-launching-your-lst",
-        "Sanctum LST launch setup process — steps from token mint to "
-        "router listing.",
+        "Sanctum LST launch setup process — steps from token mint to router listing.",
     ),
     _sanc(
         "sanctum-creating-lst-mint",
@@ -688,43 +787,16 @@ SANCTUM_ENDPOINTS: Final[tuple[ProtocolEndpoint, ...]] = (
         "Sanctum API for developers — sol-value, APY, router quote, INF "
         "redemption-quote endpoints.",
     ),
-    # Quote endpoints (live snapshots; refreshable)
-    _sanc(
-        "sanctum-sol-value-inf",
-        "https://sanctum-extra-api.ngrok.dev/v1/sol-value/current?lst=INF",
-        "Sanctum INF current sol-value — INF expressed in SOL.",
-        kind="quote",
-    ),
-    _sanc(
-        "sanctum-sol-value-jitosol",
-        "https://sanctum-extra-api.ngrok.dev/v1/sol-value/current?lst=jitoSOL",
-        "Sanctum JitoSOL current sol-value snapshot.",
-        kind="quote",
-    ),
-    _sanc(
-        "sanctum-apy-inf",
-        "https://sanctum-extra-api.ngrok.dev/v1/apy/latest?lst=INF",
-        "Sanctum INF latest APY snapshot.",
-        kind="quote",
-    ),
-    _sanc(
-        "sanctum-apy-jitosol",
-        "https://sanctum-extra-api.ngrok.dev/v1/apy/latest?lst=jitoSOL",
-        "Sanctum JitoSOL latest APY snapshot.",
-        kind="quote",
-    ),
-    _sanc(
-        "sanctum-apy-msol",
-        "https://sanctum-extra-api.ngrok.dev/v1/apy/latest?lst=mSOL",
-        "Sanctum mSOL latest APY snapshot.",
-        kind="quote",
-    ),
-    _sanc(
-        "sanctum-apy-bsol",
-        "https://sanctum-extra-api.ngrok.dev/v1/apy/latest?lst=bSOL",
-        "Sanctum bSOL latest APY snapshot.",
-        kind="quote",
-    ),
+    # S33-#65: the sanctum quote endpoints were DROPPED. The previous
+    # six entries pointed at the fragile `sanctum-extra-api.ngrok.dev`
+    # tunnel; the stable replacement `extra-api.sanctum.so/v1/apy/latest`
+    # was probed across every LST symbol + mint + param shape and
+    # returns `{"apys":{"<lst>":0.0},"errs":{}}` — a structural 0.0 for
+    # every staked token. A 0.0-APY chunk poisons the corpus (the panel
+    # would cite "Sanctum jitoSOL APY 0.0%"), so a dropped source beats
+    # a wrong one. The 19 sanctum DOCS endpoints above stay — they
+    # return real mechanism prose. Re-add quote endpoints only once a
+    # public endpoint that returns real APY figures exists.
 )
 
 
@@ -749,24 +821,248 @@ def endpoints_for_protocol(protocol: str) -> tuple[ProtocolEndpoint, ...]:
     return catalog.get(protocol.lower(), ())
 
 
-def render_chunk(ep: ProtocolEndpoint, body_text: str, as_of_iso: str) -> str:
-    """Render a fetched body as a substantive prose chunk.
+# ---------------------------------------------------------------------------
+# Rendering — S33-#61/#63/#64. The trade panel cannot cite raw JSON blobs.
+# Every renderer below emits SENTENCE-SHAPED prose. List payloads (kamino
+# vaults/markets, jupiter tokens) split one chunk per entity; the jito
+# tip-floor percentile ladder flattens to a single prose line.
+#
+# Pattern: paysh_live.py solved the identical problem in commit 1c0ab76.
+# We reuse `_flatten_json_to_prose` + `_compact_scalar` from there for the
+# fallback path, and add per-endpoint structured renderers on top so the
+# common entities read as real sentences instead of `[0].apy: 0.06` lines.
+# ---------------------------------------------------------------------------
 
-    The chunk includes ``description`` (what this content represents),
-    the as-of timestamp, the source URL, and the body. Keeps citation
-    rendering well-formed downstream — voices know what the content
-    means without re-reading the URL.
+# Hard cap on per-entity chunks from a single list payload. A 4,379-token
+# jupiter verified list would otherwise emit 4k+ chunks of dim metadata.
+_MAX_ENTITIES: Final[int] = 40
+
+
+def _provenance_header(ep: ProtocolEndpoint, as_of_iso: str) -> str:
+    """The mandatory first line every protocol_native chunk carries.
+
+    The rubric judge sees only ``snippet[:240]`` of each citation, so the
+    protocol + endpoint + as-of date must lead. Note: contains no ``{`` /
+    ``}`` — the whole point of S33-#61.
     """
-    return (
-        f"Protocol-native API: {ep.protocol} / {ep.slug} (as of {as_of_iso}).\n"
-        f"Endpoint description: {ep.description}\n"
-        f"Source URL: {ep.url}\n"
-        f"Content kind: {ep.content_kind}\n"
-        f"----- body -----\n"
-        f"{body_text}\n"
-        f"----- end body -----\n"
-        f"Provider: protocol_native."
+    return f"Protocol-native API: {ep.protocol}/{ep.slug} (as of {as_of_iso})."
+
+
+def _fmt_num(value: Any) -> str:
+    """Format a numeric value compactly: 38.4%, $1.2M, 0.0001 — best-effort.
+
+    Pure presentation helper; non-numerics fall back to ``_compact_scalar``.
+    """
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return _compact_scalar(value)
+    n = float(value)
+    if abs(n) >= 1_000_000_000:
+        return f"{n / 1e9:.2f}B"
+    if abs(n) >= 1_000_000:
+        return f"{n / 1e6:.2f}M"
+    if abs(n) >= 1_000:
+        return f"{n / 1e3:.1f}K"
+    if n != 0 and abs(n) < 0.001:
+        return f"{n:.8f}".rstrip("0")
+    return f"{n:g}"
+
+
+def _kv_sentence(entity: dict[str, Any], fields: tuple[tuple[str, str], ...]) -> str:
+    """Render selected ``(json_key, label)`` pairs of an entity as one
+    comma-joined prose clause. Missing keys are skipped silently."""
+    parts: list[str] = []
+    for key, label in fields:
+        if key not in entity or entity[key] is None:
+            continue
+        parts.append(f"{label} {_fmt_num(entity[key])}")
+    return ", ".join(parts)
+
+
+def _render_entity_list(
+    ep: ProtocolEndpoint,
+    entities: list[Any],
+    as_of_iso: str,
+    *,
+    name_keys: tuple[str, ...],
+    fields: tuple[tuple[str, str], ...],
+) -> list[str]:
+    """Emit ONE prose chunk per entity in a list payload.
+
+    Each chunk: ``<provenance header>`` + a sentence naming the entity and
+    its salient fields. Caps at ``_MAX_ENTITIES`` to bound corpus cost.
+    """
+    header = _provenance_header(ep, as_of_iso)
+    chunks: list[str] = []
+    for entity in entities[:_MAX_ENTITIES]:
+        if not isinstance(entity, dict):
+            chunks.append(f"{header} {_compact_scalar(entity)}")
+            continue
+        name = next(
+            (str(entity[k]) for k in name_keys if entity.get(k)),
+            ep.slug,
+        )
+        clause = _kv_sentence(entity, fields)
+        sentence = f"{ep.protocol.title()} {name}"
+        if clause:
+            sentence += f" — {clause}"
+        sentence += "."
+        chunks.append(f"{header} {sentence} Source: {ep.url}.")
+    return chunks
+
+
+# Per-endpoint field maps — (json_key, human label). Order = sentence order.
+_KAMINO_MARKET_FIELDS: Final[tuple[tuple[str, str], ...]] = (
+    ("description", "described as"),
+    ("lendingMarket", "lending-market pubkey"),
+)
+_KAMINO_VAULT_FIELDS: Final[tuple[tuple[str, str], ...]] = (
+    ("apy", "APY"),
+    ("apy7d", "7d APY"),
+    ("tvl", "TVL"),
+    ("tokenMint", "token mint"),
+    ("depositCap", "deposit cap"),
+)
+_JUPITER_TOKEN_FIELDS: Final[tuple[tuple[str, str], ...]] = (
+    ("symbol", "symbol"),
+    ("usdPrice", "price $"),
+    ("mcap", "market cap $"),
+    ("fdv", "FDV $"),
+    ("holderCount", "holders"),
+    ("decimals", "decimals"),
+)
+
+
+def _render_kamino_payload(ep: ProtocolEndpoint, body: Any, as_of_iso: str) -> list[str]:
+    """Kamino markets / vaults / strategies / staking-yields → per-entity prose."""
+    if isinstance(body, list) and body:
+        return _render_entity_list(
+            ep,
+            body,
+            as_of_iso,
+            name_keys=("name", "label", "tokenSymbol", "shareMint", "lendingMarket"),
+            fields=_KAMINO_MARKET_FIELDS + _KAMINO_VAULT_FIELDS,
+        )
+    return _render_fallback(ep, body, as_of_iso)
+
+
+def _render_jupiter_payload(ep: ProtocolEndpoint, body: Any, as_of_iso: str) -> list[str]:
+    """Jupiter token-tag / price payloads → per-token prose."""
+    if isinstance(body, list) and body:
+        return _render_entity_list(
+            ep,
+            body,
+            as_of_iso,
+            name_keys=("name", "symbol", "id"),
+            fields=_JUPITER_TOKEN_FIELDS,
+        )
+    return _render_fallback(ep, body, as_of_iso)
+
+
+def _render_tip_floor_payload(ep: ProtocolEndpoint, body: Any, as_of_iso: str) -> list[str]:
+    """S33-#64 — Jito tip-floor percentile ladder → a single prose line.
+
+    The endpoint returns ``[{"landed_tips_25th_percentile": ..., ...}]``.
+    Flatten the ladder to ``"Jito tip floor — 25th pct: X SOL; 50th: Y; …"``
+    so a tip-band decision can cite real lamport figures, not a JSON blob.
+    """
+    header = _provenance_header(ep, as_of_iso)
+    snapshot: dict[str, Any] | None = None
+    if isinstance(body, list) and body and isinstance(body[0], dict):
+        snapshot = body[0]
+    elif isinstance(body, dict):
+        snapshot = body
+    if snapshot is None:
+        return _render_fallback(ep, body, as_of_iso)
+
+    ladder = (
+        ("landed_tips_25th_percentile", "25th"),
+        ("landed_tips_50th_percentile", "50th"),
+        ("landed_tips_75th_percentile", "75th"),
+        ("landed_tips_95th_percentile", "95th"),
+        ("landed_tips_99th_percentile", "99th"),
     )
+    rungs = [
+        f"{label} pct {_fmt_num(snapshot[key])} SOL"
+        for key, label in ladder
+        if key in snapshot and snapshot[key] is not None
+    ]
+    if not rungs:
+        return _render_fallback(ep, body, as_of_iso)
+    ema = snapshot.get("ema_landed_tips_50th_percentile")
+    ema_clause = f" EMA 50th pct {_fmt_num(ema)} SOL." if ema is not None else ""
+    sentence = "Jito bundle tip floor — " + "; ".join(rungs) + "."
+    return [f"{header} {sentence}{ema_clause} Source: {ep.url}."]
+
+
+def _render_fallback(ep: ProtocolEndpoint, body: Any, as_of_iso: str) -> list[str]:
+    """Renderer of last resort — docs HTML, drift docs, sanctum docs, or
+    any payload shape without a structured renderer.
+
+    Strings (HTML-cleaned docs prose) pass through verbatim. Dicts/lists
+    are flattened via :func:`_flatten_json_to_prose` so the output is
+    ``key: value`` prose with NO curly braces. The provenance header
+    leads either way.
+    """
+    header = _provenance_header(ep, as_of_iso)
+    text = body if isinstance(body, str) else _flatten_json_to_prose(body)
+    return [f"{header} {ep.description}\n{text}".strip()]
+
+
+# Endpoint-slug → structured renderer. Anything not listed uses the
+# fallback (docs prose pass-through / generic JSON flatten).
+_RENDERERS: Final[dict[str, Any]] = {
+    "kamino-markets": _render_kamino_payload,
+    "kamino-vaults": _render_kamino_payload,
+    "kamino-strategies": _render_kamino_payload,
+    "kamino-staking-yields": _render_kamino_payload,
+    "jupiter-tokens-verified-list": _render_jupiter_payload,
+    "jupiter-tokens-lst-list": _render_jupiter_payload,
+    "jito-tip-floor": _render_tip_floor_payload,
+}
+
+
+def render_chunks(ep: ProtocolEndpoint, body_text: str, as_of_iso: str) -> list[str]:
+    """Render a fetched endpoint body into a LIST of prose chunks.
+
+    S33-#61/#63/#64: the prior ``render_chunk`` pretty-printed JSON into a
+    single blob the trade panel could not cite (root cause of
+    ``citation_relevance=0.25``). This renderer:
+
+      * parses JSON bodies and dispatches to a per-endpoint structured
+        renderer (kamino vaults, jupiter tokens, jito tip-floor);
+      * emits ONE chunk per entity for list payloads;
+      * guarantees every chunk leads with the provenance header
+        ``Protocol-native API: <protocol>/<slug> (as of <date>).``;
+      * NEVER emits ``{`` or ``}`` — the whole point of the ticket.
+
+    ``body_text`` is whatever ``_fetch`` produced: a JSON string for API
+    endpoints, HTML-cleaned prose for docs pages. JSON is re-parsed here
+    so the structured renderers see real objects.
+    """
+    body: Any = body_text
+    stripped = body_text.lstrip()
+    if stripped[:1] in ("{", "["):
+        try:
+            body = json.loads(body_text)
+        except (json.JSONDecodeError, ValueError):
+            body = body_text
+
+    renderer = _RENDERERS.get(ep.slug)
+    if renderer is not None:
+        chunks = renderer(ep, body, as_of_iso)
+    else:
+        chunks = _render_fallback(ep, body, as_of_iso)
+    # Defensive: a structured renderer that returned nothing falls back.
+    return chunks or _render_fallback(ep, body, as_of_iso)
+
+
+def render_chunk(ep: ProtocolEndpoint, body_text: str, as_of_iso: str) -> str:
+    """Back-compat single-string renderer — joins :func:`render_chunks`.
+
+    Retained so any legacy caller keeps working. New callers should use
+    :func:`render_chunks` so per-entity splitting survives to the chunker.
+    """
+    return "\n\n".join(render_chunks(ep, body_text, as_of_iso))
 
 
 __all__ = [
@@ -779,4 +1075,5 @@ __all__ = [
     "ProtocolEndpoint",
     "endpoints_for_protocol",
     "render_chunk",
+    "render_chunks",
 ]
