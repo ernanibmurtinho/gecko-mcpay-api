@@ -15,6 +15,15 @@ Ground truth lives in each fixture's ``retrieval_expectations`` block in
 ``defi_trade_rubric_suite.json``. Ground truth is provider-kind composition
 + content signatures, NOT chunk-ids (ids churn on daily re-ingest).
 
+S34-#86 — eval/prod top_k parity. The headline ``scores`` / ``gate`` are
+graded at the PRODUCTION ``top_k`` (``trade_panel._DEFAULT_TRADE_TOP_K``) —
+what ``run_trade_panel_with_retrieval`` actually requests. Previously the
+eval graded only at the fixture ``k`` (15), a wide slate production never
+uses, so a canon-floor bug at the narrow production ``top_k`` (S34-WS2)
+was invisible. Each fixture is now graded at BOTH; the gate keys off the
+production view, the fixture-``k`` view is kept under ``at_fixture_k`` /
+``scores_at_fixture_k`` as a wide-slate diagnostic.
+
 Metrics (all deterministic):
   - provider_kind_coverage : fraction of required_provider_kinds present
   - precision@k            : relevant chunks / k
@@ -182,15 +191,25 @@ def _chunk_satisfies_signatures(chunk: dict[str, Any], signatures: list[dict[str
     return False
 
 
-def grade_retrieval(slate: list[dict[str, Any]], expectations: dict[str, Any]) -> dict[str, Any]:
+def grade_retrieval(
+    slate: list[dict[str, Any]],
+    expectations: dict[str, Any],
+    *,
+    k: int | None = None,
+) -> dict[str, Any]:
     """Score a retrieved slate against a fixture's retrieval_expectations.
 
     A chunk is "relevant" when its provider_kind is in required_provider_kinds
     AND (if its kind carries a content_signature) its text matches a signature.
+
+    ``k`` overrides the fixture's ``k`` — S34-#86 grades at both the fixture
+    ``k`` AND the production ``top_k`` so the gate reflects what production
+    actually retrieves, not a setting production never uses.
     """
     required: dict[str, int] = expectations.get("required_provider_kinds", {})
     signatures: list[dict[str, Any]] = expectations.get("content_signatures", [])
-    k = int(expectations.get("k", 15))
+    if k is None:
+        k = int(expectations.get("k", 15))
     required_kinds = set(required.keys())
 
     # Per-kind: is each required kind present (relevant chunk found)?
@@ -245,47 +264,73 @@ def grade_retrieval(slate: list[dict[str, Any]], expectations: dict[str, Any]) -
 
 
 async def _score_one(fixture: dict[str, Any]) -> dict[str, Any]:
-    from gecko_core.orchestration.trade_panel import retrieve_trade_corpus_chunks
+    """S34-#86 — score a fixture at BOTH the fixture ``k`` and the production
+    ``top_k``.
+
+    The fixture ``k`` (15) is a wide-slate diagnostic view; the production
+    ``top_k`` (``_DEFAULT_TRADE_TOP_K``) is what ``run_trade_panel_with_
+    retrieval`` actually requests. S34-WS2 found a canon-floor bug that only
+    manifests at the narrower production ``top_k`` — the deterministic eval
+    missed it because it ran exclusively at the fixture ``k``. The gate must
+    reflect production reality, so we retrieve + grade at both and the
+    headline ``scores`` is the production view.
+    """
+    from gecko_core.orchestration.trade_panel import (
+        _DEFAULT_TRADE_TOP_K,
+        retrieve_trade_corpus_chunks,
+    )
 
     expectations = fixture["retrieval_expectations"]
-    k = int(expectations.get("k", 15))
+    fixture_k = int(expectations.get("k", 15))
+    prod_k = int(_DEFAULT_TRADE_TOP_K)
     vertical = fixture.get("vertical", "dex")
 
-    t0 = time.perf_counter()
-    slate = await retrieve_trade_corpus_chunks(
-        idea=fixture["text"],
-        protocol=fixture["protocol"],
-        vertical=vertical,
-        top_k=k,
-    )
-    wall = time.perf_counter() - t0
+    async def _retrieve_and_grade(top_k: int) -> tuple[dict[str, Any], float]:
+        t0 = time.perf_counter()
+        slate = await retrieve_trade_corpus_chunks(
+            idea=fixture["text"],
+            protocol=fixture["protocol"],
+            vertical=vertical,
+            top_k=top_k,
+        )
+        wall = time.perf_counter() - t0
+        return grade_retrieval(slate, expectations, k=top_k), round(wall, 2)
 
-    raw_dist = await _raw_slate_pk_distribution(fixture["text"], vertical, k)
-    scores = grade_retrieval(slate, expectations)
+    prod_scores, prod_wall = await _retrieve_and_grade(prod_k)
+    if fixture_k == prod_k:
+        fixture_scores, fixture_wall = prod_scores, prod_wall
+    else:
+        fixture_scores, fixture_wall = await _retrieve_and_grade(fixture_k)
+
+    raw_dist = await _raw_slate_pk_distribution(fixture["text"], vertical, prod_k)
 
     return {
         "id": fixture["id"],
         "protocol": fixture["protocol"],
         "vertical": vertical,
-        "k": k,
+        # `k` and `scores` are the PRODUCTION view — the gate keys off these.
+        "k": prod_k,
+        "production_top_k": prod_k,
+        "fixture_k": fixture_k,
         "required_provider_kinds": expectations.get("required_provider_kinds", {}),
-        "scores": scores,
+        "scores": prod_scores,
+        "scores_at_fixture_k": fixture_scores,
         "stage4_raw_slate_pk_distribution": raw_dist,
-        "wall_seconds": round(wall, 2),
+        "wall_seconds": round(prod_wall + fixture_wall, 2),
     }
 
 
-def _aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
+def _aggregate_one_view(rows: list[dict[str, Any]], scores_key: str) -> dict[str, Any]:
+    """Aggregate one scoring view (``scores`` = production top_k, or
+    ``scores_at_fixture_k`` = fixture k). Returns means + gate verdict.
+    """
     n = len(rows)
-    if n == 0:
-        return {"n": 0}
     dims = ["provider_kind_coverage", "precision_at_k", "recall_at_k", "mrr"]
-    means = {d: round(statistics.mean(r["scores"][d] for r in rows), 4) for d in dims}
-    canon_floor_rate = round(sum(1 for r in rows if r["scores"]["canon_floor"]) / n, 4)
+    means = {d: round(statistics.mean(r[scores_key][d] for r in rows), 4) for d in dims}
+    canon_floor_rate = round(sum(1 for r in rows if r[scores_key]["canon_floor"]) / n, 4)
     return {
-        "n": n,
         "canon_floor_rate": canon_floor_rate,
-        "canon_floor_count": sum(1 for r in rows if r["scores"]["canon_floor"]),
+        "canon_floor_count": sum(1 for r in rows if r[scores_key]["canon_floor"]),
         "per_dimension_means": means,
         "gate": {
             "canon_floor_target": CANON_FLOOR_TARGET,
@@ -293,6 +338,39 @@ def _aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "canon_floor_pass": canon_floor_rate >= CANON_FLOOR_TARGET,
             "pk_coverage_pass": means["provider_kind_coverage"] >= PK_COVERAGE_TARGET,
         },
+    }
+
+
+def _aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """S34-#86 — aggregate at the PRODUCTION top_k as the headline gate.
+
+    The top-level ``gate`` / ``canon_floor_rate`` / ``per_dimension_means``
+    reflect what production (``run_trade_panel_with_retrieval`` at
+    ``_DEFAULT_TRADE_TOP_K``) actually retrieves — the rubric pre-gate keys
+    off ``gate``, so it must measure the production setting, not the wide
+    fixture-``k`` diagnostic slate. ``at_fixture_k`` keeps the wide-slate
+    view for diagnosis (e.g. an ANN regression masked at the narrow top_k).
+    """
+    n = len(rows)
+    if n == 0:
+        return {"n": 0}
+
+    prod_view = _aggregate_one_view(rows, "scores")
+    fixture_view = _aggregate_one_view(rows, "scores_at_fixture_k")
+    production_top_k = rows[0].get("production_top_k")
+    fixture_k = rows[0].get("fixture_k")
+
+    return {
+        "n": n,
+        "production_top_k": production_top_k,
+        "fixture_k": fixture_k,
+        # --- headline = PRODUCTION view (the rubric pre-gate reads this) ---
+        "canon_floor_rate": prod_view["canon_floor_rate"],
+        "canon_floor_count": prod_view["canon_floor_count"],
+        "per_dimension_means": prod_view["per_dimension_means"],
+        "gate": prod_view["gate"],
+        # --- diagnostic = wide fixture-k slate ---
+        "at_fixture_k": fixture_view,
     }
 
 
@@ -321,11 +399,15 @@ async def run(*, limit: int | None, tag: str) -> int:
             print(f"FAIL ({type(exc).__name__}: {exc})")
             continue
         s = row["scores"]
+        sf = row["scores_at_fixture_k"]
         print(
+            f"[prod k={row['production_top_k']}] "
             f"canon_floor={s['canon_floor']!s:<5} "
             f"pkCov={s['provider_kind_coverage']:.2f} "
             f"P@k={s['precision_at_k']:.2f} R@k={s['recall_at_k']:.2f} "
-            f"MRR={s['mrr']:.2f} missing={s['kinds_missing']}"
+            f"MRR={s['mrr']:.2f} missing={s['kinds_missing']} "
+            f"| [fixture k={row['fixture_k']}] canon_floor={sf['canon_floor']!s:<5} "
+            f"pkCov={sf['provider_kind_coverage']:.2f}"
         )
         rows.append(row)
 
