@@ -11,9 +11,10 @@ Dimensions (all deterministic):
   D2 — context_overflow: rendered chunk block did not silently drop chunks
                          at _format_chunks's _RAG_CONTEXT_CHAR_CAP boundary
                          AND estimated prompt tokens are under model limit
-  D3 — citations_grounded: every verdict.citations[].chunk_id was in the
-                           retrieval input set, AND every inline [N]
-                           marker in turns[].content is within bounds
+  D3 — citations_grounded: every chunk_id in verdict.evidence_citations[]
+                           + verdict.framework_context[] (S35-#99 split)
+                           was in the retrieval input set, AND every
+                           inline [N] marker in turns[] is within bounds
 
 Production-path guarantee (Pattern E / feedback_eval_harness_rag_gap):
 this script calls ``run_trade_panel_with_retrieval`` directly, the same
@@ -163,13 +164,10 @@ def _check_d2_context_overflow(
 
     est_tokens = _estimate_tokens(full_prompt)
     if est_tokens > TOKEN_HARD_LIMIT:
-        failures.append(
-            f"estimated_tokens={est_tokens} exceeds hard limit {TOKEN_HARD_LIMIT}"
-        )
+        failures.append(f"estimated_tokens={est_tokens} exceeds hard limit {TOKEN_HARD_LIMIT}")
     elif est_tokens > TOKEN_SOFT_WARN:
         warnings.append(
-            f"estimated_tokens={est_tokens} crossed soft-warn {TOKEN_SOFT_WARN} "
-            f"— approaching cap"
+            f"estimated_tokens={est_tokens} crossed soft-warn {TOKEN_SOFT_WARN} — approaching cap"
         )
 
     return {
@@ -191,24 +189,27 @@ def _check_d3_citations_grounded(
     verdict_obj: Any,
     chunks: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    """D3: cite.chunk_id ∈ retrieval set AND every inline [N] is in-range
-    AND every citation's [N] marker actually appears in some persona turn.
+    """D3: every emitted citation's chunk_id ∈ retrieval set AND every
+    inline [N] marker in persona turns is in-range.
 
-    The third sub-check ("phantom-marker") catches the structural failure
-    mode introduced by ``build_citations_from_chunks(chunks)`` (see
-    ``trade_panel/__init__.py`` line ~913): that helper iterates the FULL
-    retrieved chunks list AFTER the panel returns, so citations carry
-    valid ``chunk_id`` and in-range markers even when the panel never saw
-    chunks past index K (e.g. via cap truncation). A citation marker the
-    personas never wrote is "phantom" — caller-visible grounding but
-    model-invisible content.
+    S35-#99 — the verdict envelope was split into ``evidence_citations``
+    + ``framework_context``. D3 now grades the union of both lists for
+    chunk_id grounding (a phantom chunk_id is a regression in either
+    list). The pre-#99 phantom-MARKER sub-check is retired: each list is
+    re-indexed independently by ``build_citations_from_chunks``, so a
+    citation's ``id`` is a per-list 1..N index, NOT a chunk [N] marker —
+    and ``evidence_citations`` is *built from used-only chunks*, so by
+    construction every evidence cite was referenced. The inline-marker
+    range check still runs (a persona writing [99] is still a bug).
     """
     failures: list[str] = []
 
     valid_chunk_ids = {str(c.get("id", "")) for c in chunks}
     n_chunks = len(chunks)
 
-    panel_cites = list(getattr(verdict_obj, "citations", []) or [])
+    panel_cites = list(getattr(verdict_obj, "evidence_citations", []) or []) + list(
+        getattr(verdict_obj, "framework_context", []) or []
+    )
     phantom_cites: list[dict[str, Any]] = []
     for cite in panel_cites:
         cid = getattr(cite, "chunk_id", "")
@@ -226,7 +227,8 @@ def _check_d3_citations_grounded(
             f"{phantom_cites[:3]!r}{' ...' if len(phantom_cites) > 3 else ''}"
         )
 
-    # Inline [N] markers across all turns — collect once for reuse below.
+    # Inline [N] markers across all turns — still range-checked: a persona
+    # writing a marker past n_chunks is a hallucinated chunk index.
     turns = list(getattr(verdict_obj, "turns", []) or [])
     persona_marker_set: set[int] = set()
     out_of_range: list[dict[str, Any]] = []
@@ -245,35 +247,17 @@ def _check_d3_citations_grounded(
             f"{' ...' if len(out_of_range) > 3 else ''}"
         )
 
-    # Phantom-marker detection: each citation has a 1-indexed `id` matching
-    # the `[N]` marker convention in _format_chunks. If a citation's N is
-    # never written by any persona, the cite is post-hoc decoration only.
-    phantom_markers: list[int] = []
-    for cite in panel_cites:
-        marker = getattr(cite, "id", None)
-        if not isinstance(marker, int):
-            continue
-        if marker not in persona_marker_set:
-            phantom_markers.append(marker)
-    if phantom_markers:
-        sample = "".join(f"[{n}]" for n in sorted(phantom_markers)[:8])
-        suffix = " ..." if len(phantom_markers) > 8 else ""
-        failures.append(
-            f"phantom citations: {len(phantom_markers)} of {len(panel_cites)} — "
-            f"markers {sample}{suffix} never appear in any persona content"
-        )
-
     return {
         "passed": not failures,
         "failures": failures,
         "details": {
             "n_panel_cites": len(panel_cites),
+            "n_evidence_citations": len(getattr(verdict_obj, "evidence_citations", []) or []),
+            "n_framework_context": len(getattr(verdict_obj, "framework_context", []) or []),
             "n_valid_chunk_ids": len(valid_chunk_ids),
             "n_phantom_cites": len(phantom_cites),
             "n_inline_markers_out_of_range": len(out_of_range),
-            "n_phantom_markers": len(phantom_markers),
             "persona_markers_seen": sorted(persona_marker_set),
-            "phantom_markers": sorted(phantom_markers),
         },
     }
 
@@ -301,9 +285,7 @@ async def _run_canary(fixture: dict[str, Any], llm_config: dict[str, Any]) -> di
     # retrieval being deterministic for the same (idea, protocol, vertical, top_k)
     # signature within a single run.
     t_retrieve = time.perf_counter()
-    chunks = await retrieve_trade_corpus_chunks(
-        idea=idea, protocol=protocol, vertical=vertical
-    )
+    chunks = await retrieve_trade_corpus_chunks(idea=idea, protocol=protocol, vertical=vertical)
     retrieve_wall = time.perf_counter() - t_retrieve
 
     rendered_block = _format_chunks(chunks)
@@ -363,7 +345,8 @@ async def _run_canary(fixture: dict[str, Any], llm_config: dict[str, Any]) -> di
             {
                 "verdict": getattr(verdict_obj, "verdict", None),
                 "confidence": getattr(verdict_obj, "confidence", None),
-                "n_citations": len(getattr(verdict_obj, "citations", []) or []),
+                "n_evidence_citations": len(getattr(verdict_obj, "evidence_citations", []) or []),
+                "n_framework_context": len(getattr(verdict_obj, "framework_context", []) or []),
                 "n_chunks_input": len(chunks),
             }
             if verdict_obj is not None
