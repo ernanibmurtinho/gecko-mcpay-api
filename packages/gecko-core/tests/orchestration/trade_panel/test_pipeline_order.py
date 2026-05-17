@@ -176,6 +176,8 @@ async def test_pipeline_survives_rerank_degrade(monkeypatch: pytest.MonkeyPatch)
     assert len({c["provider_kind"] for c in out}) >= 2
 
 
-def test_default_top_k_constant_is_10() -> None:
-    """S29 #31 bumped the constant from 5 to 10. Pin it."""
-    assert tp._DEFAULT_TRADE_TOP_K == 10
+def test_default_top_k_constant_is_15() -> None:
+    """S34 #87 raised the production default to 15 — the retrieval eval
+    found provider_kind_coverage=0.567 at top_k=5 (fails the 0.8 gate) vs
+    0.967 at top_k=15. Pin it. See docs/eval/2026-05-17-s34-topk-cost-model.md."""
+    assert tp._DEFAULT_TRADE_TOP_K == 15

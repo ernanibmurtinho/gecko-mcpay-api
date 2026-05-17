@@ -705,7 +705,7 @@ async def run_trade_panel(
 # trade-research surface.
 # ---------------------------------------------------------------------------
 
-_DEFAULT_TRADE_TOP_K: int = 5  # S29 #34 — ablation: revert top_k bump (10→5) while keeping the quota-before-rerank order swap. Hypothesis: pkCov win is from the order swap; the top_k=10 bump diluted dissent_grounding/calibration via wider-slate attention spread. See docs/strategy/2026-05-14-s29-34-ablation-handoff.md.
+_DEFAULT_TRADE_TOP_K: int = 15  # S34 #87 — raised 5→15. The S34-#86 retrieval eval found provider_kind_coverage=0.567 at top_k=5 (fails the 0.8 gate) vs 0.967 at top_k=15; the canon-floor quota starves protocol_native at the narrow k. Per-call cost delta is ~$0.0038 (gpt-4o-mini basic tier) — _RAG_CONTEXT_CHAR_CAP (60k chars) does NOT bind at k=15 (~24k chars), so the 3× chunk slate is real. See docs/eval/2026-05-17-s34-topk-cost-model.md.
 
 # S25 #13 — scoring boost terms. Empirical: Atlas vectorSearchScore on the
 # corpus sits in [0.69, 0.78] for typical queries; a +0.15 boost pushes a
@@ -1373,19 +1373,22 @@ async def retrieve_trade_corpus_chunks(
     # or any API error — retrieval never breaks on a rerank failure.
     # S34-#85 — canon quota must never starve the protocol head.
     # _CANON_FLOOR_COUNT (6) was sized for the eval's top_k=15 (6/15 = a
-    # 40% canon floor, protocol_native keeps the majority). Production
-    # (run_trade_panel_with_retrieval) runs top_k=_DEFAULT_TRADE_TOP_K=5.
-    # At top_k=5 the old `min(6, top_k)` yielded canon_quota=5,
+    # 40% canon floor, protocol_native keeps the majority).
+    # S34-#87 raised production top_k (_DEFAULT_TRADE_TOP_K) 5 -> 15, so
+    # production and the eval now share top_k=15 -> canon_quota=6,
+    # protocol_slots=9: the 40%-canon split the floor was designed for.
+    # The `min(_CANON_FLOOR_COUNT, top_k // 2)` clamp below is kept anyway
+    # — it is the load-bearing guard against the S34-#85 regression. At the
+    # old top_k=5 the naive `min(6, top_k)` yielded canon_quota=5,
     # protocol_slots=0 — the canon FLOOR silently became a CEILING that
     # consumed the entire slate, and the panel saw 0 protocol_native
-    # chunks for a protocol-specific question. That is exactly the
-    # 2026-05-16 live finding: 5/5 canon citations on a Kamino vault
-    # question, the fundamental_analyst fabricating a "$150M TVL" figure
-    # and misciting a BIS canon_macro paper because no protocol chunk was
-    # in scope. The retrieval_eval (#82) runs top_k=15 and never saw it.
+    # chunks for a protocol-specific question. That was the 2026-05-16 live
+    # finding: 5/5 canon citations on a Kamino vault question, the
+    # fundamental_analyst fabricating a "$150M TVL" figure and misciting a
+    # BIS canon_macro paper because no protocol chunk was in scope.
     # Fix: clamp canon to at most half the slate so protocol_native always
     # retains a >=ceil(top_k/2) majority. At top_k=5 -> canon_quota=2,
-    # protocol_slots=3; at top_k=15 -> canon_quota=6 (unchanged).
+    # protocol_slots=3; at top_k=15 -> canon_quota=6, protocol_slots=9.
     canon_quota = min(_CANON_FLOOR_COUNT, top_k // 2) if canon_rows else 0
     protocol_slots = max(0, top_k - canon_quota)
     protocol_reranked = await voyage_rerank_dicts(idea, rows, top_n=top_k)
