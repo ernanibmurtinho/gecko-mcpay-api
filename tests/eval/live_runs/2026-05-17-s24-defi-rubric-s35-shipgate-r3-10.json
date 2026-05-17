@@ -1,0 +1,2141 @@
+{
+  "date": "2026-05-17",
+  "tier": "basic",
+  "suite": "defi_trade_rubric_suite.json",
+  "n_fixtures_loaded": 10,
+  "n_scored": 10,
+  "retrieval_pregate": {
+    "n": 10,
+    "production_top_k": 15,
+    "fixture_k": 15,
+    "canon_floor_rate": 1.0,
+    "canon_floor_count": 10,
+    "per_dimension_means": {
+      "provider_kind_coverage": 0.9667,
+      "precision_at_k": 0.7333,
+      "recall_at_k": 0.9667,
+      "mrr": 0.3853
+    },
+    "gate": {
+      "canon_floor_target": 0.8,
+      "pk_coverage_target": 0.8,
+      "canon_floor_pass": true,
+      "pk_coverage_pass": true
+    },
+    "at_fixture_k": {
+      "canon_floor_rate": 1.0,
+      "canon_floor_count": 10,
+      "per_dimension_means": {
+        "provider_kind_coverage": 0.9667,
+        "precision_at_k": 0.7333,
+        "recall_at_k": 0.9667,
+        "mrr": 0.3853
+      },
+      "gate": {
+        "canon_floor_target": 0.8,
+        "pk_coverage_target": 0.8,
+        "canon_floor_pass": true,
+        "pk_coverage_pass": true
+      }
+    }
+  },
+  "aggregate": {
+    "n": 10,
+    "overall_pass_rate": 0.0,
+    "per_dimension_means": {
+      "verdict_accuracy": 1.0,
+      "citation_relevance": 0.39,
+      "provider_kind_coverage": 1.0,
+      "hallucination_score": 0.9,
+      "dissent_grounding": 0.0,
+      "confidence_calibration": 0.46
+    },
+    "per_dimension_pass_rate": {
+      "verdict_accuracy": 1.0,
+      "citation_relevance": 0.4,
+      "provider_kind_coverage": 1.0,
+      "hallucination_score": 0.9,
+      "dissent_grounding": 0.0,
+      "confidence_calibration": 0.1
+    },
+    "thresholds": {
+      "verdict_accuracy": 0.85,
+      "citation_relevance": 0.5,
+      "provider_kind_coverage": 0.7,
+      "hallucination_score": 0.3,
+      "dissent_grounding": 0.5,
+      "confidence_calibration": 0.55
+    },
+    "statistical_gate": {
+      "method": "bootstrap percentile 95% CI, 10000 resamples, seed=4242; pass = CI_low >= threshold",
+      "per_dimension": {
+        "verdict_accuracy": {
+          "mean": 1.0,
+          "ci_low": 1.0,
+          "ci_high": 1.0,
+          "ci_halfwidth": 0.0,
+          "threshold": 0.85,
+          "point_pass": true,
+          "statistical_pass": true,
+          "margin_to_threshold": 0.15
+        },
+        "citation_relevance": {
+          "mean": 0.39,
+          "ci_low": 0.31,
+          "ci_high": 0.465,
+          "ci_halfwidth": 0.0775,
+          "threshold": 0.5,
+          "point_pass": false,
+          "statistical_pass": false,
+          "margin_to_threshold": -0.11
+        },
+        "provider_kind_coverage": {
+          "mean": 1.0,
+          "ci_low": 1.0,
+          "ci_high": 1.0,
+          "ci_halfwidth": 0.0,
+          "threshold": 0.7,
+          "point_pass": true,
+          "statistical_pass": true,
+          "margin_to_threshold": 0.3
+        },
+        "hallucination_score": {
+          "mean": 0.9,
+          "ci_low": 0.7,
+          "ci_high": 1.0,
+          "ci_halfwidth": 0.15,
+          "threshold": 0.3,
+          "point_pass": true,
+          "statistical_pass": true,
+          "margin_to_threshold": 0.6
+        },
+        "dissent_grounding": {
+          "mean": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.0,
+          "ci_halfwidth": 0.0,
+          "threshold": 0.5,
+          "point_pass": false,
+          "statistical_pass": false,
+          "margin_to_threshold": -0.5
+        },
+        "confidence_calibration": {
+          "mean": 0.46,
+          "ci_low": 0.42,
+          "ci_high": 0.5,
+          "ci_halfwidth": 0.04,
+          "threshold": 0.55,
+          "point_pass": false,
+          "statistical_pass": false,
+          "margin_to_threshold": -0.09
+        }
+      },
+      "dims_statistically_green": [
+        "hallucination_score",
+        "provider_kind_coverage",
+        "verdict_accuracy"
+      ],
+      "dims_point_green": [
+        "hallucination_score",
+        "provider_kind_coverage",
+        "verdict_accuracy"
+      ],
+      "n_dims": 6,
+      "n_statistically_green": 3,
+      "ship_gate_pass": false
+    },
+    "n_policy": {
+      "ship_gate_n": 30,
+      "this_run_n": 10,
+      "ship_gate_eligible": false,
+      "note": "N=10 < 30: iteration run only. NOT ship-gate eligible \u2014 CIs too wide to certify a pass."
+    }
+  },
+  "rows": [
+    {
+      "id": "kamino-jlpusdc-entry",
+      "protocol": "kamino",
+      "vertical": "dex",
+      "as_of_date": "2026-05-16",
+      "panel": {
+        "verdict": "defer",
+        "confidence": 0.5,
+        "dissent_count": 0,
+        "blocker_questions": [],
+        "n_citations": 12,
+        "provider_kinds_present": [
+          "canon_berkshire",
+          "canon_damodaran",
+          "canon_macro",
+          "canon_marks",
+          "canon_mauboussin",
+          "protocol_native"
+        ],
+        "citations": [
+          {
+            "id": 1,
+            "chunk_id": "6a08c10fa9688605b656ca24",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/staking-yields",
+            "snippet": "Protocol-native API: kamino/kamino-staking-yields (as of 2026-05-16). Kamino kamino-staking-yields \u2014 APY 0.0574090744225504455, token mint sSo14endRuUbvQaJS3dq36Q829a3A6BEfoeeRGJywEh. Source: https://api.kamino.finance/v2/staking-yields."
+          },
+          {
+            "id": 2,
+            "chunk_id": "6a08c10fa9688605b656ca19",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/staking-yields",
+            "snippet": "Protocol-native API: kamino/kamino-staking-yields (as of 2026-05-16). Kamino kamino-staking-yields \u2014 APY 0.0545388619312235723, token mint 7Q2afV64in6N6SeZsAAB81TJzwDoD6zpqmHkzi9Dcavn. Source: https://api.kamino.finance/v2/staking-yields."
+          },
+          {
+            "id": 3,
+            "chunk_id": "6a08c10fa9688605b656ca38",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/staking-yields",
+            "snippet": "Protocol-native API: kamino/kamino-staking-yields (as of 2026-05-16). Kamino kamino-staking-yields \u2014 APY 0.0537841073667378319, token mint jag58eRBC1c88LaAsRPspTMvoKJPbnzw9p9fREzHqyV. Source: https://api.kamino.finance/v2/staking-yields."
+          },
+          {
+            "id": 4,
+            "chunk_id": "6a08c10fa9688605b656ca20",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/staking-yields",
+            "snippet": "Protocol-native API: kamino/kamino-staking-yields (as of 2026-05-16). Kamino kamino-staking-yields \u2014 APY 0.0588627265209963039, token mint Comp4ssDzXcLeu2MnLuGNNFC4cmLPMng8qWHPvzAMU1h. Source: https://api.kamino.finance/v2/staking-yields."
+          },
+          {
+            "id": 5,
+            "chunk_id": "6a08c10fa9688605b656ca35",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/staking-yields",
+            "snippet": "Protocol-native API: kamino/kamino-staking-yields (as of 2026-05-16). Kamino kamino-staking-yields \u2014 APY 0.0553827047440091986, token mint edge86g9cVz87xcpKpy3J77vbp4wYd9idEV562CCntt. Source: https://api.kamino.finance/v2/staking-yields."
+          },
+          {
+            "id": 6,
+            "chunk_id": "6a08c10fa9688605b656ca1f",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/staking-yields",
+            "snippet": "Protocol-native API: kamino/kamino-staking-yields (as of 2026-05-16). Kamino kamino-staking-yields \u2014 APY 0.0571929655422265522, token mint BonK1YhkXEGLZzwtcvRTip3gAL9nCeQD7ppZBLXhtTs. Source: https://api.kamino.finance/v2/staking-yields."
+          },
+          {
+            "id": 7,
+            "chunk_id": "6a08c10fa9688605b656ca2d",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/staking-yields",
+            "snippet": "Protocol-native API: kamino/kamino-staking-yields (as of 2026-05-16). Kamino kamino-staking-yields \u2014 APY 0.0557047584650272856, token mint sctmY8fJucsJatwHz6P48RuWBBkdBMNmSMuBYrWFdrw. Source: https://api.kamino.finance/v2/staking-yields."
+          },
+          {
+            "id": 8,
+            "chunk_id": "6a051b93df7f467ce4181656",
+            "source": "web",
+            "provider_kind": "canon_berkshire",
+            "freshness_tier": "static",
+            "url": "https://www.berkshirehathaway.com/letters/1978.html",
+            "snippet": "$ KS\ufffd\u01ab\ufffd\ufffd\ufffd}\ufffdv \ufffd\ufffd\u0098\ufffde!l\u074f \ufffd\u0347\ufffd\ufffd l\ufffd\ufffd~ 9\ufffdeL\ufffd\ufffdT\ufffdp\ufffd,\ufffd\ufffd \ufffd \ufffd>\ufffd\ufffd\ufffd\ufffd\u07d8\ufffd\ufffd\ufffd\ufffdWuY \ufffd <&D\u007f\ufffdb\ufffd\ufffdu{\ufffdz\ufffd`Y\ufffd\ufffd\ufffdF\ufffdM\ufffd\ufffd\ufffd\ufffdXP\ufffd+\ufffd\ufffd\ufffd\ufffd25\ufffdo|\ufffd\ufffd^\ufffd \ufffdNn\ufffd\ufffd;\ufffdE\ufffdN\ufffd\ufffd\"J\ufffd\ufffdL\ufffd\ufffd\"\ufffd\ufffd>\ufffd[5\ufffd%w\ufffd\u007f\ufffd9>>=\ufffdX\ufffdwb%nP Gw\ufffdz\ufffd \ufffd \ufffd\ufffd X\ufffd\ufffd\ufffd\ufffd1\ufffdj\ufffd\ufffdj\ufffd\ufffd\u00cd\ufffd \ufffd)\ufffd \u0268\ufffdH]\ufffd]\ufffd\ufffd7\ufffd\ufffd\ufffdk\ufffdUCS\ufffdw\ufffd\ufffd\u0743U\ufffd\ufffd5 \ufffd\ufffd\ufffd\ufffdj\ufffd!\ufffd\ufffdn\ufffd\ufffd\\(\ufffd&\ufffd \ufffd\ufffd\ufffdG,\ufffd\ufffd}\ufffd\ufffdh"
+          },
+          {
+            "id": 9,
+            "chunk_id": "6a0539528c085826f9a037db",
+            "source": "web",
+            "provider_kind": "canon_mauboussin",
+            "freshness_tier": "static",
+            "url": "https://www.morganstanley.com/im/publication/insights/articles/article_confidence.pdf",
+            "snippet": "of range of reasonable opinion in economics is an open letter that a number of economists, political \r\nstrategists, and investors sent to Ben Bernanke in November 2010. Bernanke was at the time the chairman of \r\nthe Federal Reserve. The let"
+          },
+          {
+            "id": 10,
+            "chunk_id": "6a021ba1600a85667fd2c810",
+            "source": "web",
+            "provider_kind": "canon_damodaran",
+            "freshness_tier": "static",
+            "url": "https://www.stern.nyu.edu/~adamodar/pdfiles/papers/realopt.pdf",
+            "snippet": "that\r\nthe present value of the cash inflows may change over that time, because of changes in\r\neither the cash flows or the discount rate. Thus, the project may have a negative net present\r\nvalue right now, but it may still be a good project"
+          },
+          {
+            "id": 11,
+            "chunk_id": "6a0538f6177dc0b1aff1fdd5",
+            "source": "web",
+            "provider_kind": "canon_macro",
+            "freshness_tier": "static",
+            "url": "https://www.bis.org/publ/work1164.pdf",
+            "snippet": "as a portfolio-weighted convolution\r\nIn the context of our model, stablecoins are backed by a vector of reserve assets that have a\r\ncombined dollar value captured by \u03b8. Stablecoin holders perceive \u03b8 to be a random variable\r\ndrawn from the p"
+          },
+          {
+            "id": 12,
+            "chunk_id": "6a02129867347ee7d968021c",
+            "source": "web",
+            "provider_kind": "canon_marks",
+            "freshness_tier": "static",
+            "url": "https://www.oaktreecapital.com/insights/memo/taking-the-temperature",
+            "snippet": "bottom has been reached . . . ever. Oaktree explicitly rejects the notion of waiting for the bottom; we buy when we can access value cheap. Even though there\u2019s no way to say the bottom is at hand, the conditions that make bargains available"
+          }
+        ],
+        "turns": [
+          {
+            "agent": "technical_analyst",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "sentiment_analyst",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "fundamental_analyst",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "risk_manager",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "strategist",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "bull_bear_debater",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "coordinator",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          }
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "ACT",
+        "expected_verdict_v2_set": [
+          "ACT",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "protocol_native",
+          "canon_marks",
+          "canon_damodaran",
+          "canon_berkshire"
+        ],
+        "expected_dissent_topics": [
+          "smart_contract_risk",
+          "leverage_unwind_risk",
+          "vault_parameter_change_risk"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.3,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 1.0,
+        "dissent_grounding": 0.0,
+        "confidence_calibration": 0.4
+      },
+      "passed": false,
+      "judge_notes": "Citation relevance is low: citations 1-7 are generic Kamino staking-yield API entries for unrelated token mints (not the JLP-USDC multiply vault specifically), and citations 8-12 are canon boilerplate (Berkshire 1978 letter with garbled binary, Mauboussin on confidence, Damodaran on real options, BIS stablecoin paper, Marks memo) with no direct bearing on JLP-USDC multiply vault parameters or leverage mechanics. No citation directly addresses the JLP-USDC multiply vault. Hallucination score is clean: no specific ungrounded USD price, TVL, or APY figure for the JLP-USDC multiply vault appears in the verdict text itself. Dissent grounding is 0: all 7 agent turns failed with RateLimitError, so none of the expected dissent topics (smart_contract_risk, leverage_unwind_risk, vault_parameter_change_risk) were surfaced in blocker_questions, surviving dissent, or critic turns \u2014 blocker_questions list is empty and dissent_count is 0. Confidence calibration is poor: a 0.5 confidence DEFER verdict was issued with zero functioning agent turns and no substantive analysis, making the confidence figure essentially arbitrary rather than calibrated to citation strength or dissent signals.",
+      "wall_seconds": {
+        "panel": 18.74,
+        "judge": 11.17
+      }
+    },
+    {
+      "id": "kamino-sol-leverage-entry",
+      "protocol": "kamino",
+      "vertical": "dex",
+      "as_of_date": "2026-05-16",
+      "panel": {
+        "verdict": "defer",
+        "confidence": 0.5,
+        "dissent_count": 0,
+        "blocker_questions": [],
+        "n_citations": 12,
+        "provider_kinds_present": [
+          "canon_berkshire",
+          "canon_damodaran",
+          "canon_macro",
+          "canon_marks",
+          "canon_mauboussin",
+          "protocol_native"
+        ],
+        "citations": [
+          {
+            "id": 1,
+            "chunk_id": "6a08c102a9688605b656c9d9",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/kamino-market",
+            "snippet": "Protocol-native API: kamino/kamino-markets (as of 2026-05-16). Kamino rstSOL/bbSOL Leverage Market \u2014 described as rstSOL/bbSOL leverage pool, lending-market pubkey SZ8MbzSojH84K41jYGUvMJDSCTCWgemh3vanWtCx181. Source: https://api.kamino.fina"
+          },
+          {
+            "id": 2,
+            "chunk_id": "6a08c102a9688605b656c9d7",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/kamino-market",
+            "snippet": "Protocol-native API: kamino/kamino-markets (as of 2026-05-16). Kamino Exponent PT-SOL Market \u2014 described as Exponent PT-SOL/SOL leverage pool, lending-market pubkey F4Pn9mAvbUazDmWET5yYATTiyLHLaCRTWgGex4tiMXAs. Source: https://api.kamino.fi"
+          },
+          {
+            "id": 3,
+            "chunk_id": "6a08c102a9688605b656c9d1",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/kamino-market",
+            "snippet": "Protocol-native API: kamino/kamino-markets (as of 2026-05-16). Kamino Jito Market \u2014 described as JitoSOL-SOL 10x leverage pool, lending-market pubkey H6rHXmXoCQvq8Ue81MqNh7ow5ysPa1dSozwW3PU1dDH6. Source: https://api.kamino.finance/v2/kamino"
+          },
+          {
+            "id": 4,
+            "chunk_id": "6a08c102a9688605b656c9d6",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/kamino-market",
+            "snippet": "Protocol-native API: kamino/kamino-markets (as of 2026-05-16). Kamino Marinade Market \u2014 described as MSOL-SOL 10x leverage pool, lending-market pubkey GVDUXFwS8uvBG35RjZv6Y8S1AkV5uASiMJ9qTUKqb5PL. Source: https://api.kamino.finance/v2/kamin"
+          },
+          {
+            "id": 5,
+            "chunk_id": "6a08c102a9688605b656c9e4",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/kamino-market",
+            "snippet": "Protocol-native API: kamino/kamino-markets (as of 2026-05-16). Kamino Offchain Collateral Market \u2014 described as Custodied SOL leverage pool, lending-market pubkey 4pEmnimmqXkx9dRbQdLCGuYu9ZhhATjhTkC9wu9ezKUc. Source: https://api.kamino.fina"
+          },
+          {
+            "id": 6,
+            "chunk_id": "6a08c102a9688605b656c9e2",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/kamino-market",
+            "snippet": "Protocol-native API: kamino/kamino-markets (as of 2026-05-16). Kamino Superstate Opening Bell Market \u2014 described as Superstate stocks leverage pool, lending-market pubkey CF32kn7AY8X1bW7ZkGcHc4X9ZWTxqKGCJk6QwrQkDcdw. Source: https://api.kam"
+          },
+          {
+            "id": 7,
+            "chunk_id": "6a08c102a9688605b656c9e1",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/kamino-market",
+            "snippet": "Protocol-native API: kamino/kamino-markets (as of 2026-05-16). Kamino Solstice Market \u2014 described as eUSX leverage pool, lending-market pubkey 9Y7uwXgQ68mGqRtZfuFaP4hc4fxeJ7cE9zTtqTxVhfGU. Source: https://api.kamino.finance/v2/kamino-market"
+          },
+          {
+            "id": 8,
+            "chunk_id": "6a02125b67347ee7d9680120",
+            "source": "web",
+            "provider_kind": "canon_marks",
+            "freshness_tier": "static",
+            "url": "https://www.oaktreecapital.com/insights/memo/further-thoughts-on-sea-change",
+            "snippet": "is the potential for profit there is also the possibility of loss. This memorandum is being made available for educational purposes only and should not be used for any other purpose. The information contained herein does not constitute and "
+          },
+          {
+            "id": 9,
+            "chunk_id": "6a021b88600a85667fd2c794",
+            "source": "web",
+            "provider_kind": "canon_damodaran",
+            "freshness_tier": "static",
+            "url": "https://www.stern.nyu.edu/~adamodar/pdfiles/papers/Transparency.pdf",
+            "snippet": "=5 5\r\nExpected Growth\r\nrate\r\n4. Unsustainably high return Is your firm's ROC much higher than industry\r\naverage? Yes Yes=5 5\r\n1. Multiple businesses Number of businesses (more than 10% of\r\nrevenues) = 2 1.00 2\r\n2. Operations in emerging mar"
+          },
+          {
+            "id": 10,
+            "chunk_id": "6a0539528c085826f9a037de",
+            "source": "web",
+            "provider_kind": "canon_mauboussin",
+            "freshness_tier": "static",
+            "url": "https://www.morganstanley.com/im/publication/insights/articles/article_confidence.pdf",
+            "snippet": "a complex system. As Hardin \r\nwrites, the essential question with ecolate analysis is, \u201cAnd then what?\u201d See Garrett Hardin, Filters Against Folly: \r\nHow to Survive Despite Economists, Ecologists, and the Merely Eloquent (New York: Penguin B"
+          },
+          {
+            "id": 11,
+            "chunk_id": "6a0538df177dc0b1aff1fd3e",
+            "source": "web",
+            "provider_kind": "canon_macro",
+            "freshness_tier": "static",
+            "url": "https://www.federalreserve.gov/econres/feds/files/2024011r1pap.pdf",
+            "snippet": "thermore, panel 3 of table (2) shows that shock estimates are never zero throughout the ELB period\r\nand about 66 percent are negative and hence expansionary in periods of record monetary stimulus. The\r\nlargest negative observations occurred"
+          },
+          {
+            "id": 12,
+            "chunk_id": "6a051bb4df7f467ce41816ed",
+            "source": "web",
+            "provider_kind": "canon_berkshire",
+            "freshness_tier": "static",
+            "url": "https://www.berkshirehathaway.com/letters/1985.html",
+            "snippet": "\"\ufffd}n=\ufffdKl\ufffd )\ufffd\ufffd3\ufffd\ufffdtg \ufffd9\ufffdf\ufffd\ufffd\u0482\u0791M5\ufffd\ufffd\ufffd\ufffdNAj\u007f)v\ufffd\ufffd\ufffd\u05c7\ufffd\ufffd\u0300\ufffd=K\ufffd/\u071a\u061d\ufffd\u01d3 O9\ufffd9.G\ufffd<\ufffd\ufffdn\ufffd309m\ufffd@I\ufffdmq5\ufffd \ufffd\\\u020b#\ufffdk\ufffd\ufffdlC\\\ufffd\ufffdhUyS\ufffd\ufffd\ufffd\ufffdD\u425e\ufffd*\ufffd\ufffdpU\ufffd\ufffd+=\ufffd\ufffdN\ufffd\ufffd\ufffd\"a\ufffdT^\ufffdAs\ufffd\ufffd[WR\ufffd\ufffdi\ufffd\ufffda\ufffd.\ufffd'GW\ufffd\ufffd)\u0215\ufffde\ufffd\ufffd\ub120l\u3874XPE:\ufffd\ufffd\u016cg\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdM\ufffd\ufffd\ufffd7\ufffd7`\u0668'\ufffd\ufffdTm\ufffd\ufffd\u05e7 \ufffd\ufffd\u0215\ufffdI\ufffd\ufffd N\ufffdvi\ufffd\u01d9\ufffd\ufffd\ufffd\ufffd\ufffdfpv\ufffd\u0453 O\ufffdi\ufffd\u0331\ufffd4Xj+\ufffdQ\ufffdnt\ufffdU\ufffd \ufffdVw\ufffdF\ufffd\ufffd\ufffd"
+          }
+        ],
+        "turns": [
+          {
+            "agent": "technical_analyst",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "sentiment_analyst",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "fundamental_analyst",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "risk_manager",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "strategist",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "bull_bear_debater",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "coordinator",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          }
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "DEFER",
+        "expected_verdict_v2_set": [
+          "ACT",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "protocol_native",
+          "canon_marks",
+          "canon_damodaran",
+          "canon_berkshire"
+        ],
+        "expected_dissent_topics": [
+          "liquidation_cascade_risk",
+          "drawdown_path_risk",
+          "audit_status_uncertainty",
+          "leverage_unwind_risk"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.5,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 1.0,
+        "dissent_grounding": 0.0,
+        "confidence_calibration": 0.5
+      },
+      "passed": false,
+      "judge_notes": "Citations 1-7 are Kamino protocol-native market data (on-topic for the protocol/vertical). Citations 8-12 are canon boilerplate (Marks, Damodaran, Mauboussin, Fed paper, Berkshire letter) with only tangential relevance to the specific leverage question \u2014 citation 12 is garbled binary. No specific ungrounded price/APY/liquidation figures appear in the verdict text, so no hallucination pattern fires. However, all 7 agent turns failed with RateLimitError, meaning no dissent was actually surfaced \u2014 none of the expected dissent topics (liquidation_cascade_risk, drawdown_path_risk, audit_status_uncertainty, leverage_unwind_risk) appear in blocker_questions, surviving dissent, or any critic turn. dissent_count=0 and blocker_questions=[] confirm this. Confidence of 0.5 with a DEFER verdict is directionally reasonable given the structural risk of 3x leverage, but the panel produced no substantive reasoning to justify even that calibration \u2014 all voices failed, making the confidence somewhat arbitrary rather than well-grounded.",
+      "wall_seconds": {
+        "panel": 17.09,
+        "judge": 9.63
+      }
+    },
+    {
+      "id": "kamino-jitosol-vault",
+      "protocol": "kamino",
+      "vertical": "dex",
+      "as_of_date": "2026-05-16",
+      "panel": {
+        "verdict": "defer",
+        "confidence": 0.5,
+        "dissent_count": 0,
+        "blocker_questions": [],
+        "n_citations": 12,
+        "provider_kinds_present": [
+          "canon_berkshire",
+          "canon_damodaran",
+          "canon_macro",
+          "canon_marks",
+          "canon_mauboussin",
+          "protocol_native"
+        ],
+        "citations": [
+          {
+            "id": 1,
+            "chunk_id": "6a08c102a9688605b656c9d1",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/kamino-market",
+            "snippet": "Protocol-native API: kamino/kamino-markets (as of 2026-05-16). Kamino Jito Market \u2014 described as JitoSOL-SOL 10x leverage pool, lending-market pubkey H6rHXmXoCQvq8Ue81MqNh7ow5ysPa1dSozwW3PU1dDH6. Source: https://api.kamino.finance/v2/kamino"
+          },
+          {
+            "id": 2,
+            "chunk_id": "6a08c102a9688605b656c9d6",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/kamino-market",
+            "snippet": "Protocol-native API: kamino/kamino-markets (as of 2026-05-16). Kamino Marinade Market \u2014 described as MSOL-SOL 10x leverage pool, lending-market pubkey GVDUXFwS8uvBG35RjZv6Y8S1AkV5uASiMJ9qTUKqb5PL. Source: https://api.kamino.finance/v2/kamin"
+          },
+          {
+            "id": 3,
+            "chunk_id": "6a08c10fa9688605b656ca17",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/staking-yields",
+            "snippet": "Protocol-native API: kamino/kamino-staking-yields (as of 2026-05-16). Kamino kamino-staking-yields \u2014 APY 0.056612477266797824, token mint J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn. Source: https://api.kamino.finance/v2/staking-yields."
+          },
+          {
+            "id": 4,
+            "chunk_id": "6a08c10fa9688605b656ca28",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/staking-yields",
+            "snippet": "Protocol-native API: kamino/kamino-staking-yields (as of 2026-05-16). Kamino kamino-staking-yields \u2014 APY 0.0059214846463842062, token mint ezSoL6fY1PVdJcJsUpe5CM3xkfmy3zoVCABybm5WtiC. Source: https://api.kamino.finance/v2/staking-yields."
+          },
+          {
+            "id": 5,
+            "chunk_id": "6a08c10fa9688605b656ca18",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/staking-yields",
+            "snippet": "Protocol-native API: kamino/kamino-staking-yields (as of 2026-05-16). Kamino kamino-staking-yields \u2014 APY 0.0590835448639495717, token mint CgnTSoL3DgY9SFHxcLj6CgCgKKoTBr6tp4CPAEWy25DE. Source: https://api.kamino.finance/v2/staking-yields."
+          },
+          {
+            "id": 6,
+            "chunk_id": "6a08c10fa9688605b656ca1c",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/staking-yields",
+            "snippet": "Protocol-native API: kamino/kamino-staking-yields (as of 2026-05-16). Kamino kamino-staking-yields \u2014 APY 0.061364789247030438, token mint jupSoLaHXQiZZTSfEWMTRRgpnyFm8f6sZdosWBjx93v. Source: https://api.kamino.finance/v2/staking-yields."
+          },
+          {
+            "id": 7,
+            "chunk_id": "6a08c10fa9688605b656ca38",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/staking-yields",
+            "snippet": "Protocol-native API: kamino/kamino-staking-yields (as of 2026-05-16). Kamino kamino-staking-yields \u2014 APY 0.0537841073667378319, token mint jag58eRBC1c88LaAsRPspTMvoKJPbnzw9p9fREzHqyV. Source: https://api.kamino.finance/v2/staking-yields."
+          },
+          {
+            "id": 8,
+            "chunk_id": "6a021a68600a85667fd2c114",
+            "source": "web",
+            "provider_kind": "canon_damodaran",
+            "freshness_tier": "static",
+            "url": "https://www.stern.nyu.edu/~adamodar/pdfiles/papers/nothingisriskfree.pdf",
+            "snippet": ".09%\r\n1987 9.30% -0.20% 10.09%\r\n1988 9.40% 0.10% 23.37%\r\n1989 10.40% 1.00% -10.61%\r\n1990 11.40% 1.00% 24.62%\r\n1991 7.60% -3.80% 4.09%\r\n1992 8.30% 0.70% 6.98%\r\n1993 7.80% -0.50% -2.66%\r\n1994 8.30% 0.50% 31.68%\r\n1995 7.80% -0.50% 18.79%\r\n1996"
+          },
+          {
+            "id": 9,
+            "chunk_id": "6a0538ee177dc0b1aff1fdaa",
+            "source": "web",
+            "provider_kind": "canon_macro",
+            "freshness_tier": "static",
+            "url": "https://www.bis.org/publ/work1270.pdf",
+            "snippet": "possible\r\nthat the IRF estimates in Figure 12 are also subject to endogeneity from omit\ufffeted variable bias. For example, macroeconomic conditions can jointly impact\r\nthe demand for cryptocurrencies and stablecoins while also impacting Trea\ufffes"
+          },
+          {
+            "id": 10,
+            "chunk_id": "6a05394e8c085826f9a037c0",
+            "source": "web",
+            "provider_kind": "canon_mauboussin",
+            "freshness_tier": "static",
+            "url": "https://www.morganstanley.com/im/publication/insights/articles/article_probabilitiesandpayoffs.pdf",
+            "snippet": "-5.5\r\n5.5-6.0\r\n6.0-6.5\r\n6.5-7.0\r\n7.0-7.5\r\n7.5-8.0\r\n8.0-8.5\r\n8.5-9.0\r\n9.0-9.5\r\n9.5-10.0\r\n>10.0\r\nFrequency (Percent)\r\nMultiple of Invested Capital\n\n \r\n\u00a9 2026 Morgan Stanley. All rights reserved. 5184426 Exp. 2/29/2028 27\r\nIf you extend the ti"
+          },
+          {
+            "id": 11,
+            "chunk_id": "6a0212c067347ee7d96802b4",
+            "source": "web",
+            "provider_kind": "canon_marks",
+            "freshness_tier": "static",
+            "url": "https://www.oaktreecapital.com/insights/memo/what-really-matters",
+            "snippet": "not convinced is usually the case. \u201cWhat about you?\u201d I asked. \u201cIf you help a client establish an appropriate asset allocation, does it follow that you\u2019re not earning your fees if you don\u2019t change it a month later?\u201d Likewise, the day The Ill"
+          },
+          {
+            "id": 12,
+            "chunk_id": "6a051c66df7f467ce4181b90",
+            "source": "web",
+            "provider_kind": "canon_berkshire",
+            "freshness_tier": "static",
+            "url": "https://www.berkshirehathaway.com/letters/2016ltr.pdf",
+            "snippet": ".5% 16.8% 26.6%\r\n2010 5.9% 6.8% 13.3% 4.9% 11.9% 15.1%\r\n2011 -6.3% -1.3% 5.9% -6.3% -2.8% 2.1%\r\n2012 3.4% 9.6% 5.7% 6.2% 9.1% 16.0%\r\n2013 10.5% 15.2% 8.8% 14.2% 14.4% 32.3%\r\n2014 4.7% 4.0% 18.9% 0.7% -2.1% 13.6%\r\n2015 1.6% 2.5% 5.4% 1.4% -5"
+          }
+        ],
+        "turns": [
+          {
+            "agent": "technical_analyst",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "sentiment_analyst",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "fundamental_analyst",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "risk_manager",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "strategist",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "bull_bear_debater",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "coordinator",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          }
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "DEFER",
+        "expected_verdict_v2_set": [
+          "PASS",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "protocol_native",
+          "canon_damodaran",
+          "canon_marks"
+        ],
+        "expected_dissent_topics": [
+          "marginal_yield_uplift_risk",
+          "peg_deviation_risk",
+          "transaction_cost_overhead"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.35,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 1.0,
+        "dissent_grounding": 0.0,
+        "confidence_calibration": 0.5
+      },
+      "passed": false,
+      "judge_notes": "Citation relevance: Citations 1 and 3 are directly on-topic (Kamino market API and JitoSOL staking yields). Citations 4-7 reference other LST staking yields not directly relevant to JitoSOL-SOL vault comparison. Citations 2 references MSOL-SOL market (tangential). Citations 8-12 are generic canon boilerplate (Damodaran, BIS, Mauboussin, Marks, Berkshire) with zero relevance to Kamino/JitoSOL/SOL vault mechanics \u2014 dragging relevance down significantly. Hallucination: No specific APY differential, peg figure, or guaranteed outperformance claim appears in the verdict text; the staking yield figures in citations 3-7 are sourced from protocol_native API with daily freshness, so they are grounded. No must_not_hallucinate pattern triggered. Dissent grounding: All 7 agent turns failed with RateLimitError \u2014 no dissent was produced at all. None of the expected dissent topics (marginal_yield_uplift_risk, peg_deviation_risk, transaction_cost_overhead) appear in blocker_questions (empty) or surviving dissent (dissent_count=0). Score 0.0. Confidence calibration: Panel returned 0.5 confidence with a DEFER verdict, which is directionally reasonable given the thin-yield context and the why_context note. However, all agent voices failed, so the confidence is essentially ungrounded by any deliberation \u2014 mild miscalibration, not severe, since 0.5 is a neutral/cautious level consistent with DEFER.",
+      "wall_seconds": {
+        "panel": 18.64,
+        "judge": 12.31
+      }
+    },
+    {
+      "id": "kamino-usdc-pyusd-roll",
+      "protocol": "kamino",
+      "vertical": "dex",
+      "as_of_date": "2026-05-16",
+      "panel": {
+        "verdict": "defer",
+        "confidence": 0.5,
+        "dissent_count": 0,
+        "blocker_questions": [],
+        "n_citations": 12,
+        "provider_kinds_present": [
+          "canon_berkshire",
+          "canon_damodaran",
+          "canon_macro",
+          "canon_marks",
+          "canon_mauboussin",
+          "protocol_native"
+        ],
+        "citations": [
+          {
+            "id": 1,
+            "chunk_id": "6a08c10fa9688605b656ca37",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/staking-yields",
+            "snippet": "Protocol-native API: kamino/kamino-staking-yields (as of 2026-05-16). Kamino kamino-staking-yields \u2014 APY 0.0540661895441687778, token mint 3sfANVyJiq5uZCZvyizaDzBtHQQTNBr6RBGdXVmFcN5p. Source: https://api.kamino.finance/v2/staking-yields."
+          },
+          {
+            "id": 2,
+            "chunk_id": "6a08c10fa9688605b656ca39",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/staking-yields",
+            "snippet": "Protocol-native API: kamino/kamino-staking-yields (as of 2026-05-16). Kamino kamino-staking-yields \u2014 APY 0.0303333556786011283, token mint 6umRHtiuBd1PC6HQhfH9ioNsqY4ihZncZXNPiGu3d3rN. Source: https://api.kamino.finance/v2/staking-yields."
+          },
+          {
+            "id": 3,
+            "chunk_id": "6a08c10fa9688605b656ca22",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/staking-yields",
+            "snippet": "Protocol-native API: kamino/kamino-staking-yields (as of 2026-05-16). Kamino kamino-staking-yields \u2014 APY 0.0549264036619016591, token mint picobAEvs6w7QEknPce34wAE4gknZA9v5tTonnmHYdX. Source: https://api.kamino.finance/v2/staking-yields."
+          },
+          {
+            "id": 4,
+            "chunk_id": "6a08c10fa9688605b656ca1d",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/staking-yields",
+            "snippet": "Protocol-native API: kamino/kamino-staking-yields (as of 2026-05-16). Kamino kamino-staking-yields \u2014 APY 0.0644500838495086185, token mint he1iusmfkpAdwvxLNGV8Y1iSbj4rUy6yMhEA3fotn9A. Source: https://api.kamino.finance/v2/staking-yields."
+          },
+          {
+            "id": 5,
+            "chunk_id": "6a08c10fa9688605b656ca32",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/staking-yields",
+            "snippet": "Protocol-native API: kamino/kamino-staking-yields (as of 2026-05-16). Kamino kamino-staking-yields \u2014 APY 0.063667546775499804, token mint pSo1f9nQXWgXibFtKf7NWYxb5enAM4qfP6UJSiXRQfL. Source: https://api.kamino.finance/v2/staking-yields."
+          },
+          {
+            "id": 6,
+            "chunk_id": "6a08c10fa9688605b656ca1c",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/staking-yields",
+            "snippet": "Protocol-native API: kamino/kamino-staking-yields (as of 2026-05-16). Kamino kamino-staking-yields \u2014 APY 0.061364789247030438, token mint jupSoLaHXQiZZTSfEWMTRRgpnyFm8f6sZdosWBjx93v. Source: https://api.kamino.finance/v2/staking-yields."
+          },
+          {
+            "id": 7,
+            "chunk_id": "6a08c10fa9688605b656ca2d",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/staking-yields",
+            "snippet": "Protocol-native API: kamino/kamino-staking-yields (as of 2026-05-16). Kamino kamino-staking-yields \u2014 APY 0.0557047584650272856, token mint sctmY8fJucsJatwHz6P48RuWBBkdBMNmSMuBYrWFdrw. Source: https://api.kamino.finance/v2/staking-yields."
+          },
+          {
+            "id": 8,
+            "chunk_id": "6a0538ee177dc0b1aff1fd9b",
+            "source": "web",
+            "provider_kind": "canon_macro",
+            "freshness_tier": "static",
+            "url": "https://www.bis.org/publ/work1270.pdf",
+            "snippet": ". Dev. Min Max\r\n5-day stablecoin flow ($B) 1,091 0.812 1.747 \u22124.019 11.539\r\n5-day USDT flow ($B) 1,091 0.555 1.202 \u22128.684 5.308\r\n5-day USDC flow ($B) 1,091 0.247 1.148 \u22126.533 7.716\r\n5-day MMF flow ($B) 1,090 22.075 70.741 \u2212296.427 315.523\r\n"
+          },
+          {
+            "id": 9,
+            "chunk_id": "6a05394e8c085826f9a037b6",
+            "source": "web",
+            "provider_kind": "canon_mauboussin",
+            "freshness_tier": "static",
+            "url": "https://www.morganstanley.com/im/publication/insights/articles/article_probabilitiesandpayoffs.pdf",
+            "snippet": "made one bet of one dollar per week but could not \r\nreinvest his winnings, he should maximize expected value. This is Markowitz. \r\nBut the math changes if the winnings are reinvested from one period to the next. Instead of seeking the outco"
+          },
+          {
+            "id": 10,
+            "chunk_id": "6a02126067347ee7d9680125",
+            "source": "web",
+            "provider_kind": "canon_marks",
+            "freshness_tier": "static",
+            "url": "https://www.oaktreecapital.com/insights/memo/gimme-credit",
+            "snippet": "\u2019ll do so to a lesser degree when they\u2019re optimistic about creditworthiness. Thus, the spread is a good barometer of investor psychology, or a \u201cfear gauge.\u201d It\u2019s worth noting the obvious: the spread doesn\u2019t tell you what the actual default "
+          },
+          {
+            "id": 11,
+            "chunk_id": "6a021a5c600a85667fd2c0a6",
+            "source": "web",
+            "provider_kind": "canon_damodaran",
+            "freshness_tier": "static",
+            "url": "https://www.stern.nyu.edu/~adamodar/pdfiles/papers/ERP2012.pdf",
+            "snippet": "23%\r\nEven using all of the entire Ibbotson data (about 85 years) yields a substantial standard \r\nerror of 2.2%. Note that that the standard errors from ten-year and twenty-year estimates \r\nare likely to be almost as large or larger than the"
+          },
+          {
+            "id": 12,
+            "chunk_id": "6a051bf3df7f467ce4181851",
+            "source": "web",
+            "provider_kind": "canon_berkshire",
+            "freshness_tier": "static",
+            "url": "https://www.berkshirehathaway.com/letters/1997.html",
+            "snippet": "1) (2) Yearend Yield Underwriting Approximate on Long-Term Loss Average Float Cost of Funds Govt. Bonds (In $ Millions) (Ratio of 1 to 2) 1967 profit 17.3 less than zero 5.50% 1968 profit 19.9 less than zero 5.90% 1969 profit 23.4 less than"
+          }
+        ],
+        "turns": [
+          {
+            "agent": "technical_analyst",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "sentiment_analyst",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "fundamental_analyst",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "risk_manager",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "strategist",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "bull_bear_debater",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "coordinator",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          }
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "PASS",
+        "expected_verdict_v2_set": [
+          "PASS",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "protocol_native",
+          "canon_marks",
+          "canon_damodaran"
+        ],
+        "expected_dissent_topics": [
+          "yield_trap_risk",
+          "stablecoin_peg_risk",
+          "opportunity_cost"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.3,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 1.0,
+        "dissent_grounding": 0.0,
+        "confidence_calibration": 0.5
+      },
+      "passed": false,
+      "judge_notes": "Citation relevance: Citations 1-7 are Kamino staking-yield API pulls (protocol-native, daily) and are broadly on-topic for Kamino yield questions, but none are specifically tied to the USDC-PYUSD vault; the token mints are unidentified and may correspond to LST vaults rather than the stablecoin pair in question. Citations 8-12 are generic canon boilerplate (BIS stablecoin flows, Mauboussin, Marks, Damodaran ERP, Berkshire letters) with no direct relevance to the specific vault or question. Roughly 40-50% on-topic at best. Hallucination: No specific APY figure for the USDC-PYUSD vault is cited without a source, no peg deviation is asserted, and no guaranteed roll-forward yield is claimed. The verdict text itself is minimal (defer, 0.5 confidence) and all agent turns failed with RateLimitError, so no hallucination patterns are present. Dissent grounding: All 7 agent voices failed (RateLimitError), producing zero substantive turns. No expected dissent topics (yield_trap_risk, stablecoin_peg_risk, opportunity_cost) were surfaced in blocker_questions, surviving dissent, or any critic turn. dissent_count=0 and blocker_questions=[] confirm this. Confidence calibration: The panel returned 0.5 confidence with all agents failed and no substantive analysis \u2014 this is mildly reasonable as a fallback/uncertain posture, but the confidence is arguably slightly high given zero analytical grounding from any agent turn. Mild miscalibration.",
+      "wall_seconds": {
+        "panel": 17.82,
+        "judge": 12.3
+      }
+    },
+    {
+      "id": "drift-sol-perp-long",
+      "protocol": "drift",
+      "vertical": "dex",
+      "as_of_date": "2026-05-16",
+      "panel": {
+        "verdict": "defer",
+        "confidence": 0.5,
+        "dissent_count": 0,
+        "blocker_questions": [],
+        "n_citations": 12,
+        "provider_kinds_present": [
+          "canon_berkshire",
+          "canon_damodaran",
+          "canon_macro",
+          "canon_marks",
+          "canon_mauboussin",
+          "protocol_native"
+        ],
+        "citations": [
+          {
+            "id": 1,
+            "chunk_id": "6a08c115a9688605b656ca52",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://data.api.drift.trade/market/SOL-PERP/fundingRates?limit=30",
+            "snippet": "Protocol-native API: drift/drift-funding-sol-perp (as of 2026-05-16). Drift SOL-PERP funding record \u2014 funding rate 0.000575916, long rate 0.000575916, short rate 0.000575916, oracle price TWAP 82.504218, mark price TWAP 82.501540, period re"
+          },
+          {
+            "id": 2,
+            "chunk_id": "6a08c115a9688605b656ca4a",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://data.api.drift.trade/market/SOL-PERP/fundingRates?limit=30",
+            "snippet": "Protocol-native API: drift/drift-funding-sol-perp (as of 2026-05-16). Drift SOL-PERP funding record \u2014 funding rate -0.000707625, long rate -0.000707625, short rate -0.000707625, oracle price TWAP 82.762221, mark price TWAP 82.728686, period"
+          },
+          {
+            "id": 3,
+            "chunk_id": "6a08c115a9688605b656ca49",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://data.api.drift.trade/market/SOL-PERP/fundingRates?limit=30",
+            "snippet": "Protocol-native API: drift/drift-funding-sol-perp (as of 2026-05-16). Drift SOL-PERP funding record \u2014 funding rate -0.000443250, long rate -0.000443250, short rate -0.000443250, oracle price TWAP 83.011389, mark price TWAP 82.984149, period"
+          },
+          {
+            "id": 4,
+            "chunk_id": "6a08c115a9688605b656ca4c",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://data.api.drift.trade/market/SOL-PERP/fundingRates?limit=30",
+            "snippet": "Protocol-native API: drift/drift-funding-sol-perp (as of 2026-05-16). Drift SOL-PERP funding record \u2014 funding rate -0.000338958, long rate -0.000338958, short rate -0.000338958, oracle price TWAP 82.991924, mark price TWAP 82.967191, period"
+          },
+          {
+            "id": 5,
+            "chunk_id": "6a08c115a9688605b656ca50",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://data.api.drift.trade/market/SOL-PERP/fundingRates?limit=30",
+            "snippet": "Protocol-native API: drift/drift-funding-sol-perp (as of 2026-05-16). Drift SOL-PERP funding record \u2014 funding rate 0.000932791, long rate 0.000932791, short rate 0.000932791, oracle price TWAP 82.817039, mark price TWAP 82.822863, period re"
+          },
+          {
+            "id": 6,
+            "chunk_id": "6a08c115a9688605b656ca53",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://data.api.drift.trade/market/SOL-PERP/fundingRates?limit=30",
+            "snippet": "Protocol-native API: drift/drift-funding-sol-perp (as of 2026-05-16). Drift SOL-PERP funding record \u2014 funding rate 0.000462083, long rate 0.000462083, short rate 0.000462083, oracle price TWAP 82.185181, mark price TWAP 82.179834, period re"
+          },
+          {
+            "id": 7,
+            "chunk_id": "6a08c115a9688605b656ca51",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://data.api.drift.trade/market/SOL-PERP/fundingRates?limit=30",
+            "snippet": "Protocol-native API: drift/drift-funding-sol-perp (as of 2026-05-16). Drift SOL-PERP funding record \u2014 funding rate 0.000908083, long rate 0.000908083, short rate 0.000908083, oracle price TWAP 82.584478, mark price TWAP 82.589756, period re"
+          },
+          {
+            "id": 8,
+            "chunk_id": "6a0538df177dc0b1aff1fd53",
+            "source": "web",
+            "provider_kind": "canon_macro",
+            "freshness_tier": "static",
+            "url": "https://www.federalreserve.gov/econres/feds/files/2024011r1pap.pdf",
+            "snippet": "waRIIc /bhBN03u #FFhBN03u\r\n(c) Full Sample ex. crisis & Covid\r\nAYzS\r\nz\r\nYzS\r\nYzl\r\nYzk\r\nKTS\r\nhhhhhhhhhhhhhhhhhhhhhhh/jhRNIw\r\n77: Mb\r\nhhhhhhhhhhhhhhhhhhhhhhhhh/jhN0hL3j@R0c\r\n#`r Mbh0j\r\n#`rhL3j@R0\r\nhhhhhhhhhhhhhhhhhhhhhhBNj3a,@N<30\r\n#`rh0j\r\nMb"
+          },
+          {
+            "id": 9,
+            "chunk_id": "6a0539528c085826f9a037de",
+            "source": "web",
+            "provider_kind": "canon_mauboussin",
+            "freshness_tier": "static",
+            "url": "https://www.morganstanley.com/im/publication/insights/articles/article_confidence.pdf",
+            "snippet": "a complex system. As Hardin \r\nwrites, the essential question with ecolate analysis is, \u201cAnd then what?\u201d See Garrett Hardin, Filters Against Folly: \r\nHow to Survive Despite Economists, Ecologists, and the Merely Eloquent (New York: Penguin B"
+          },
+          {
+            "id": 10,
+            "chunk_id": "6a021b88600a85667fd2c794",
+            "source": "web",
+            "provider_kind": "canon_damodaran",
+            "freshness_tier": "static",
+            "url": "https://www.stern.nyu.edu/~adamodar/pdfiles/papers/Transparency.pdf",
+            "snippet": "=5 5\r\nExpected Growth\r\nrate\r\n4. Unsustainably high return Is your firm's ROC much higher than industry\r\naverage? Yes Yes=5 5\r\n1. Multiple businesses Number of businesses (more than 10% of\r\nrevenues) = 2 1.00 2\r\n2. Operations in emerging mar"
+          },
+          {
+            "id": 11,
+            "chunk_id": "6a02125367347ee7d96800fe",
+            "source": "web",
+            "provider_kind": "canon_marks",
+            "freshness_tier": "static",
+            "url": "https://www.oaktreecapital.com/insights/memo/easy-money",
+            "snippet": "considerably more optimistic than that, anticipating more/earlier/bigger rate cuts. While on the subject of consensus thinking, I\u2019ll point out the following: Eighteen months ago, it was near-universally accepted that the Fed\u2019s aggressive pr"
+          },
+          {
+            "id": 12,
+            "chunk_id": "6a051bb4df7f467ce41816fe",
+            "source": "web",
+            "provider_kind": "canon_berkshire",
+            "freshness_tier": "static",
+            "url": "https://www.berkshirehathaway.com/letters/1985.html",
+            "snippet": "\ufffdo\ufffd\ufffd\ufffdF\ufffd\ufffd\u07d1\ufffd\ufffd\ufffd)\ufffd\"\ufffd\ufffd\ufffdDo`h\ufffd\ufffd\ufffd\ufffdY\u0472\ufffdBYf\ufffdPB1\ufffd\ufffd\ufffdN8 \ufffd\ufffd+ `\ufffd\ufffd2(\ufffd\ufffd\ufffd\u045f.\ufffd<\ufffd\ufffd\u05e8q\ufffd \ufffd\ufffd\ufffd\ufffd\u0571\ufffd\ufffd)VE2(\ufffdORgI\ufffdU\ufffd^\ufffd`\ufffd^\ufffdN\ufffd;\ufffdU)&\ufffd 2\ufffd\ufffdQg\ufffd \ufffd$^\ufffd\ufffd\ufffdJ \\\ufffdx\ufffd \ufffd6\ufffd\ufffdK\ufffdH:{P\ufffd\ufffdv\ufffdn\ufffd0H\ufffde\ufffd\ufffd'\ufffd\ufffd\ufffdR\ufffdD\ufffd|\ufffd Y\ufffd\ufffd\ufffd5Z\ufffd#\ufffdVL\ufffd<`O\ufffdR\u02d1\ufffd\ufffd\ufffd\ufffdy\ufffd\ufffd\ufffdJ? G\ufffdv~\ufffd\ufffdp\ufffd\ufffd\ufffdr%\ufffdH\ufffdc\ufffd\ufffd\ufffd E\ufffd\ufffdJN \ufffdw\uc56b\ufffd\u0234\ufffd$\ufffd{\ufffd fwZ\ufffd'\ufffd7\ufffd# H9 \ufffd_,\ufffd\ufffd0\ufffd\u01f2\u0322"
+          }
+        ],
+        "turns": [
+          {
+            "agent": "technical_analyst",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "sentiment_analyst",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "fundamental_analyst",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "risk_manager",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "strategist",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "bull_bear_debater",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "coordinator",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          }
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "PASS",
+        "expected_verdict_v2_set": [
+          "PASS",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "protocol_native",
+          "canon_marks",
+          "canon_macro",
+          "canon_damodaran"
+        ],
+        "expected_dissent_topics": [
+          "macro_event_risk",
+          "leverage_unwind_risk",
+          "funding_rate_risk",
+          "liquidation_cascade_risk"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.45,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 1.0,
+        "dissent_grounding": 0.0,
+        "confidence_calibration": 0.4
+      },
+      "passed": false,
+      "judge_notes": "Citations 1-7 are directly on-topic (Drift SOL-PERP funding rate data from protocol-native API, grounding the funding rate figures cited). Citations 8-12 are generic canon boilerplate (Fed paper, Mauboussin, Damodaran, Marks, Berkshire) with no specific relevance to the SOL-PERP/Drift/FOMC trade question \u2014 dragging citation relevance down significantly. No hallucinated figures detected: funding rates and oracle TWAP prices are sourced from protocol_native citations 1-7. No must_not_hallucinate patterns triggered. However, all 7 agent turns failed with RateLimitError, meaning zero substantive deliberation occurred. No dissent topics (macro_event_risk, leverage_unwind_risk, funding_rate_risk, liquidation_cascade_risk) were surfaced in blocker_questions, surviving dissent, or any critic turn \u2014 dissent_count=0 and blocker_questions=[] confirm this. The 'defer' verdict at 0.5 confidence is directionally acceptable but arrived at with no agent reasoning, making confidence calibration poor: the panel cannot justify even 0.5 confidence without any agent analysis, yet the verdict happens to be reasonable. Mild under-confidence relative to what a functioning panel might produce, but given total agent failure the 0.5 is arguably lucky rather than calibrated.",
+      "wall_seconds": {
+        "panel": 16.64,
+        "judge": 10.96
+      }
+    },
+    {
+      "id": "drift-jto-perp-short",
+      "protocol": "drift",
+      "vertical": "dex",
+      "as_of_date": "2026-05-16",
+      "panel": {
+        "verdict": "defer",
+        "confidence": 0.5,
+        "dissent_count": 0,
+        "blocker_questions": [],
+        "n_citations": 12,
+        "provider_kinds_present": [
+          "canon_berkshire",
+          "canon_damodaran",
+          "canon_macro",
+          "canon_marks",
+          "canon_mauboussin",
+          "protocol_native"
+        ],
+        "citations": [
+          {
+            "id": 1,
+            "chunk_id": "6a08c120a9688605b656caa9",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://data.api.drift.trade/stats/markets/prices",
+            "snippet": "Protocol-native API: drift/drift-market-prices (as of 2026-05-16). Drift JTO-PERP \u2014 market index 20, market type perp, 24h-ago price 0.275925, current price , price change . Source: https://data.api.drift.trade/stats/markets/prices."
+          },
+          {
+            "id": 2,
+            "chunk_id": "6a08c120a9688605b656caa4",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://data.api.drift.trade/stats/markets/prices",
+            "snippet": "Protocol-native API: drift/drift-market-prices (as of 2026-05-16). Drift INJ-PERP \u2014 market index 15, market type perp, 24h-ago price 2.892, current price , price change . Source: https://data.api.drift.trade/stats/markets/prices."
+          },
+          {
+            "id": 3,
+            "chunk_id": "6a08c120a9688605b656caad",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://data.api.drift.trade/stats/markets/prices",
+            "snippet": "Protocol-native API: drift/drift-market-prices (as of 2026-05-16). Drift JUP-PERP \u2014 market index 24, market type perp, 24h-ago price 0.1587, current price , price change . Source: https://data.api.drift.trade/stats/markets/prices."
+          },
+          {
+            "id": 4,
+            "chunk_id": "6a08c11ca9688605b656ca78",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://data.api.drift.trade/market/ETH-PERP/fundingRates?limit=30",
+            "snippet": "Protocol-native API: drift/drift-funding-eth-perp (as of 2026-05-16). Drift ETH-PERP funding record \u2014 funding rate -0.013989750, long rate -0.013989750, short rate -0.013989750, oracle price TWAP 2135.266115, mark price TWAP 2134.503308, pe"
+          },
+          {
+            "id": 5,
+            "chunk_id": "6a08c11ca9688605b656ca82",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://data.api.drift.trade/market/ETH-PERP/fundingRates?limit=30",
+            "snippet": "Protocol-native API: drift/drift-funding-eth-perp (as of 2026-05-16). Drift ETH-PERP funding record \u2014 funding rate -0.012109708, long rate -0.012109708, short rate -0.012109708, oracle price TWAP 2132.303524, mark price TWAP 2131.586431, pe"
+          },
+          {
+            "id": 6,
+            "chunk_id": "6a08c11ca9688605b656ca7e",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://data.api.drift.trade/market/ETH-PERP/fundingRates?limit=30",
+            "snippet": "Protocol-native API: drift/drift-funding-eth-perp (as of 2026-05-16). Drift ETH-PERP funding record \u2014 funding rate -0.011508916, long rate -0.011508916, short rate -0.011508916, oracle price TWAP 2132.666186, mark price TWAP 2131.963439, pe"
+          },
+          {
+            "id": 7,
+            "chunk_id": "6a08c11ca9688605b656ca81",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://data.api.drift.trade/market/ETH-PERP/fundingRates?limit=30",
+            "snippet": "Protocol-native API: drift/drift-funding-eth-perp (as of 2026-05-16). Drift ETH-PERP funding record \u2014 funding rate -0.012769291, long rate -0.012769291, short rate -0.012769291, oracle price TWAP 2136.826005, mark price TWAP 2136.092177, pe"
+          },
+          {
+            "id": 8,
+            "chunk_id": "6a0212b067347ee7d9680273",
+            "source": "web",
+            "provider_kind": "canon_marks",
+            "freshness_tier": "static",
+            "url": "https://www.oaktreecapital.com/insights/memo/the-pendulum-in-international-affairs",
+            "snippet": "in the decision. Here\u2019s what I wrote in On Regulation concerning the swing of the pendulum toward and away from regulation of the financial markets: It\u2019s my belief that because both free markets and regulation are imperfect \u2013 and because of"
+          },
+          {
+            "id": 9,
+            "chunk_id": "6a0538ee177dc0b1aff1fdab",
+            "source": "web",
+            "provider_kind": "canon_macro",
+            "freshness_tier": "static",
+            "url": "https://www.bis.org/publ/work1270.pdf",
+            "snippet": "k\r\n\u2032 =\r\n{2Y, 10Y}. A $3.5B inflow is approximately a 2-standard deviation flow. Darker and lighter\r\nshaded regions correspond to 68% and 95% Newey-West confidence bands, respectively. The\r\nright-panel instruments 5-day stablecoin flows in t"
+          },
+          {
+            "id": 10,
+            "chunk_id": "6a021bdf600a85667fd2c939",
+            "source": "web",
+            "provider_kind": "canon_damodaran",
+            "freshness_tier": "static",
+            "url": "https://www.stern.nyu.edu/~adamodar/pdfiles/papers/beydiv.pdf",
+            "snippet": "it maintains effective control, but the carved out entity still has its own\r\nmanagement and board of directors; stockholders in the unit get voting rights. With\r\ntracking stock, the parent company maintains complete control over the tracked"
+          },
+          {
+            "id": 11,
+            "chunk_id": "6a0539578c085826f9a037f0",
+            "source": "web",
+            "provider_kind": "canon_mauboussin",
+            "freshness_tier": "static",
+            "url": "https://www.morganstanley.com/im/publication/insights/articles/article_birthdeathandwealthcreation.pdf",
+            "snippet": "secting \r\nthe Listing Gap: Mergers, Private Equity, or Regulation?\u201d Journal of Financial Markets, forthcoming.\r\n11 Andrea Murphy, ed., \u201cAmerica\u2019s Largest Private Companies,\u201d Forbes, December 1, 2022. See \r\nwww.forbes.com/lists/largest-priva"
+          },
+          {
+            "id": 12,
+            "chunk_id": "6a051befdf7f467ce418182f",
+            "source": "web",
+            "provider_kind": "canon_berkshire",
+            "freshness_tier": "static",
+            "url": "https://www.berkshirehathaway.com/letters/1996.html",
+            "snippet": "=\u05a0\ufffd\ufffd\ufffd1 J\ufffdU\ufffd \u009a\ufffds ~`\ufffd\ufffdk\ufffd6\ufffd\ufffd\ufffdj\ufffd\ufffde\ufffd]\ufffd \ufffd2\ufffd\ufffd%\ufffd\ufffd\ufffd\ufffd\ufffd {?\ufffd \ufffd\ufffd\ufffd=\u0287\ufffd\ufffd7GXT\"\ufffd\ufffd5\ufffdT\ufffd\ufffd8\ufffd\ufffdx\ufffd>\ufffdx\ufffd\ufffdc\ufffd\ufffd\ufffdW\ufffd\ufffdo\ufffd\ufffd\ufffd\ufffdQ\ufffd^l3\ufffdZ\ufffd\ufffd \ufffd\ufffd8Y\ufffd\ufffdcZh\ufffd\ufffd{\ufffdDK\ufffd/\ufffd\ufffdE@2m?9\ufffd\ufffd>\ufffd\ufffd\ufffd\ufffdF\ufffdb+\ufffdX!\ufffd\ufffdP\ufffd\ufffd~\ufffdl\ufffd\ufffd\ufffd}\ufffdV\ufffd\ufffd\ufffd//`c\ufffdGnH\ufffd\ufffd\ufffdE\ufffd_Y\ufffd'\ufffd/\ufffd,\ufffdQ\ufffd\ufffd f5 wD\ufffdC\ufffd!\ufffdo\ufffd\u0758x\ufffd\u04b2\ufffdrC\ufffd\ufffd\ufffdI*i\ufffdt\ufffd*\ufffd\ufffd\ufffd\ufffd^o6\ufffd\ufffd\ufffdC\ufffd\ufffdR\ufffd\ufffd\ufffd\ufffd\ufffd\u061b1*\ufffd\ufffd\ufffd \ufffd\ufffd\ufffd"
+          }
+        ],
+        "turns": [
+          {
+            "agent": "technical_analyst",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "sentiment_analyst",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "fundamental_analyst",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "risk_manager",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "strategist",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "bull_bear_debater",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "coordinator",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          }
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "ACT",
+        "expected_verdict_v2_set": [
+          "ACT",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "protocol_native",
+          "canon_damodaran",
+          "canon_marks"
+        ],
+        "expected_dissent_topics": [
+          "short_squeeze_risk",
+          "funding_rate_risk",
+          "narrative_reversal_risk"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.15,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 1.0,
+        "dissent_grounding": 0.0,
+        "confidence_calibration": 0.4
+      },
+      "passed": false,
+      "judge_notes": "All 7 agent turns failed with RateLimitError \u2014 no substantive analysis was produced. Citation relevance is very low: only citations 1 (JTO-PERP price, incomplete current price field) and 4-7 (ETH-PERP funding rates, not JTO-PERP) are marginally on-topic for Drift perps; citations 2-3 are for unrelated markets (INJ, JUP); citations 8-12 are completely off-topic canon boilerplate (Oaktree memo, BIS paper, Damodaran, Mauboussin, Berkshire letters). No JTO tokenomics/unlock schedule source present. No hallucinated specific figures were asserted in the verdict text (verdict is bare 'defer' with no supporting claims), so hallucination_score=1.0. Dissent grounding is 0.0: no agent surfaced short_squeeze_risk, funding_rate_risk, or narrative_reversal_risk \u2014 all turns were voided. Confidence calibration is mildly off: 0.5 confidence on a completely failed panel with zero substantive analysis is slightly over-confident relative to the information vacuum, but not severely miscalibrated given 0.5 is the midpoint.",
+      "wall_seconds": {
+        "panel": 17.82,
+        "judge": 10.75
+      }
+    },
+    {
+      "id": "jupiter-jlp-vs-jitosol",
+      "protocol": "jupiter",
+      "vertical": "dex",
+      "as_of_date": "2026-05-16",
+      "panel": {
+        "verdict": "defer",
+        "confidence": 0.5,
+        "dissent_count": 0,
+        "blocker_questions": [],
+        "n_citations": 12,
+        "provider_kinds_present": [
+          "canon_berkshire",
+          "canon_damodaran",
+          "canon_macro",
+          "canon_marks",
+          "canon_mauboussin",
+          "protocol_native"
+        ],
+        "citations": [
+          {
+            "id": 1,
+            "chunk_id": "6a08c128a9688605b656cac2",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://lite-api.jup.ag/price/v3?ids=J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn,mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So,bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1,5oVNBeEEQvYi1cX3ir8Dx5n1P7pdxydbGF2X4TxVusJm",
+            "snippet": "Protocol-native API: jupiter/jupiter-lst-prices (as of 2026-05-16). Jupiter Lite-API LST snapshot \u2014 JitoSOL, mSOL, bSOL, INF prices for LST rotation analysis.\n5oVNBeEEQvYi1cX3ir8Dx5n1P7pdxydbGF2X4TxVusJm.blockId: 420175309\n5oVNBeEEQvYi1cX3i"
+          },
+          {
+            "id": 2,
+            "chunk_id": "6a08c132a9688605b656caef",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://lite-api.jup.ag/tokens/v2/tag?query=lst",
+            "snippet": "Protocol-native API: jupiter/jupiter-tokens-lst-list (as of 2026-05-16). Jupiter Jito Staked SOL \u2014 symbol JitoSOL, price $ 110.917, market cap $ 854.93M, FDV $ 854.93M, holders 189.2K, decimals 9. Source: https://lite-api.jup.ag/tokens/v2/t"
+          },
+          {
+            "id": 3,
+            "chunk_id": "6a08c12ca9688605b656cade",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://lite-api.jup.ag/tokens/v2/tag?query=verified",
+            "snippet": "Protocol-native API: jupiter/jupiter-tokens-verified-list (as of 2026-05-16). Jupiter Jito Staked SOL \u2014 symbol JitoSOL, price $ 110.917, market cap $ 854.93M, FDV $ 854.93M, holders 189.2K, decimals 9. Source: https://lite-api.jup.ag/tokens"
+          },
+          {
+            "id": 4,
+            "chunk_id": "6a08c132a9688605b656caf0",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://lite-api.jup.ag/tokens/v2/tag?query=lst",
+            "snippet": "Protocol-native API: jupiter/jupiter-tokens-lst-list (as of 2026-05-16). Jupiter Jupiter Staked SOL \u2014 symbol JupSOL, price $ 102.99, market cap $ 445.04M, FDV $ 445.04M, holders 33.5K, decimals 9. Source: https://lite-api.jup.ag/tokens/v2/t"
+          },
+          {
+            "id": 5,
+            "chunk_id": "6a08c12ca9688605b656cae2",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://lite-api.jup.ag/tokens/v2/tag?query=verified",
+            "snippet": "Protocol-native API: jupiter/jupiter-tokens-verified-list (as of 2026-05-16). Jupiter Jupiter Staked SOL \u2014 symbol JupSOL, price $ 102.99, market cap $ 445.04M, FDV $ 445.04M, holders 33.5K, decimals 9. Source: https://lite-api.jup.ag/tokens"
+          },
+          {
+            "id": 6,
+            "chunk_id": "6a08c132a9688605b656cb02",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://lite-api.jup.ag/tokens/v2/tag?query=lst",
+            "snippet": "Protocol-native API: jupiter/jupiter-tokens-lst-list (as of 2026-05-16). Jupiter Juicy SOL \u2014 symbol jucySOL, price $ 108.118, market cap $ 1.57M, FDV $ 1.57M, holders 3.1K, decimals 9. Source: https://lite-api.jup.ag/tokens/v2/tag?query=lst"
+          },
+          {
+            "id": 7,
+            "chunk_id": "6a08c132a9688605b656cb0f",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://lite-api.jup.ag/tokens/v2/tag?query=lst",
+            "snippet": "Protocol-native API: jupiter/jupiter-tokens-lst-list (as of 2026-05-16). Jupiter Synatra Staked SOL \u2014 symbol ySOL, price $ 165.803, market cap $ 2.84M, FDV $ 2.84M, holders 240, decimals 9. Source: https://lite-api.jup.ag/tokens/v2/tag?quer"
+          },
+          {
+            "id": 8,
+            "chunk_id": "6a051be9df7f467ce4181826",
+            "source": "web",
+            "provider_kind": "canon_berkshire",
+            "freshness_tier": "static",
+            "url": "https://www.berkshirehathaway.com/letters/1995.html",
+            "snippet": "J\ufffdbtG?\ufffdK\ufffd\ufffdB=\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdQ\u007f'\ufffd:.Z!\ufffda\ufffda*\ufffd\ufffd;A\ufffdq\ufffdk, \ufffdXU\ufffd\ufffd}:\ufffd\ufffdVu\ufffdS\ufffdc\ufffdU\ufffdZ\ufffd\ufffd \ufffdlB\\U\ufffd<\ufffdm\"\ufffd\ufffd#\ufffd(\ufffd\ufffdH\ufffdf?PS\ufffd\ufffdK\ufffd\ufffd79l:\ufffdU\ufffd\u01c9Ze\ufffdS\ufffdl\ufffd1\ufffd\ufffd\ufffd\ufffddK \ufffdJN_\ufffdP\ufffd\ufffd=KP\ufffd\ufffd w\ufffd\ufffd:+e$\ufffdb\ufffdT%\u0654\ufffd\u0331\"B\ufffd\u007f& \ufffda\ufffd#\ufffd\ufffd\ufffd\ufffd_\ufffd\ufffd\ufffd.\u07f2\ufffd\ufffd\";<\ufffd\ufffd6\ufffd2p\ufffdd\ufffd1\ufffdH\ufffdm\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd;\u0534\ufffd\ufffd d#\ufffd\\ \ufffdr=\ufffd\ufffdgb\ufffd:LO\\\ufffd'8\ufffd\u0698Rw\ufffd\ufffdtx\ufffd @\ufffd\u070b\ufffd7[\u058ag~\ufffd\ufffdycP\ufffd\ufffd"
+          },
+          {
+            "id": 9,
+            "chunk_id": "6a0212b067347ee7d9680272",
+            "source": "web",
+            "provider_kind": "canon_marks",
+            "freshness_tier": "static",
+            "url": "https://www.oaktreecapital.com/insights/memo/the-pendulum-in-international-affairs",
+            "snippet": ") at the same time that winding down nuclear power generation has increased the region\u2019s need for imported oil and gas. The practice of offshore procurement similarly makes countries and companies dependent on their positive relations with "
+          },
+          {
+            "id": 10,
+            "chunk_id": "6a021bdf600a85667fd2c940",
+            "source": "web",
+            "provider_kind": "canon_damodaran",
+            "freshness_tier": "static",
+            "url": "https://www.stern.nyu.edu/~adamodar/pdfiles/papers/beydiv.pdf",
+            "snippet": "the division be the optimal action?\r\n5. Studies seem to indicate that the price reaction to divestitures that firms are forced to\r\nmake, due to anti-trust laws, is generally negative. How would you reconcile that finding\r\nwith the positive "
+          },
+          {
+            "id": 11,
+            "chunk_id": "6a0538f6177dc0b1aff1fdb8",
+            "source": "web",
+            "provider_kind": "canon_macro",
+            "freshness_tier": "static",
+            "url": "https://www.bis.org/publ/work1164.pdf",
+            "snippet": "\u02c6x\u02c6 represents the signal that\r\nrenders a SC holder just indifferent between redeeming and rolling over. Two conditions\r\ncharacterize this indifference. First, for all xi < \u02c6x\u02c6, the payoff from withdrawing is at least\r\nas large as from main"
+          },
+          {
+            "id": 12,
+            "chunk_id": "6a05394e8c085826f9a037b6",
+            "source": "web",
+            "provider_kind": "canon_mauboussin",
+            "freshness_tier": "static",
+            "url": "https://www.morganstanley.com/im/publication/insights/articles/article_probabilitiesandpayoffs.pdf",
+            "snippet": "made one bet of one dollar per week but could not \r\nreinvest his winnings, he should maximize expected value. This is Markowitz. \r\nBut the math changes if the winnings are reinvested from one period to the next. Instead of seeking the outco"
+          }
+        ],
+        "turns": [
+          {
+            "agent": "technical_analyst",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "sentiment_analyst",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "fundamental_analyst",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "risk_manager",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "strategist",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "bull_bear_debater",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "coordinator",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          }
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "DEFER",
+        "expected_verdict_v2_set": [
+          "ACT",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "protocol_native",
+          "canon_marks",
+          "canon_damodaran"
+        ],
+        "expected_dissent_topics": [
+          "concentration_risk",
+          "jlp_drawdown_risk",
+          "rotation_timing_risk"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.3,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 1.0,
+        "dissent_grounding": 0.0,
+        "confidence_calibration": 0.4
+      },
+      "passed": false,
+      "judge_notes": "Citations 1-7 are marginally relevant (Jupiter/JitoSOL token price data), but citations 8-12 are completely off-topic canon boilerplate (Berkshire letters, Oaktree memos, Damodaran, BIS, Mauboussin) with no bearing on JLP/JitoSOL rotation. No specific ungrounded yield/APY figures were asserted in the verdict text (all agents failed with RateLimitError), so no hallucination pattern triggered. However, all 7 agent turns failed \u2014 the panel produced zero substantive analysis, no dissent, no blocker questions, and no surfacing of expected dissent topics (concentration_risk, jlp_drawdown_risk, rotation_timing_risk). Confidence of 0.5 is mildly reasonable given the DEFER verdict but is essentially ungrounded since no agent reasoning exists to support it \u2014 mild miscalibration.",
+      "wall_seconds": {
+        "panel": 17.58,
+        "judge": 8.12
+      }
+    },
+    {
+      "id": "jupiter-lst-rotation-msol",
+      "protocol": "jupiter",
+      "vertical": "dex",
+      "as_of_date": "2026-05-16",
+      "panel": {
+        "verdict": "defer",
+        "confidence": 0.5,
+        "dissent_count": 0,
+        "blocker_questions": [],
+        "n_citations": 12,
+        "provider_kinds_present": [
+          "canon_berkshire",
+          "canon_damodaran",
+          "canon_macro",
+          "canon_marks",
+          "canon_mauboussin",
+          "protocol_native"
+        ],
+        "citations": [
+          {
+            "id": 1,
+            "chunk_id": "6a08c128a9688605b656cac2",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://lite-api.jup.ag/price/v3?ids=J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn,mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So,bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1,5oVNBeEEQvYi1cX3ir8Dx5n1P7pdxydbGF2X4TxVusJm",
+            "snippet": "Protocol-native API: jupiter/jupiter-lst-prices (as of 2026-05-16). Jupiter Lite-API LST snapshot \u2014 JitoSOL, mSOL, bSOL, INF prices for LST rotation analysis.\n5oVNBeEEQvYi1cX3ir8Dx5n1P7pdxydbGF2X4TxVusJm.blockId: 420175309\n5oVNBeEEQvYi1cX3i"
+          },
+          {
+            "id": 2,
+            "chunk_id": "6a08c132a9688605b656cb09",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://lite-api.jup.ag/tokens/v2/tag?query=lst",
+            "snippet": "Protocol-native API: jupiter/jupiter-tokens-lst-list (as of 2026-05-16). Jupiter Binance Staked SOL \u2014 symbol BNSOL, price $ 96.5526, market cap $ 959.77M, FDV $ 959.77M, holders 14.2K, decimals 9. Source: https://lite-api.jup.ag/tokens/v2/t"
+          },
+          {
+            "id": 3,
+            "chunk_id": "6a04bfad257a849f8e1c091e",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://dev.jup.ag/docs/lend/advanced/multiply",
+            "snippet": "Protocol-native API: jupiter / jupiter-lend-advanced-multiply (as of 2026-05-13).\nEndpoint description: Jupiter Lend multiply (leveraged-yield) \u2014 loop construction, max LTV, unwind path on liquidation risk.\nSource URL: https://dev.jup.ag/do"
+          },
+          {
+            "id": 4,
+            "chunk_id": "6a0808c1aaf2166d3b4deaf0",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://dev.jup.ag/docs/lend/advanced/multiply",
+            "snippet": "Protocol-native API: jupiter/jupiter-lend-advanced-multiply (as of 2026-05-16). Jupiter Lend multiply (leveraged-yield) \u2014 loop construction, max LTV, unwind path on liquidation risk.\nSkip to main content The Jupiter Developer Platform is li"
+          },
+          {
+            "id": 5,
+            "chunk_id": "6a08c132a9688605b656caf8",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://lite-api.jup.ag/tokens/v2/tag?query=lst",
+            "snippet": "Protocol-native API: jupiter/jupiter-tokens-lst-list (as of 2026-05-16). Jupiter BlazeStake Staked SOL (bSOL) \u2014 symbol bSOL, price $ 112.169, market cap $ 89.58M, FDV $ 89.58M, holders 62.2K, decimals 9. Source: https://lite-api.jup.ag/toke"
+          },
+          {
+            "id": 6,
+            "chunk_id": "6a08c132a9688605b656cb0d",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://lite-api.jup.ag/tokens/v2/tag?query=lst",
+            "snippet": "Protocol-native API: jupiter/jupiter-tokens-lst-list (as of 2026-05-16). Jupiter MoonPay Staked SOL \u2014 symbol mpSOL, price $ 91.3624, market cap $ 1.09M, FDV $ 1.09M, holders 3.3K, decimals 9. Source: https://lite-api.jup.ag/tokens/v2/tag?qu"
+          },
+          {
+            "id": 7,
+            "chunk_id": "6a08c132a9688605b656caf1",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://lite-api.jup.ag/tokens/v2/tag?query=lst",
+            "snippet": "Protocol-native API: jupiter/jupiter-tokens-lst-list (as of 2026-05-16). Jupiter Marinade staked SOL (mSOL) \u2014 symbol mSOL, price $ 119.607, market cap $ 274.72M, FDV $ 274.72M, holders 149.9K, decimals 9. Source: https://lite-api.jup.ag/tok"
+          },
+          {
+            "id": 8,
+            "chunk_id": "6a051bb4df7f467ce41816e5",
+            "source": "web",
+            "provider_kind": "canon_berkshire",
+            "freshness_tier": "static",
+            "url": "https://www.berkshirehathaway.com/letters/1985.html",
+            "snippet": "\ufffdT b:\ufffd\ufffddJ0\ufffduh\ufffd\ufffd\ufffdW2Oa\ufffd\ufffd(#\u02ff\ufffd@\ufffdO \ufffd\u00fd\ufffd\ufffd\ufffd\ufffd>\ufffd&\"G)o\ufffd{\ufffd\ufffd8:\ufffd2z@\ufffdv@\ufffd\ufffd9\ufffd [b\ufffd J\ufffd\ufffd0h\ufffd\ufffdO]\ufffd\ufffd\ufffd\ufffd4#\ufffd\ufffd\u007f\ufffdTZ\ufffdH\ufffd\ufffd\u63bbsr<\ufffd\ufffdt^Z\ufffd\ufffdI\ufffd\u2261\ufffd\ufffde\u025a\ufffd\u0170\ufffd\ufffd&\u017a\ufffd\ufffdF\ufffd \ufffd\ufffdm\ufffdLY\ufffd6&2!\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd=\ufffdq\ufffdb-\ufffd \ufffdM \ufffd\ufffd`\ufffd\ufffd\ufffd`\ufffd\ufffdZ-n\ufffd\ufffd(\ufffd\ufffd\ufffdM\ufffd\u028d)\ufffd\ufffd|k\ufffd\u0303\ufffd\ufffd\ufffd\ufffd,x\ufffd\ufffd\ufffd\ufffd\ufffd;Xi\ufffd\ufffd\ufffd\ufffd2\ufffd\ufffd\ufffd\ufffd hu\ufffd\ufffd\ufffd6\ufffdm\u06483\ufffd\ufffd\ufffd\ufffd5\ufffd\ufffdm\ufffd\ufffd<W\ufffdGV P\ufffd\ufffdX\ufffdO\ufffdUtF\ufffd\ufffd\ufffd\ufffd\u0439"
+          },
+          {
+            "id": 9,
+            "chunk_id": "6a0212b067347ee7d9680272",
+            "source": "web",
+            "provider_kind": "canon_marks",
+            "freshness_tier": "static",
+            "url": "https://www.oaktreecapital.com/insights/memo/the-pendulum-in-international-affairs",
+            "snippet": ") at the same time that winding down nuclear power generation has increased the region\u2019s need for imported oil and gas. The practice of offshore procurement similarly makes countries and companies dependent on their positive relations with "
+          },
+          {
+            "id": 10,
+            "chunk_id": "6a0538f6177dc0b1aff1fdcd",
+            "source": "web",
+            "provider_kind": "canon_macro",
+            "freshness_tier": "static",
+            "url": "https://www.bis.org/publ/work1164.pdf",
+            "snippet": "\ufffdx\u02c6, is the\r\nunique solution to\r\n\u02c6x\u02c6 = sup\r\nx\r\n{x \u2208 P \u2229 Q}. (15)\r\nThe greatest equilibrium switching point, \u02c6x, is the unique solution to\r\nx\u02c6 = inf\r\nx\r\n{x \u2208 P\u2032 \u2229 Q\u2032\r\n}. (16)\r\nSince x and \u03b8 are stochastically affiliated, we have \u02c6x\u02c6 \u2264 x\u02c6, an"
+          },
+          {
+            "id": 11,
+            "chunk_id": "6a021bdf600a85667fd2c940",
+            "source": "web",
+            "provider_kind": "canon_damodaran",
+            "freshness_tier": "static",
+            "url": "https://www.stern.nyu.edu/~adamodar/pdfiles/papers/beydiv.pdf",
+            "snippet": "the division be the optimal action?\r\n5. Studies seem to indicate that the price reaction to divestitures that firms are forced to\r\nmake, due to anti-trust laws, is generally negative. How would you reconcile that finding\r\nwith the positive "
+          },
+          {
+            "id": 12,
+            "chunk_id": "6a05395c8c085826f9a03805",
+            "source": "web",
+            "provider_kind": "canon_mauboussin",
+            "freshness_tier": "static",
+            "url": "https://www.morganstanley.com/im/publication/insights/articles/article_totalshareholderreturns.pdf",
+            "snippet": "buybacks always increase EPS is wrong. The common portrayal is that net income \r\nis divided by fewer shares and therefore automatically leads to a boost in EPS. This simplistic analysis neglects \r\nthe fact that the company has to fund the b"
+          }
+        ],
+        "turns": [
+          {
+            "agent": "technical_analyst",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "sentiment_analyst",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "fundamental_analyst",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "risk_manager",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "strategist",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "bull_bear_debater",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "coordinator",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          }
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "PASS",
+        "expected_verdict_v2_set": [
+          "PASS",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "protocol_native",
+          "canon_marks",
+          "canon_damodaran"
+        ],
+        "expected_dissent_topics": [
+          "points_narrative_risk",
+          "peg_deviation_risk",
+          "rotation_cost_overhead"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.5,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 1.0,
+        "dissent_grounding": 0.0,
+        "confidence_calibration": 0.5
+      },
+      "passed": false,
+      "judge_notes": "Citations: ~5-7 of 12 are on-topic (Jupiter LST price API, bSOL/mSOL token data, Jupiter Lend multiply docs); the rest are canon boilerplate (Berkshire letter, BIS paper, Damodaran divestiture paper, Mauboussin EPS paper, Marks geopolitics memo) with no direct relevance to the LST rotation question \u2014 hence ~0.5. Hallucination: no specific ungrounded APY/TVL/points-valuation figures appear in the verdict text; verdict is minimal ('defer', confidence 0.5) with no fabricated numbers, so no must_not_hallucinate patterns triggered \u2014 score 1.0. Dissent grounding: all 7 agent turns failed with RateLimitError, producing zero substantive content; none of the expected dissent topics (points_narrative_risk, peg_deviation_risk, rotation_cost_overhead) were surfaced in blocker_questions, surviving dissent, or critic turns \u2014 score 0.0. Confidence calibration: 0.5 confidence with zero functioning agent turns and no substantive analysis is mildly reasonable as a fallback but is essentially uncalibrated given the complete panel failure; mild over-confidence relative to the near-zero information content \u2014 score 0.5.",
+      "wall_seconds": {
+        "panel": 17.56,
+        "judge": 10.15
+      }
+    },
+    {
+      "id": "jito-mev-tip-band",
+      "protocol": "jito",
+      "vertical": "dex",
+      "as_of_date": "2026-05-16",
+      "panel": {
+        "verdict": "defer",
+        "confidence": 0.5,
+        "dissent_count": 0,
+        "blocker_questions": [],
+        "n_citations": 12,
+        "provider_kinds_present": [
+          "canon_berkshire",
+          "canon_damodaran",
+          "canon_macro",
+          "canon_marks",
+          "canon_mauboussin",
+          "protocol_native"
+        ],
+        "citations": [
+          {
+            "id": 1,
+            "chunk_id": "6a0548d18e715ddfdb6bcc64",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://bundles.jito.wtf/api/v1/bundles/tip_floor",
+            "snippet": "Protocol-native API: jito / jito-mev-tip-floor-live (subkind=mev_tip_data) (as of 2026-05-14).\nEndpoint description: Jito tip-floor percentiles (P25/P50/P75/P95/P99) for bundle landing \u2014 current snapshot. Direct lamport figures that ground "
+          },
+          {
+            "id": 2,
+            "chunk_id": "6a08211a5b55deaf57a9ab02",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://bundles.jito.wtf/api/v1/bundles/tip_floor",
+            "snippet": "Protocol-native API: jito / jito-mev-tip-floor-live (subkind=mev_tip_data) (as of 2026-05-16).\nEndpoint description: Jito tip-floor percentiles (P25/P50/P75/P95/P99) for bundle landing \u2014 current snapshot. Direct lamport figures that ground "
+          },
+          {
+            "id": 3,
+            "chunk_id": "6a03d77e83de92abcb7200d0",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://bundles.jito.wtf/api/v1/bundles/tip_floor",
+            "snippet": "Protocol-native API: jito / jito-tip-floor (as of 2026-05-13).\nEndpoint description: Jito tip-floor percentiles (P25/P50/P75/P95) for bundle landing \u2014 current snapshot. Quote-kind; grounds tip-band decisions in real numbers instead of hallu"
+          },
+          {
+            "id": 4,
+            "chunk_id": "6a04bff201f7e6a8f8783d7a",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://bundles.jito.wtf/api/v1/bundles/tip_floor",
+            "snippet": "Protocol-native API: jito / jito-tip-floor (as of 2026-05-13).\nEndpoint description: Jito tip-floor percentiles (P25/P50/P75/P95/P99) for bundle landing \u2014 current snapshot. Grounds tip-band decisions in real lamport figures.\nSource URL: htt"
+          },
+          {
+            "id": 5,
+            "chunk_id": "6a0808e0aaf2166d3b4deb56",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://bundles.jito.wtf/api/v1/bundles/tip_floor",
+            "snippet": "Protocol-native API: jito/jito-tip-floor (as of 2026-05-16). Jito bundle tip floor \u2014 25th pct 0.000001 SOL; 50th pct 0.00000208 SOL; 75th pct 0.0000053 SOL; 95th pct 0.0001 SOL; 99th pct 0.00025913 SOL. EMA 50th pct 0.00000229 SOL. Source: "
+          },
+          {
+            "id": 6,
+            "chunk_id": "6a04c00501f7e6a8f8783eab",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://docs.jito.wtf/lowlatencytxnsend/",
+            "snippet": "0014479055000000002 , \"landed_tips_99th_percentile\" : 0.010007999 , \"ema_landed_tips_50th_percentile\" : 9.836078125000002e-06 } ] WebSocket showing tip amounts: \uf0c1 wscat - c wss : // bundles . jito . wtf / api / v1 / bundles / tip_stream Tip"
+          },
+          {
+            "id": 7,
+            "chunk_id": "6a0808eeaaf2166d3b4deb6c",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://docs.jito.wtf/lowlatencytxnsend/",
+            "snippet": "Protocol-native API: jito/jito-docs-low-latency-txn-send (as of 2026-05-16). Jito low-latency transaction send \u2014 block engine, bundle submission API (sendBundle, getBundleStatuses, getInflightBundleStatuses, tip accounts), atomicity guarant"
+          },
+          {
+            "id": 8,
+            "chunk_id": "6a051bc2df7f467ce4181755",
+            "source": "web",
+            "provider_kind": "canon_berkshire",
+            "freshness_tier": "static",
+            "url": "https://www.berkshirehathaway.com/letters/1988.html",
+            "snippet": "p7 ]~\ufffd\ufffd'\ufffd\ufffd\ufffd2\ufffd|\ufffd\ufffd\ufffdoYf\ufffd\ufffd\u03d04\ufffdL\ufffd\u5f4eR4\ufffd\ufffd\u0238@\u0428\ufffdj\ufffd7\ufffds\ufffd\ufffd\ufffd1\ufffdlH\ufffd\ufffd 2Ac\ufffd9ApF\ufffd\ufffd!\ufffd-Mq\ufffd\ufffd\ufffd:\ufffd\ufffdgE+#\ufffd a\ufffd\ufffd\ufffdG\ufffd\ufffdl\ufffdt5\ufffd |\ufffdbxd\ufffd\ufffdJ\ufffd\ufffd)\ufffd!\u039bqC\ufffd\ufffd\ufffd5\ufffd$ \ufffd\ufffdwp\ufffd\ufffdE%d\ufffd\ufffd \ufffd\ufffd\ufffd\ufffdBS\ufffd\ufffd\ufffd4\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\u0193w\ufffd U\ufffd\"\ufffdJ\u0584C\ufffd\ufffd@H\ufffd\ufffdH\ufffd\ufffdi!\ufffdM\ufffdt\ufffd\ufffdk\ufffd\ufffd\ufffd\ufffdT\ufffd\ufffdf\ufffd\ufffdp\u03aab\ufffd\ufffd\ufffd\ufffd \ufffd\ufffd3\ufffd l*\ufffd\ufffd\ufffd_e\ufffd\ufffd\u007fk\ufffd\ufffdp\ufffd2\ufffdJ/\ufffd\ufffd\ufffd\ufffd\ufffdk\ufffdZ\ufffdJ,\uce0f\ufffd(\ufffdv|+\ufffd\ufffd\ufffd\ufffd7;\ufffdx8"
+          },
+          {
+            "id": 9,
+            "chunk_id": "6a02125867347ee7d9680109",
+            "source": "web",
+            "provider_kind": "canon_marks",
+            "freshness_tier": "static",
+            "url": "https://www.oaktreecapital.com/insights/memo/fewer-losers-or-more-winners",
+            "snippet": "okovic, Rafael Nadal, and Roger Federer. As a pronounced underdog, Eubanks probably recognized that he wasn\u2019t likely to outlast or out-steady Medvedev. Thus, he had to go for winners. If that was Eubanks\u2019s plan, he succeeded in executing it"
+          },
+          {
+            "id": 10,
+            "chunk_id": "6a0539228c085826f9a036a7",
+            "source": "web",
+            "provider_kind": "canon_mauboussin",
+            "freshness_tier": "static",
+            "url": "https://www.trendfollowing.com/pdfs/UntanglingSkillandLuck.pdf",
+            "snippet": "a very important issue in evaluating investment results, for instance. The \r\nstandard approach is to observe a distribution of outcomes and to make an estimate of the \r\nlikelihood that a really good outcome\u2014a result in the right tail of the"
+          },
+          {
+            "id": 11,
+            "chunk_id": "6a0538f6177dc0b1aff1fdd3",
+            "source": "web",
+            "provider_kind": "canon_macro",
+            "freshness_tier": "static",
+            "url": "https://www.bis.org/publ/work1164.pdf",
+            "snippet": "condition for the issuer. Since only arbitrageurs can\r\nredeem with the issuer, given a switching point x\r\n\u2217\r\n1\r\n, the issuer fails whenever the realized\r\nmass of redemptions is sufficiently large, \u03b8 < \u02dc\u03b8\r\n\u2217\r\n, where\r\n\u02dc\u03b8\r\n\u2217 = \u03bb\u03a6\r\np\r\n\u03b21(x\r\n\u2217\r"
+          },
+          {
+            "id": 12,
+            "chunk_id": "6a021bc5600a85667fd2c8e1",
+            "source": "web",
+            "provider_kind": "canon_damodaran",
+            "freshness_tier": "static",
+            "url": "https://www.stern.nyu.edu/~adamodar/pdfiles/papers/beta.pdf",
+            "snippet": "33\r\nWeekly 1.38\r\nMonthly 1.13\r\nQuarterly 0.44\r\nAnnual 0.77\r\nUsing shorter return intervals increases the number of observations in the regression,\r\nfor any given time period, but it does come with a cost. Assets do not trade on a\r\ncontinuou"
+          }
+        ],
+        "turns": [
+          {
+            "agent": "technical_analyst",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "sentiment_analyst",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "fundamental_analyst",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "risk_manager",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "strategist",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "bull_bear_debater",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "coordinator",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          }
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "ACT",
+        "expected_verdict_v2_set": [
+          "ACT",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "protocol_native",
+          "canon_mauboussin",
+          "canon_damodaran"
+        ],
+        "expected_dissent_topics": [
+          "mempool_depth_volatility",
+          "tip_inflation_risk",
+          "bot_competition_risk"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.5,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 0.0,
+        "dissent_grounding": 0.0,
+        "confidence_calibration": 0.6
+      },
+      "passed": false,
+      "judge_notes": "Citation relevance: Citations 1-7 are directly on-topic (Jito tip-floor protocol-native API, docs), but citations 8-12 are completely irrelevant canon boilerplate (Berkshire letters, Oaktree, Mauboussin, BIS, Damodaran beta paper) \u2014 roughly half the citations are tangential. Hallucination: Citation 5 contains specific SOL lamport figures (P25=0.000001, P50=0.00000208, P75=0.0000053, P95=0.0001, P99=0.00025913) attributed to a protocol_native source dated 2026-05-16, which matches the as_of_date and is grounded in the Jito tip-floor API \u2014 this is correct behavior per S34-#77. However, all 7 agent turns failed with RateLimitError, meaning no agent actually analyzed or cited these figures in reasoning. The verdict text itself does not contain ungrounded specific figures, so no hallucination is scored. Dissent grounding: All 7 agents failed (RateLimitError), producing zero turns with substantive content. None of the expected dissent topics (mempool_depth_volatility, tip_inflation_risk, bot_competition_risk) were surfaced in blocker_questions (empty), surviving dissent (dissent_count=0), or any critic turn. Score = 0.0. Confidence calibration: The panel issued 'defer' at 0.5 confidence with all agents failed and no substantive analysis \u2014 deferring with 0.5 is mildly reasonable given total agent failure, but the blocker_questions list is empty despite the panel having no basis to form any view, which is a mild miscalibration. Score = 0.6.",
+      "wall_seconds": {
+        "panel": 19.67,
+        "judge": 11.43
+      }
+    },
+    {
+      "id": "sanctum-unstake-vs-hold",
+      "protocol": "sanctum",
+      "vertical": "dex",
+      "as_of_date": "2026-05-16",
+      "panel": {
+        "verdict": "defer",
+        "confidence": 0.5,
+        "dissent_count": 0,
+        "blocker_questions": [],
+        "n_citations": 11,
+        "provider_kinds_present": [
+          "canon_berkshire",
+          "canon_damodaran",
+          "canon_marks",
+          "canon_mauboussin",
+          "protocol_native"
+        ],
+        "citations": [
+          {
+            "id": 1,
+            "chunk_id": "6a04c055100c697d90d66586",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://learn.sanctum.so/docs/technical-documentation/infinity-non-technical",
+            "snippet": "Protocol-native API: sanctum / sanctum-infinity-non-technical (as of 2026-05-13).\nEndpoint description: Sanctum Infinity (non-technical) \u2014 INF user-facing explanation, what INF returns, when to use vs router.\nSource URL: https://learn.sanct"
+          },
+          {
+            "id": 2,
+            "chunk_id": "6a04c055100c697d90d66587",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://learn.sanctum.so/docs/technical-documentation/infinity-non-technical",
+            "snippet": "withdraw LST; deposit SOL, mint INF; and deposit INF (redeem), withdraw SOL. Infinity charges a small fee to facilitate these swaps. SOL yield for holders Infinity holds a basket of LSTs inside. Each epoch (approximately 2 days), these LSTs"
+          },
+          {
+            "id": 3,
+            "chunk_id": "6a04c04f100c697d90d6657f",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://learn.sanctum.so/docs/introduction-to-lsts/making-the-state-of-liquid-staking-optimal",
+            "snippet": "Protocol-native API: sanctum / sanctum-optimal-lst-state (as of 2026-05-13).\nEndpoint description: Sanctum on optimal LST state \u2014 fragmentation problem, unified liquidity argument, infrastructure layer.\nSource URL: https://learn.sanctum.so/"
+          },
+          {
+            "id": 4,
+            "chunk_id": "6a03d78383de92abcb7200d3",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://learn.sanctum.so/docs",
+            "snippet": "Protocol-native API: sanctum / sanctum-docs-learn (as of 2026-05-13).\nEndpoint description: Sanctum LSTs + router docs \u2014 INF token, router spread, unstaking mechanics, pool depth. HTML rendered to plain text at ingest.\nSource URL: https://l"
+          },
+          {
+            "id": 5,
+            "chunk_id": "6a04c053100c697d90d66583",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://learn.sanctum.so/docs/technical-documentation/infinity",
+            "snippet": "Protocol-native API: sanctum / sanctum-infinity-technical (as of 2026-05-13).\nEndpoint description: Sanctum Infinity pool \u2014 technical doc: INF as basket LST, underlying LST composition, weight bands, rebalance trigger, peg maintenance, LP f"
+          },
+          {
+            "id": 6,
+            "chunk_id": "6a04c057100c697d90d66589",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://learn.sanctum.so/docs/technical-documentation/reserve",
+            "snippet": "Protocol-native API: sanctum / sanctum-reserve-technical (as of 2026-05-13).\nEndpoint description: Sanctum Reserve \u2014 SOL backing reserves for instant unstakes, fee accrual model, depositor mechanics.\nSource URL: https://learn.sanctum.so/doc"
+          },
+          {
+            "id": 7,
+            "chunk_id": "6a04c071100c697d90d665b8",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://sanctum-extra-api.ngrok.dev/v1/apy/latest?lst=INF",
+            "snippet": "Protocol-native API: sanctum / sanctum-apy-inf (as of 2026-05-13).\nEndpoint description: Sanctum INF latest APY snapshot.\nSource URL: https://sanctum-extra-api.ngrok.dev/v1/apy/latest?lst=INF\nContent kind: quote\n----- body -----\n{\n  \"apys\":"
+          },
+          {
+            "id": 8,
+            "chunk_id": "6a021b48600a85667fd2c627",
+            "source": "web",
+            "provider_kind": "canon_damodaran",
+            "freshness_tier": "static",
+            "url": "https://www.stern.nyu.edu/~adamodar/pdfiles/papers/cashvaluation.pdf",
+            "snippet": "(treasury bills) = 2.25%\n\n14\r\nProportion of cash balance which is wasting cash = 1 \u2013 Book interest rate/ Market interest\r\nrate = 1 - .021/.0225 = 0.0667 or 6.67%\r\nThus, 6.67% of $ 200 million ($13.34 million) would be treated as wasting cas"
+          },
+          {
+            "id": 9,
+            "chunk_id": "6a051c3fdf7f467ce4181a62",
+            "source": "web",
+            "provider_kind": "canon_berkshire",
+            "freshness_tier": "static",
+            "url": "https://www.berkshirehathaway.com/letters/2010ltr.pdf",
+            "snippet": "and Japan. These contracts are tied to various equity indices, such as the S&P 500 in the U.S.\r\nand the FTSE 100 in the U.K. In the 2004-2008 period, we received $4.8 billion of premiums for 47 of these\r\ncontracts, most of which ran for 15 "
+          },
+          {
+            "id": 10,
+            "chunk_id": "6a0212ba67347ee7d96802a1",
+            "source": "web",
+            "provider_kind": "canon_marks",
+            "freshness_tier": "static",
+            "url": "https://www.oaktreecapital.com/insights/memo/thinking-about-macro",
+            "snippet": "like to see a free market in money, and to me that means interest rates that are \u201cnaturally occurring.\u201d Rates held artificially low distort the capital markets, penalizing savers, subsidizing borrowers, lifting asset prices and encouraging "
+          },
+          {
+            "id": 11,
+            "chunk_id": "6a0539528c085826f9a037db",
+            "source": "web",
+            "provider_kind": "canon_mauboussin",
+            "freshness_tier": "static",
+            "url": "https://www.morganstanley.com/im/publication/insights/articles/article_confidence.pdf",
+            "snippet": "of range of reasonable opinion in economics is an open letter that a number of economists, political \r\nstrategists, and investors sent to Ben Bernanke in November 2010. Bernanke was at the time the chairman of \r\nthe Federal Reserve. The let"
+          }
+        ],
+        "turns": [
+          {
+            "agent": "technical_analyst",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "sentiment_analyst",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "fundamental_analyst",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "risk_manager",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "strategist",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "bull_bear_debater",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          },
+          {
+            "agent": "coordinator",
+            "content": "(voice failed: RateLimitError)",
+            "parsed_verdict": null
+          }
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "PASS",
+        "expected_verdict_v2_set": [
+          "PASS",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "protocol_native",
+          "canon_marks",
+          "canon_damodaran"
+        ],
+        "expected_dissent_topics": [
+          "peg_deviation_risk",
+          "router_spread_cost",
+          "yield_continuity_risk"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.55,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 1.0,
+        "dissent_grounding": 0.0,
+        "confidence_calibration": 0.4
+      },
+      "passed": false,
+      "judge_notes": "Citation relevance: 7 of 11 citations are on-topic Sanctum protocol docs (INF mechanics, router, reserve, APY endpoint) \u2014 solid. However, 4 citations (Damodaran, Berkshire, Oaktree, Mauboussin) are completely unrelated canon boilerplate, dragging relevance down. Hallucination: No specific ungrounded figures (INF/SOL peg, router spread, APY) appear in the verdict text \u2014 verdict is just 'defer' with confidence 0.5 and no numeric claims, so no hallucination triggered. Dissent grounding: All 7 agent turns failed with RateLimitError, producing zero substantive content. None of the expected dissent topics (peg_deviation_risk, router_spread_cost, yield_continuity_risk) were surfaced in blocker_questions, surviving dissent, or any critic turn \u2014 dissent_count=0 and blocker_questions=[] confirm this. Confidence calibration: DEFER at 0.5 is a reasonable hedge given total agent failure, but the panel produced no analytical content whatsoever \u2014 all voices failed. A 0.5 confidence on a completely empty analysis is mildly over-confident; a lower confidence or explicit failure flag would be more appropriate. Mild miscalibration.",
+      "wall_seconds": {
+        "panel": 17.96,
+        "judge": 9.97
+      }
+    }
+  ]
+}
