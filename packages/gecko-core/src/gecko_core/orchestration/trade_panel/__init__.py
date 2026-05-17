@@ -83,6 +83,7 @@ __all__ = [
     "build_citations_from_chunks",
     "build_groupchat",
     "load_prompts",
+    "partition_emitted_citations",
     "retrieve_trade_corpus_chunks",
     "run_trade_panel",
     "run_trade_panel_with_retrieval",
@@ -1575,6 +1576,124 @@ def build_citations_from_chunks(chunks: list[dict[str, Any]]) -> list[Citation]:
     return out
 
 
+# --------------------------------------------------------------------------
+# S35-#99 — verdict-envelope split: evidence_citations vs framework_context.
+#
+# Background: the N=30 ship-gate proved citation_relevance (0.468) and
+# provider_kind_coverage (1.00) are anti-correlated *by construction*. The old
+# single citations[] mixed protocol/market data ("the data") with investor-
+# canon framework prose ("the lens"). The rubric rewards canon for coverage
+# and penalizes it for relevance — canon is cross-cutting, so it is tangential
+# to any one protocol-specific question. WS2's used-only trim made relevance
+# WORSE (0.398) because trimming still left canon in the same bucket.
+#
+# Structural fix: partition the emitted citations into two top-level lists so
+# the two dimensions stop fighting.
+#   - evidence_citations  — protocol/market chunks a turn ACTUALLY referenced
+#     via its inline [N] marker (WS2's used-only logic applies HERE — keep
+#     evidence tight + protocol-specific so citation_relevance is judged fair).
+#   - framework_context   — the canon chunks the panel reasoned over; NOT
+#     relevance-trimmed (canon IS the lens; trimming it for protocol
+#     specificity is a category error).
+# Retrieval (`retrieve_trade_corpus_chunks`) is untouched — the panel still
+# reasons over all `top_k` chunks; only the *emitted envelope* is partitioned.
+
+# provider_kind families. Canon framework prose carries a `canon_` prefix;
+# everything protocol/market-data-shaped is "evidence".
+_EVIDENCE_PROVIDER_KINDS: frozenset[str] = frozenset(
+    {"protocol_native", "market_data", "paysh_live", "bazaar_live"}
+)
+
+
+def _is_framework_kind(provider_kind: str) -> bool:
+    """True when a chunk's provider_kind is investor-canon ("the lens")."""
+    return provider_kind.startswith("canon_")
+
+
+# Matches an inline citation marker like ``[3]`` or ``[12]``. Bounded 1-2
+# digits — chunk counts never exceed ~15, and an unbounded \d+ would match
+# stray bracketed numerics in prose ("[2024]" dates) far more often.
+_CITATION_MARKER_RE: re.Pattern[str] = re.compile(r"\[(\d{1,2})\]")
+
+
+def _parse_used_markers(turns: list[TradePanelTurn], n_chunks: int) -> set[int]:
+    """Collect every 1-indexed ``[N]`` chunk marker referenced across all turns.
+
+    Markers outside ``1..n_chunks`` are dropped — they are either prose
+    artifacts ("[2024]") or model hallucinations of a chunk index that does
+    not exist. Pure function: reads ``turns``, returns a set of valid indices.
+    """
+    used: set[int] = set()
+    for turn in turns:
+        for match in _CITATION_MARKER_RE.finditer(turn.content or ""):
+            idx = int(match.group(1))
+            if 1 <= idx <= n_chunks:
+                used.add(idx)
+    return used
+
+
+def partition_emitted_citations(
+    turns: list[TradePanelTurn],
+    chunks: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Partition retrieved chunks into (evidence, framework) emit-sets.
+
+    S35-#99. The panel reasoned over ALL ``chunks`` (retrieval untouched).
+    This decides which chunks land in which top-level verdict list:
+
+    * **evidence_citations** — protocol/market-data chunks (provider_kind in
+      :data:`_EVIDENCE_PROVIDER_KINDS`) that a panel turn *actually referenced*
+      via its inline ``[N]`` marker. Used-only (WS2's logic): the panel cites
+      the data it drew on, not the whole retrieval set, so the rubric's
+      ``citation_relevance`` is judged over a tight, on-topic set.
+
+      *Used-only fallback.* When no valid ``[N]`` markers were parsed at all
+      (used-detection unreliable for this run), every evidence-kind chunk is
+      kept — better than emitting nothing and floor-failing coverage.
+
+    * **framework_context** — investor-canon chunks (``canon_*``). NOT
+      relevance-trimmed: the lens is cross-cutting by design. *All* canon
+      chunks the panel saw are emitted, regardless of marker usage.
+
+    Chunks whose provider_kind is neither evidence nor canon (``web``,
+    ``youtube`` etc. — rare on the trade vertical) follow the evidence path
+    with the same used-only rule: they are "data", not "lens".
+
+    Pure function. Returns new lists of the *same dict objects* from
+    ``chunks``, retrieval order preserved. ``build_citations_from_chunks``
+    re-indexes each list independently, so emitted ``Citation.id`` is
+    contiguous *within* each list (1..len(evidence), 1..len(framework)).
+    """
+    if not chunks:
+        return [], []
+
+    framework_idx: list[int] = []
+    evidence_candidates: list[int] = []
+    for i, chunk in enumerate(chunks):
+        kind = str(chunk.get("provider_kind") or "")
+        if _is_framework_kind(kind):
+            framework_idx.append(i)
+        else:
+            evidence_candidates.append(i)
+
+    used = _parse_used_markers(turns, len(chunks))
+    if used:
+        used_zero = {m - 1 for m in used}
+        evidence_idx = [i for i in evidence_candidates if i in used_zero]
+        # Used-only must not silently empty the evidence list when the panel
+        # cited only canon markers — fall back to all evidence-kind chunks so
+        # the protocol-coverage floor still has something to satisfy it.
+        if not evidence_idx:
+            evidence_idx = evidence_candidates
+    else:
+        # No parseable markers — used-detection is unreliable, keep all.
+        evidence_idx = evidence_candidates
+
+    evidence = [chunks[i] for i in evidence_idx]
+    framework = [chunks[i] for i in framework_idx]
+    return evidence, framework
+
+
 async def run_trade_panel_with_retrieval(
     idea: str,
     protocol: str,
@@ -1638,13 +1757,32 @@ async def run_trade_panel_with_retrieval(
         wallet=wallet,
     )
 
-    # Issue #15: attach the structured citation list sourced from the same
-    # chunks the panel saw. The 1-indexed ids match the inline [N] markers
-    # the personas cite in their turns, so consumers can render cite chips
-    # without regex-extracting from prose.
-    citations = build_citations_from_chunks(chunks)
-    if citations:
-        verdict = verdict.model_copy(update={"citations": citations})
+    # Issue #15 + S35-#99: attach the split citation envelope. The panel
+    # reasoned over ALL `chunks` (retrieval untouched), but the EMITTED
+    # envelope is partitioned: `evidence_citations` = protocol/market-data
+    # chunks a turn actually referenced via its inline [N] marker (tight +
+    # on-topic, so `citation_relevance` is judged fairly); `framework_context`
+    # = the canon chunks the panel reasoned over (the lens — not trimmed).
+    evidence_chunks, framework_chunks = partition_emitted_citations(verdict.turns, chunks)
+    evidence_citations = build_citations_from_chunks(evidence_chunks)
+    framework_context = build_citations_from_chunks(framework_chunks)
+    _log.info(
+        "trade_panel.citations protocol=%s retrieved=%d evidence=%d framework=%d "
+        "evidence_kinds=%s framework_kinds=%s",
+        protocol.strip().lower(),
+        len(chunks),
+        len(evidence_citations),
+        len(framework_context),
+        sorted({c.provider_kind for c in evidence_citations}),
+        sorted({c.provider_kind for c in framework_context}),
+    )
+    update: dict[str, Any] = {}
+    if evidence_citations:
+        update["evidence_citations"] = evidence_citations
+    if framework_context:
+        update["framework_context"] = framework_context
+    if update:
+        verdict = verdict.model_copy(update=update)
 
     if not enable_backtest:
         return verdict

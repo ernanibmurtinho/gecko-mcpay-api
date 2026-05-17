@@ -54,6 +54,13 @@ class Citation(BaseModel):
     source of truth). When a chunk is missing either column, defaults
     fall through to ``"web"`` / ``"static"`` so the wire shape never
     breaks on partial Mongo rows.
+
+    S35-#99 — this item shape is shared by BOTH top-level verdict lists:
+    ``evidence_citations`` (protocol/market data — "the data") and
+    ``framework_context`` (investor-canon — "the lens"). The split lives
+    on :class:`TradePanelVerdict`, not on this model: a Citation is
+    provider-kind-agnostic; which list it lands in is decided at panel
+    assembly by ``partition_emitted_citations``.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -106,12 +113,25 @@ class TradePanelVerdict(BaseModel):
         default_factory=list,
         description="Full transcript in canonical agent order.",
     )
-    citations: list[Citation] = Field(
+    evidence_citations: list[Citation] = Field(
         default_factory=list,
         description=(
-            "Issue #15: structured cite list — sibling to inline [N] markers "
-            "in turns[].content. id field links entry to marker index. "
-            "Empty list when the panel ran without retrieval (legacy callers)."
+            "S35-#99 — 'the data'. Protocol/market-data chunks a panel turn "
+            "actually referenced via its inline [N] marker (provider_kind in "
+            "protocol_native / market_data / paysh_live / bazaar_live). "
+            "Relevance-trimmed: only chunks a turn drew on land here, so the "
+            "rubric's citation_relevance dimension is judged over a tight, "
+            "protocol-specific set. Empty when the panel ran without retrieval."
+        ),
+    )
+    framework_context: list[Citation] = Field(
+        default_factory=list,
+        description=(
+            "S35-#99 — 'the lens'. Investor-canon chunks (provider_kind "
+            "canon_*) the panel reasoned over. NOT relevance-trimmed: canon "
+            "framework prose is cross-cutting by design, so trimming it for "
+            "protocol specificity is a category error. Split out of the old "
+            "single citations[] so canon no longer drags citation_relevance."
         ),
     )
     backtest: BacktestReport | None = Field(
