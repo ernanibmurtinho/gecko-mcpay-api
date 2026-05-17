@@ -57,6 +57,18 @@ residual uncertainty is documented in the run artifact's
 shrink for cheap smoke runs (the gate stays honest: a sub-30 run is
 flagged `ship_gate_eligible: false` in the artifact).
 
+Run-hardening (S35-#97): the S35 N=30 ship-gate was contaminated — one
+pooled sub-run was 100% RateLimitError yet the runner pooled all 10
+garbage rows into the N=30 aggregate as if valid (11/30 rows were
+rate-limit garbage). Three guards land here:
+  1. Rate-limited panel runs are retried with full-jitter exponential
+     backoff before a row is scored (`_run_panel_with_panel_retry`).
+  2. A row whose panel turns are still all rate-limited after retries is
+     DROPPED — never pooled into the scored N (`_row_is_rate_limited`).
+  3. If the dropped-row rate exceeds CONTAMINATION_THRESHOLD the run is
+     flagged `contaminated: true` with `n_valid` vs `n_attempted` so a
+     contaminated run cannot masquerade as a clean ship-gate N.
+
 Usage:
     uv run python -m tests.eval.scripts.score_defi_trade_rubric --limit 3
     uv run python -m tests.eval.scripts.score_defi_trade_rubric        # ship-gate: N=30
@@ -108,6 +120,30 @@ SHIP_GATE_N = 30
 BOOTSTRAP_RESAMPLES = 10_000
 BOOTSTRAP_SEED = 4242  # fixed → reproducible CI bounds for a given row set
 CI_ALPHA = 0.05  # 95% CI
+
+# S35-#97 — run-hardening config.
+#
+# Panel-retry: the trade panel swallows a per-voice openai.RateLimitError
+# into a `(voice failed: RateLimitError)` stub turn — it does NOT raise.
+# So the eval runner cannot retry an individual turn; it detects a
+# rate-limited ROW after the panel returns and re-runs the whole panel
+# with full-jitter exponential backoff. The backoff shape mirrors the
+# ingestion embedder's `_full_jitter_backoff` (S16-INGEST-03):
+#   sleep_n = uniform(0, min(_PANEL_RETRY_CAP_S, base * 2^(n-1)))
+_PANEL_RETRY_BASE_S = 2.0
+_PANEL_RETRY_CAP_S = 30.0
+_PANEL_MAX_ATTEMPTS = 4  # 1 initial + 3 retries
+
+# Marker substring the panel writes into a turn's `content` when a voice
+# hits openai.RateLimitError (see trade_panel.__init__ ~line 632, which
+# emits `(voice failed: {type(exc).__name__})`).
+_RATE_LIMIT_MARKER = "RateLimitError"
+
+# Contaminated-run threshold. If the fraction of attempted rows that had
+# to be DROPPED (still rate-limited after retries) exceeds this, the run
+# is flagged `contaminated: true` and ship_gate_eligible is forced false.
+# >20% garbage means the surviving N is no longer a clean ship-gate N.
+CONTAMINATION_THRESHOLD = 0.20
 
 # Pass thresholds — HIS (Honest Industry-Standard) rebaseline 2026-05-14.
 # Rationale per `docs/strategy/2026-05-14-rubric-rebaseline.md`:
@@ -171,6 +207,128 @@ def _provider_kind_coverage(citations: list[dict[str, Any]], fixture: dict[str, 
         return 1.0
     present = {c.get("provider_kind", "web") for c in citations}
     return 1.0 if (must & present) else 0.0
+
+
+# --------------------- S35-#97 run-hardening ----------------------
+
+
+def _panel_backoff(attempt: int) -> float:
+    """Full-jitter exponential backoff for a rate-limited panel re-run.
+
+    `attempt` is 1-indexed (1st retry = attempt 1). Mirrors the
+    ingestion embedder's `_full_jitter_backoff` shape: a sleep drawn
+    uniformly from [0, min(cap, base * 2^(attempt-1))]. Uses the global
+    `random` module so a test can seed it for reproducibility.
+    """
+    ceiling = min(_PANEL_RETRY_CAP_S, _PANEL_RETRY_BASE_S * (2 ** (attempt - 1)))
+    return random.uniform(0.0, ceiling)
+
+
+def _turn_contents(panel_obj: Any) -> list[str]:
+    """Extract turn `content` strings from either a live verdict object
+    (``.turns`` of objects with ``.content``) or an already-serialized
+    row's ``panel.turns`` (list of dicts). Tolerant of both so the
+    detector is unit-testable against synthetic dict rows."""
+    turns = getattr(panel_obj, "turns", None)
+    if turns is None and isinstance(panel_obj, dict):
+        turns = panel_obj.get("turns", [])
+    contents: list[str] = []
+    for t in turns or []:
+        if isinstance(t, dict):
+            contents.append(str(t.get("content", "")))
+        else:
+            contents.append(str(getattr(t, "content", "")))
+    return contents
+
+
+def _row_is_rate_limited(panel_obj: Any) -> bool:
+    """True when EVERY panel turn is a rate-limit-failure stub.
+
+    A contaminated row (S35-#95 diagnosis) is one where every turn's
+    `content` carries the `RateLimitError` marker — the panel produced no
+    real voice output, the verdict defaults to `defer`, and all dimension
+    scores are spurious. A row with at least one genuine turn is kept:
+    partial rate-limiting still yields a real (if degraded) panel verdict.
+
+    A panel with zero turns is also treated as degenerate — there is no
+    voice output to score, so the row must not pool into the N.
+    """
+    contents = _turn_contents(panel_obj)
+    if not contents:
+        return True
+    return all(_RATE_LIMIT_MARKER in c for c in contents)
+
+
+async def _run_panel_with_panel_retry(
+    panel_kwargs: dict[str, Any],
+) -> tuple[Any, int]:
+    """Run the trade panel, re-running the whole panel with full-jitter
+    exponential backoff if the returned panel is fully rate-limited.
+
+    Returns ``(verdict_obj, retries_used)``. The panel itself never
+    raises on a per-voice RateLimitError (it swallows it into a stub
+    turn), so retry is driven by `_row_is_rate_limited` inspection of
+    the returned object — not by exception handling.
+
+    After `_PANEL_MAX_ATTEMPTS` the last (possibly still rate-limited)
+    object is returned; the caller decides to drop it.
+    """
+    from gecko_core.orchestration.trade_panel import run_trade_panel_with_retrieval
+
+    verdict_obj: Any = None
+    for attempt in range(1, _PANEL_MAX_ATTEMPTS + 1):
+        verdict_obj = await run_trade_panel_with_retrieval(**panel_kwargs)
+        if not _row_is_rate_limited(verdict_obj):
+            return verdict_obj, attempt - 1
+        if attempt < _PANEL_MAX_ATTEMPTS:
+            backoff = _panel_backoff(attempt)
+            print(
+                f"\n    rate-limited panel — retry {attempt}/{_PANEL_MAX_ATTEMPTS - 1} "
+                f"after backoff {backoff:.1f}s ... ",
+                end="",
+            )
+            sys.stdout.flush()
+            await asyncio.sleep(backoff)
+    return verdict_obj, _PANEL_MAX_ATTEMPTS - 1
+
+
+def assess_contamination(
+    n_attempted: int,
+    n_dropped: int,
+    *,
+    threshold: float = CONTAMINATION_THRESHOLD,
+) -> dict[str, Any]:
+    """Pure decision — is this run contaminated by dropped garbage rows?
+
+    `n_attempted` is every fixture the runner tried (scored + dropped);
+    `n_dropped` is the count excluded because the panel stayed fully
+    rate-limited after retries. A run with a drop-rate above `threshold`
+    is flagged `contaminated` — its surviving N can no longer be trusted
+    as a clean ship-gate sample. Pure + deterministic → unit-testable.
+    """
+    n_valid = n_attempted - n_dropped
+    drop_rate = (n_dropped / n_attempted) if n_attempted else 0.0
+    contaminated = drop_rate > threshold
+    return {
+        "n_attempted": n_attempted,
+        "n_valid": n_valid,
+        "n_dropped": n_dropped,
+        "drop_rate": round(drop_rate, 4),
+        "threshold": threshold,
+        "contaminated": contaminated,
+        "note": (
+            f"CONTAMINATED — {n_dropped}/{n_attempted} rows dropped as "
+            f"rate-limit garbage ({drop_rate:.0%} > {threshold:.0%}). The "
+            f"surviving N={n_valid} is NOT a clean ship-gate sample; this "
+            f"run must be re-run, not shipped against."
+        )
+        if contaminated
+        else (
+            f"{n_dropped}/{n_attempted} rows dropped as rate-limit garbage "
+            f"({drop_rate:.0%} <= {threshold:.0%}) — within tolerance; "
+            f"N={n_valid} surviving rows scored."
+        ),
+    }
 
 
 # ----------------------------- judge -----------------------------
@@ -335,9 +493,10 @@ async def _score_one(
     *,
     tier: str,
     llm_config: dict[str, Any],
-) -> dict[str, Any]:
-    from gecko_core.orchestration.trade_panel import run_trade_panel_with_retrieval
-
+) -> dict[str, Any] | None:
+    """Score one fixture. Returns ``None`` when the panel stayed fully
+    rate-limited after retries — a garbage row the caller must DROP, not
+    pool into the scored N (S35-#97)."""
     panel_kwargs: dict[str, Any] = {
         "idea": fixture["text"],
         "protocol": fixture["protocol"],
@@ -362,8 +521,19 @@ async def _score_one(
     assert not leaked, f"ground-truth leakage to panel: {leaked}"
 
     t0 = time.perf_counter()
-    verdict_obj = await run_trade_panel_with_retrieval(**panel_kwargs)
+    # S35-#97 — retry a rate-limited panel with full-jitter backoff before
+    # scoring. The panel swallows per-voice RateLimitError into stub turns,
+    # so retry is driven by inspecting the returned object.
+    verdict_obj, panel_retries = await _run_panel_with_panel_retry(panel_kwargs)
     panel_wall = time.perf_counter() - t0
+
+    # S35-#97 — DROP, never pool, a still-rate-limited row. If every panel
+    # turn is a RateLimitError stub after all retries, the verdict is a
+    # degenerate `defer` and every dimension score is spurious — returning
+    # None tells the caller to exclude this fixture from the scored N.
+    if _row_is_rate_limited(verdict_obj):
+        print("DROPPED (panel still fully rate-limited after retries) ", end="")
+        return None
 
     # Deterministic axes (no judge).
     citations_dicts = [
@@ -447,6 +617,9 @@ async def _score_one(
         "scores": scores,
         "passed": passed,
         "judge_notes": judge_result.get("notes", ""),
+        # S35-#97 — how many times the panel had to be re-run for this row
+        # because it came back fully rate-limited. 0 = clean first draw.
+        "panel_retries": panel_retries,
         "wall_seconds": {
             "panel": round(panel_wall, 2),
             "judge": round(judge_wall, 2),
@@ -689,6 +862,7 @@ async def run(
 
     print(f"S24 task#11 rubric scorer | n={len(fixtures)} | tier={tier} | suite={SUITE_PATH.name}")
     rows: list[dict[str, Any]] = []
+    n_dropped = 0  # S35-#97 — fixtures whose panel stayed fully rate-limited.
     for f in fixtures:
         print(f"  [{f['id']}] protocol={f['protocol']} ... ", end="")
         sys.stdout.flush()
@@ -705,6 +879,11 @@ async def run(
         except Exception as exc:
             print(f"FAIL ({type(exc).__name__}: {exc})")
             continue
+        # S35-#97 — _score_one returns None for a row whose panel stayed
+        # fully rate-limited after retries. Drop it; never pool it.
+        if row is None:
+            n_dropped += 1
+            continue
         s = row["scores"]
         print(
             f"v={row['panel']['verdict']:<5} pass={row['passed']!s:<5} "
@@ -714,7 +893,23 @@ async def run(
         )
         rows.append(row)
 
+    # S35-#97 — contamination assessment. n_attempted counts every fixture
+    # the runner reached _score_one for (scored rows + dropped garbage).
+    n_attempted = len(rows) + n_dropped
+    contamination = assess_contamination(n_attempted, n_dropped)
+    print(f"\n{contamination['note']}")
+
     agg = _aggregate(rows)
+    # S35-#97 — a contaminated run can NEVER be ship-gate eligible, even
+    # if the surviving rows happen to clear N>=30. Force the flag false so
+    # a contaminated run cannot masquerade as a clean ship-gate N.
+    if contamination["contaminated"] and "n_policy" in agg:
+        agg["n_policy"]["ship_gate_eligible"] = False
+        agg["n_policy"]["note"] = (
+            f"CONTAMINATED RUN — {n_dropped}/{n_attempted} rows dropped as "
+            f"rate-limit garbage. ship_gate_eligible forced false regardless "
+            f"of surviving N. Re-run before any ship decision. " + agg["n_policy"]["note"]
+        )
     print(f"\nAggregate: {json.dumps(agg, indent=2)}")
 
     sg = agg.get("statistical_gate", {})
@@ -749,12 +944,30 @@ async def run(
         "suite": SUITE_PATH.name,
         "n_fixtures_loaded": len(fixtures),
         "n_scored": len(rows),
+        # S35-#97 — first-class contamination block so a reader (or a
+        # downstream pooling script) can tell a clean N from a polluted one.
+        "contaminated": contamination["contaminated"],
+        "n_attempted": contamination["n_attempted"],
+        "n_valid": contamination["n_valid"],
+        "n_dropped": contamination["n_dropped"],
+        "contamination": contamination,
         "retrieval_pregate": retrieval_pregate,
         "aggregate": agg,
         "rows": rows,
     }
     out_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     print(f"Saved -> {out_path}")
+
+    # S35-#97 — a contaminated run must fail loudly. Exit non-zero so a
+    # gate script / CI step treats it as a failed run, not a passed one.
+    if contamination["contaminated"]:
+        print(
+            f"\nABORT: run is CONTAMINATED ({contamination['n_dropped']}/"
+            f"{contamination['n_attempted']} rows dropped as rate-limit "
+            f"garbage, > {CONTAMINATION_THRESHOLD:.0%}). Artifact saved with "
+            f"contaminated=true; this run is NOT a valid ship-gate N. Re-run."
+        )
+        return 1
     return 0
 
 
