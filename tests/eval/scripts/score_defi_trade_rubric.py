@@ -69,6 +69,19 @@ rate-limit garbage). Three guards land here:
      flagged `contaminated: true` with `n_valid` vs `n_attempted` so a
      contaminated run cannot masquerade as a clean ship-gate N.
 
+Run-hardening (S35-#98): #97 only caught FULLY rate-limited rows. Two
+residual holes close here:
+  4. Partial degradation. A row with e.g. 4/7 panel turns rate-limited
+     still produces a (defer-leaning, weak-dimension) verdict and #97
+     pooled it silently. Each row now carries `degraded_turn_count`
+     (turns whose content carries the RateLimitError marker); a row
+     above PARTIAL_DEGRADATION_THRESHOLD (>1/3 of turns) is DROPPED like
+     a fully-rate-limited row and counts toward the contamination rate.
+  5. Pooling guard. `shipgate_n15_vs_n30.py` (and any script that
+     concatenates `rows` arrays across artifacts) now rejects any
+     artifact whose top-level `contaminated` is true — a contaminated
+     artifact's surviving rows must never pool into a clean N.
+
 Usage:
     uv run python -m tests.eval.scripts.score_defi_trade_rubric --limit 3
     uv run python -m tests.eval.scripts.score_defi_trade_rubric        # ship-gate: N=30
@@ -140,10 +153,21 @@ _PANEL_MAX_ATTEMPTS = 4  # 1 initial + 3 retries
 _RATE_LIMIT_MARKER = "RateLimitError"
 
 # Contaminated-run threshold. If the fraction of attempted rows that had
-# to be DROPPED (still rate-limited after retries) exceeds this, the run
-# is flagged `contaminated: true` and ship_gate_eligible is forced false.
-# >20% garbage means the surviving N is no longer a clean ship-gate N.
+# to be DROPPED (still rate-limited after retries OR partially degraded
+# past PARTIAL_DEGRADATION_THRESHOLD) exceeds this, the run is flagged
+# `contaminated: true` and ship_gate_eligible is forced false. >20%
+# garbage means the surviving N is no longer a clean ship-gate N.
 CONTAMINATION_THRESHOLD = 0.20
+
+# S35-#98 — partial-degradation threshold. A row is not fully rate-limited
+# (so _row_is_rate_limited returns False) but still has a meaningful
+# fraction of its panel turns 429'd. Such a row's verdict skews `defer`
+# and its dimension scores are weak — pooling it silently corrupts the
+# aggregate. A row whose degraded-turn FRACTION exceeds this threshold is
+# DROPPED like a fully-rate-limited row and counts toward contamination.
+# 1/3 chosen so a 7-voice panel tolerates up to 2 degraded turns (2/7 ≈
+# 0.286 <= 1/3, kept) but drops at 3 (3/7 ≈ 0.429 > 1/3, dropped).
+PARTIAL_DEGRADATION_THRESHOLD = 1.0 / 3.0
 
 # Pass thresholds — HIS (Honest Industry-Standard) rebaseline 2026-05-14.
 # Rationale per `docs/strategy/2026-05-14-rubric-rebaseline.md`:
@@ -259,6 +283,56 @@ def _row_is_rate_limited(panel_obj: Any) -> bool:
     return all(_RATE_LIMIT_MARKER in c for c in contents)
 
 
+def _count_degraded_turns(panel_obj: Any) -> int:
+    """S35-#98 — count panel turns whose `content` carries the
+    `RateLimitError` marker.
+
+    Distinct from `_row_is_rate_limited` (which is the ALL-turns case):
+    this is the per-turn count, used to detect PARTIAL degradation. A row
+    with 4/7 turns degraded is not fully rate-limited but is still too
+    corrupt to pool. Tolerant of both live verdict objects and serialized
+    dict rows (via `_turn_contents`)."""
+    return sum(1 for c in _turn_contents(panel_obj) if _RATE_LIMIT_MARKER in c)
+
+
+def assess_row_degradation(
+    panel_obj: Any,
+    *,
+    threshold: float = PARTIAL_DEGRADATION_THRESHOLD,
+) -> dict[str, Any]:
+    """S35-#98 — pure decision: is this row too degraded to pool?
+
+    Returns a dict with `total_turns`, `degraded_turn_count`, the
+    `degraded_fraction`, and a `drop` flag. A row is dropped when EITHER
+    it is fully rate-limited (the #97 ALL-turns case) OR its degraded
+    fraction strictly exceeds `threshold` (the #98 partial case). Pure +
+    deterministic → unit-testable against synthetic dict rows.
+    """
+    contents = _turn_contents(panel_obj)
+    total = len(contents)
+    degraded = sum(1 for c in contents if _RATE_LIMIT_MARKER in c)
+    fully_rate_limited = (total == 0) or (degraded == total)
+    fraction = (degraded / total) if total else 1.0
+    partial_drop = (not fully_rate_limited) and (fraction > threshold)
+    drop = fully_rate_limited or partial_drop
+    if fully_rate_limited:
+        reason = "fully_rate_limited" if total else "empty_panel"
+    elif partial_drop:
+        reason = "partial_degradation"
+    else:
+        reason = "ok"
+    return {
+        "total_turns": total,
+        "degraded_turn_count": degraded,
+        "degraded_fraction": round(fraction, 4),
+        "threshold": threshold,
+        "fully_rate_limited": fully_rate_limited,
+        "partial_drop": partial_drop,
+        "drop": drop,
+        "reason": reason,
+    }
+
+
 async def _run_panel_with_panel_retry(
     panel_kwargs: dict[str, Any],
 ) -> tuple[Any, int]:
@@ -329,6 +403,82 @@ def assess_contamination(
             f"N={n_valid} surviving rows scored."
         ),
     }
+
+
+class ContaminatedArtifactError(RuntimeError):
+    """S35-#98 — raised when a pooling path is handed a run artifact whose
+    top-level `contaminated` flag is true. A contaminated artifact's
+    surviving rows must NEVER pool into a multi-run N: even the rows that
+    were not dropped came from a run whose drop-rate exceeded tolerance,
+    so the run as a whole is not a trustworthy sample.
+    """
+
+
+def assert_artifact_poolable(artifact: dict[str, Any], *, source: str = "<artifact>") -> None:
+    """S35-#98 — guard a pooling path against a contaminated artifact.
+
+    Any script that concatenates the `rows` arrays of multiple run
+    artifacts (e.g. shipgate_n15_vs_n30.py) must call this on each
+    artifact BEFORE pooling its rows. Raises `ContaminatedArtifactError`
+    when the artifact's top-level `contaminated` is true. Pure +
+    deterministic → unit-testable without a real artifact file.
+
+    The check is the top-level `contaminated` key (written by
+    `run()` from `assess_contamination`). An artifact predating the
+    S35-#97 hardening lacks the key entirely — treated as poolable
+    (legacy artifacts cannot be retro-flagged) but the caller should
+    prefer freshly-scored artifacts.
+    """
+    if artifact.get("contaminated") is True:
+        contamination = artifact.get("contamination", {})
+        raise ContaminatedArtifactError(
+            f"refusing to pool contaminated artifact '{source}': "
+            f"contaminated=true "
+            f"(n_dropped={artifact.get('n_dropped', '?')}/"
+            f"n_attempted={artifact.get('n_attempted', '?')}, "
+            f"drop_rate={contamination.get('drop_rate', '?')}). "
+            f"A contaminated run's surviving rows are NOT a trustworthy "
+            f"sample — re-run it, do not pool it."
+        )
+
+
+def load_poolable_rows(
+    artifact_paths: list[Path],
+    *,
+    strict: bool = True,
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """S35-#98 — load + concatenate `rows` across run artifacts, rejecting
+    any contaminated artifact.
+
+    Returns ``(pooled_rows, excluded_sources)``. With ``strict=True``
+    (default) a contaminated artifact raises `ContaminatedArtifactError`
+    and pooling aborts — the safe default for a ship-gate pool. With
+    ``strict=False`` a contaminated artifact is hard-warned to stderr and
+    EXCLUDED from the pool (its name appended to `excluded_sources`),
+    letting an analyst pool the clean remainder deliberately.
+
+    Each pooled row is tagged with `src` (the artifact filename) so a
+    downstream consumer can trace a row back to its run.
+    """
+    pooled: list[dict[str, Any]] = []
+    excluded: list[str] = []
+    for path in artifact_paths:
+        with path.open("r", encoding="utf-8") as f:
+            artifact = json.load(f)
+        if artifact.get("contaminated") is True:
+            if strict:
+                assert_artifact_poolable(artifact, source=path.name)
+            print(
+                f"WARN: excluding contaminated artifact '{path.name}' from "
+                f"the pool (contaminated=true). Its surviving rows are NOT "
+                f"pooled.",
+                file=sys.stderr,
+            )
+            excluded.append(path.name)
+            continue
+        for row in artifact.get("rows", []):
+            pooled.append({"src": path.name, **row})
+    return pooled, excluded
 
 
 # ----------------------------- judge -----------------------------
@@ -527,12 +677,25 @@ async def _score_one(
     verdict_obj, panel_retries = await _run_panel_with_panel_retry(panel_kwargs)
     panel_wall = time.perf_counter() - t0
 
-    # S35-#97 — DROP, never pool, a still-rate-limited row. If every panel
-    # turn is a RateLimitError stub after all retries, the verdict is a
-    # degenerate `defer` and every dimension score is spurious — returning
-    # None tells the caller to exclude this fixture from the scored N.
-    if _row_is_rate_limited(verdict_obj):
-        print("DROPPED (panel still fully rate-limited after retries) ", end="")
+    # S35-#97/#98 — DROP, never pool, a degraded row. `assess_row_degradation`
+    # folds two cases: (#97) every panel turn is a RateLimitError stub after
+    # all retries — degenerate `defer`, spurious scores; (#98) the panel is
+    # not fully rate-limited but its degraded-turn FRACTION still exceeds
+    # PARTIAL_DEGRADATION_THRESHOLD — a defer-leaning, weak-dimension verdict
+    # that would silently corrupt the aggregate. Returning None tells the
+    # caller to exclude this fixture from the scored N either way.
+    degradation = assess_row_degradation(verdict_obj)
+    if degradation["drop"]:
+        if degradation["reason"] == "partial_degradation":
+            print(
+                f"DROPPED (partial degradation — {degradation['degraded_turn_count']}/"
+                f"{degradation['total_turns']} turns rate-limited, "
+                f"{degradation['degraded_fraction']:.0%} > "
+                f"{PARTIAL_DEGRADATION_THRESHOLD:.0%}) ",
+                end="",
+            )
+        else:
+            print("DROPPED (panel still fully rate-limited after retries) ", end="")
         return None
 
     # Deterministic axes (no judge).
@@ -620,6 +783,13 @@ async def _score_one(
         # S35-#97 — how many times the panel had to be re-run for this row
         # because it came back fully rate-limited. 0 = clean first draw.
         "panel_retries": panel_retries,
+        # S35-#98 — count of panel turns that came back as RateLimitError
+        # stubs on the FINAL (kept) draw. A scored row always has this <=
+        # PARTIAL_DEGRADATION_THRESHOLD of total turns (else it was dropped);
+        # a non-zero value flags a mildly-degraded-but-kept row for an
+        # analyst inspecting variance.
+        "degraded_turn_count": degradation["degraded_turn_count"],
+        "total_turns": degradation["total_turns"],
         "wall_seconds": {
             "panel": round(panel_wall, 2),
             "judge": round(judge_wall, 2),

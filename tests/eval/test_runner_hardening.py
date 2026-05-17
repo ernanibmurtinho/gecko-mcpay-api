@@ -1,4 +1,4 @@
-"""S35-#97 — unit tests for the rubric scorer's run-hardening guards.
+"""S35-#97/#98 — unit tests for the rubric scorer's run-hardening guards.
 
 Context: the S35 N=30 ship-gate was contaminated — one of 3 pooled
 sub-runs was 100% RateLimitError (every panel turn 429'd) yet the
@@ -9,23 +9,41 @@ These tests cover the *pure* hardening logic only — no LLM, no network,
 no panel call, no rubric. Per the over-mocking guidance: synthetic
 dict-shaped rows / plain ints; nothing is monkeypatched.
 
-Three guards under test:
+#97 guards under test:
   1. `_row_is_rate_limited` — detect a fully-rate-limited garbage row.
   2. `assess_contamination` — flag a run whose drop-rate exceeds 20%.
   3. `_panel_backoff` — full-jitter exponential, bounded by the cap.
+
+#98 guards under test (the residual holes #97 left open):
+  4. `_count_degraded_turns` / `assess_row_degradation` — count degraded
+     turns, drop a PARTIALLY degraded row (>1/3 turns 429'd) the way
+     #97 drops a fully-degraded one.
+  5. `assert_artifact_poolable` / `load_poolable_rows` — reject a
+     `contaminated: true` artifact from a multi-run pooling path.
 """
 
 from __future__ import annotations
 
+import json
 import random
+from pathlib import Path
+from typing import Any
+
+import pytest
 
 from tests.eval.scripts.score_defi_trade_rubric import (
     _PANEL_MAX_ATTEMPTS,
     _PANEL_RETRY_CAP_S,
     CONTAMINATION_THRESHOLD,
+    PARTIAL_DEGRADATION_THRESHOLD,
+    ContaminatedArtifactError,
+    _count_degraded_turns,
     _panel_backoff,
     _row_is_rate_limited,
+    assert_artifact_poolable,
     assess_contamination,
+    assess_row_degradation,
+    load_poolable_rows,
 )
 
 _RL = "(voice failed: RateLimitError)"
@@ -171,3 +189,160 @@ def test_panel_backoff_ceiling_grows_then_caps() -> None:
         assert late <= _PANEL_RETRY_CAP_S
     finally:
         random.setstate(rng_state)
+
+
+# =============== S35-#98 — partial-degradation guard ===============
+# Reuses the `_panel` synthetic-row helper defined for the #97 block.
+
+
+def test_count_degraded_turns_counts_only_marker_turns() -> None:
+    """`_count_degraded_turns` is the per-turn count of RateLimitError
+    stubs — distinct from the ALL-turns `_row_is_rate_limited` boolean."""
+    panel = _panel(_RL, _GOOD, _RL, _GOOD, _GOOD, _RL, _GOOD)
+    assert _count_degraded_turns(panel) == 3
+
+
+def test_count_degraded_turns_zero_for_clean_panel() -> None:
+    assert _count_degraded_turns(_panel(*([_GOOD] * 7))) == 0
+
+
+def test_three_of_seven_degraded_row_is_kept() -> None:
+    """3/7 ≈ 0.429 > 1/3 — over the partial threshold, so DROPPED.
+
+    (The ticket phrases the cases as '3/7 kept, 4/7 dropped'; with a
+    7-voice panel and a strict 1/3 bar the actual boundary is 2 kept /
+    3 dropped — 2/7≈0.286<=1/3, 3/7≈0.429>1/3. The two paragraphs below
+    pin the real boundary explicitly.)"""
+    panel = _panel(_RL, _RL, _RL, _GOOD, _GOOD, _GOOD, _GOOD)
+    result = assess_row_degradation(panel)
+    assert result["degraded_turn_count"] == 3
+    assert result["drop"] is True
+    assert result["reason"] == "partial_degradation"
+
+
+def test_two_of_seven_degraded_row_is_kept() -> None:
+    """2/7 ≈ 0.286 <= 1/3 — within tolerance, the row is KEPT and scored."""
+    panel = _panel(_RL, _RL, _GOOD, _GOOD, _GOOD, _GOOD, _GOOD)
+    result = assess_row_degradation(panel)
+    assert result["degraded_turn_count"] == 2
+    assert result["drop"] is False
+    assert result["reason"] == "ok"
+    assert result["partial_drop"] is False
+
+
+def test_four_of_seven_degraded_row_is_dropped() -> None:
+    """4/7 ≈ 0.571 > 1/3 — well over the bar, DROPPED as partial garbage.
+    This is the ticket's '4/7 panel turns rate-limited' silent-corruption
+    case that #97 pooled and #98 now drops."""
+    panel = _panel(_RL, _RL, _RL, _RL, _GOOD, _GOOD, _GOOD)
+    result = assess_row_degradation(panel)
+    assert result["degraded_turn_count"] == 4
+    assert result["drop"] is True
+    assert result["reason"] == "partial_degradation"
+    assert result["fully_rate_limited"] is False
+
+
+def test_partial_threshold_boundary_is_strict_greater_than() -> None:
+    """A 3-turn panel makes the 1/3 boundary exact: 1/3 == threshold is
+    NOT dropped (strict >), 2/3 > threshold IS dropped."""
+    at_bound = assess_row_degradation(_panel(_RL, _GOOD, _GOOD))
+    over_bound = assess_row_degradation(_panel(_RL, _RL, _GOOD))
+    assert at_bound["degraded_fraction"] == pytest.approx(1.0 / 3.0, abs=1e-4)
+    assert at_bound["drop"] is False
+    assert over_bound["drop"] is True
+    assert over_bound["reason"] == "partial_degradation"
+
+
+def test_fully_rate_limited_row_drop_reason_is_distinct() -> None:
+    """A fully-rate-limited row still drops, but reason is the #97 case —
+    not 'partial_degradation' — so the two paths stay distinguishable."""
+    result = assess_row_degradation(_panel(*([_RL] * 7)))
+    assert result["drop"] is True
+    assert result["fully_rate_limited"] is True
+    assert result["reason"] == "fully_rate_limited"
+    assert result["partial_drop"] is False
+
+
+def test_clean_row_is_not_dropped() -> None:
+    result = assess_row_degradation(_panel(*([_GOOD] * 7)))
+    assert result["drop"] is False
+    assert result["degraded_turn_count"] == 0
+    assert result["reason"] == "ok"
+
+
+def test_empty_panel_drops_as_degenerate() -> None:
+    result = assess_row_degradation({"turns": []})
+    assert result["drop"] is True
+    assert result["reason"] == "empty_panel"
+
+
+def test_degradation_threshold_constant_is_one_third() -> None:
+    assert pytest.approx(1.0 / 3.0) == PARTIAL_DEGRADATION_THRESHOLD
+
+
+# =============== S35-#98 — pooling-script contamination guard ===============
+
+
+def _artifact(*, contaminated: bool, n_rows: int = 10) -> dict[str, Any]:
+    """Synthetic run artifact — only the keys the pooling guard reads."""
+    return {
+        "contaminated": contaminated,
+        "n_attempted": n_rows,
+        "n_dropped": 11 if contaminated else 0,
+        "contamination": {"drop_rate": 0.36 if contaminated else 0.0},
+        "rows": [{"id": f"fx{i}", "scores": {"verdict_accuracy": 1.0}} for i in range(n_rows)],
+    }
+
+
+def test_assert_artifact_poolable_passes_clean_artifact() -> None:
+    """A clean artifact (contaminated=false) is poolable — no raise."""
+    assert_artifact_poolable(_artifact(contaminated=False), source="clean.json")
+
+
+def test_assert_artifact_poolable_rejects_contaminated_artifact() -> None:
+    """A contaminated artifact raises — its surviving rows must not pool."""
+    with pytest.raises(ContaminatedArtifactError, match="contaminated"):
+        assert_artifact_poolable(_artifact(contaminated=True), source="dirty.json")
+
+
+def test_legacy_artifact_without_flag_is_poolable() -> None:
+    """An artifact predating #97 lacks the `contaminated` key entirely —
+    it cannot be retro-flagged, so it is treated as poolable."""
+    legacy = {"rows": [{"id": "fx0", "scores": {}}]}  # no `contaminated` key
+    assert_artifact_poolable(legacy, source="legacy.json")
+
+
+def test_load_poolable_rows_strict_aborts_on_contaminated(tmp_path: Path) -> None:
+    """A strict pool given one contaminated artifact among clean ones
+    raises — pooling aborts rather than silently mixing in the garbage."""
+    clean = tmp_path / "clean.json"
+    dirty = tmp_path / "dirty.json"
+    clean.write_text(json.dumps(_artifact(contaminated=False)))
+    dirty.write_text(json.dumps(_artifact(contaminated=True)))
+    with pytest.raises(ContaminatedArtifactError):
+        load_poolable_rows([clean, dirty], strict=True)
+
+
+def test_load_poolable_rows_pools_clean_artifacts(tmp_path: Path) -> None:
+    """Two clean artifacts pool into one rows list, each row src-tagged."""
+    a = tmp_path / "a.json"
+    b = tmp_path / "b.json"
+    a.write_text(json.dumps(_artifact(contaminated=False, n_rows=10)))
+    b.write_text(json.dumps(_artifact(contaminated=False, n_rows=8)))
+    pooled, excluded = load_poolable_rows([a, b], strict=True)
+    assert len(pooled) == 18
+    assert excluded == []
+    assert {r["src"] for r in pooled} == {"a.json", "b.json"}
+
+
+def test_load_poolable_rows_nonstrict_excludes_contaminated(tmp_path: Path) -> None:
+    """In non-strict mode a contaminated artifact is hard-warned + EXCLUDED
+    (not raised) — the clean remainder still pools, the dirty run named."""
+    clean = tmp_path / "clean.json"
+    dirty = tmp_path / "dirty.json"
+    clean.write_text(json.dumps(_artifact(contaminated=False, n_rows=10)))
+    dirty.write_text(json.dumps(_artifact(contaminated=True, n_rows=10)))
+    pooled, excluded = load_poolable_rows([clean, dirty], strict=False)
+    assert len(pooled) == 10  # only the clean artifact's rows
+    assert excluded == ["dirty.json"]
+    assert all(r["src"] == "clean.json" for r in pooled)
