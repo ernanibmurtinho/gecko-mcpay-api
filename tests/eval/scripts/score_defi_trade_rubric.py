@@ -424,6 +424,19 @@ async def _score_one(
             "n_citations": len(citations_dicts),
             "provider_kinds_present": sorted({c["provider_kind"] for c in citations_dicts}),
             "citations": citations_dump,
+            # S34-#69 — persist the per-voice transcript into the scored
+            # row so a diagnostician can see the verdict MECHANISM (which
+            # voice said what, which closing line parsed) without a re-run.
+            # Stored as the panel returns them — no truncation here; the
+            # judge-facing `_format_panel_for_judge` clips separately.
+            "turns": [
+                {
+                    "agent": t.agent,
+                    "content": t.content,
+                    "parsed_verdict": t.parsed_verdict,
+                }
+                for t in (getattr(verdict_obj, "turns", []) or [])
+            ],
         },
         "fixture_expected": {
             "expected_verdict_v2": fixture.get("expected_verdict_v2"),
