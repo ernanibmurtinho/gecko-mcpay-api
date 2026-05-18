@@ -25,9 +25,9 @@
       "canon_berkshire"
     ],
     "must_not_hallucinate": [
-      "specific USD price level for JLP cited without a market_data source",
+      "specific USD price level for JLP cited without a protocol_native source",
       "exact TVL figure cited from a canon memo only",
-      "specific APY percentage cited without a paysh_live or market_data source"
+      "specific APY percentage cited without a protocol_native source"
     ],
     "expected_dissent_topics": [
       "smart_contract_risk",
@@ -104,9 +104,9 @@
       "canon_berkshire"
     ],
     "must_not_hallucinate": [
-      "specific USD price level for SOL cited without a market_data source",
-      "specific liquidation price cited without a paysh_live or market_data source",
-      "exact funding rate cited without an on-chain/market_data source",
+      "specific USD price level for SOL cited without a protocol_native source",
+      "specific liquidation price cited without a protocol_native source",
+      "exact funding rate cited without a protocol_native source",
       "claim that 3x leverage is universally safe"
     ],
     "expected_dissent_topics": [
@@ -183,8 +183,8 @@
       "canon_marks"
     ],
     "must_not_hallucinate": [
-      "specific APY differential cited without a paysh_live or market_data source",
-      "specific JitoSOL/SOL peg figure cited without market_data",
+      "specific APY differential cited without a protocol_native source",
+      "specific JitoSOL/SOL peg figure cited without a protocol_native source",
       "claim of guaranteed outperformance over straight JitoSOL holding"
     ],
     "expected_dissent_topics": [
@@ -260,7 +260,7 @@
       "canon_damodaran"
     ],
     "must_not_hallucinate": [
-      "specific stablecoin peg deviation cited without market_data",
+      "specific stablecoin peg deviation cited without a protocol_native source",
       "exact APY figure cited from canon memo only",
       "claim of guaranteed roll-forward yield"
     ],
@@ -339,10 +339,10 @@
       "canon_damodaran"
     ],
     "must_not_hallucinate": [
-      "specific USD price level for SOL cited without market_data",
-      "specific funding rate cited without on-chain/market_data source",
+      "specific USD price level for SOL cited without a protocol_native source",
+      "specific funding rate cited without a protocol_native source",
       "claim that the FOMC outcome is predictable",
-      "specific Drift OI figure cited without a paysh_live or market_data source"
+      "specific Drift OI figure cited without a protocol_native source"
     ],
     "expected_dissent_topics": [
       "macro_event_risk",
@@ -416,9 +416,9 @@
       "canon_marks"
     ],
     "must_not_hallucinate": [
-      "specific JTO unlock schedule figure cited without a tokenomics or paysh_live source",
-      "specific funding rate cited without on-chain source",
-      "exact price target cited without market_data"
+      "specific JTO unlock schedule figure cited without a protocol_native source",
+      "specific funding rate cited without a protocol_native source",
+      "exact price target cited without a protocol_native source"
     ],
     "expected_dissent_topics": [
       "short_squeeze_risk",
@@ -493,8 +493,8 @@
       "canon_damodaran"
     ],
     "must_not_hallucinate": [
-      "specific JLP yield figure cited without paysh_live or market_data",
-      "specific JitoSOL APY cited without market_data",
+      "specific JLP yield figure cited without a protocol_native source",
+      "specific JitoSOL APY cited without a protocol_native source",
       "claim of guaranteed JLP outperformance"
     ],
     "expected_dissent_topics": [
@@ -570,7 +570,7 @@
       "canon_damodaran"
     ],
     "must_not_hallucinate": [
-      "specific bSOL APY figure cited without paysh_live or market_data",
+      "specific bSOL APY figure cited without a protocol_native source",
       "specific points-program valuation cited as cash-equivalent",
       "claim that the points narrative guarantees outperformance"
     ],
@@ -647,8 +647,8 @@
       "canon_damodaran"
     ],
     "must_not_hallucinate": [
-      "specific Jito tip-floor lamport figure cited without paysh_live or market_data",
-      "specific bundle land rate cited without an on-chain source",
+      "specific Jito tip-floor lamport figure cited without a protocol_native source",
+      "specific bundle land rate cited without a protocol_native source",
       "claim that P75 always lands"
     ],
     "expected_dissent_topics": [
@@ -722,9 +722,9 @@
       "canon_damodaran"
     ],
     "must_not_hallucinate": [
-      "specific INF/SOL peg figure cited without market_data",
-      "specific Sanctum router spread figure cited without paysh_live",
-      "specific INF APY cited without paysh_live or market_data"
+      "specific INF/SOL peg figure cited without a protocol_native source",
+      "specific Sanctum router spread figure cited without a protocol_native source",
+      "specific INF APY cited without a protocol_native source"
     ],
     "expected_dissent_topics": [
       "peg_deviation_risk",
