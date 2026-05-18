@@ -1,10 +1,15 @@
-"""S33-#80 — tests for protocol_native embed/display decoupling + guards.
+"""S33-#80 / S36-#106 — tests for protocol_native chunk rendering.
 
-Covers the two data-engineer fixes from the retrieval-quality diagnosis:
+Covers the data-engineer fixes from the retrieval-quality diagnosis:
   §4 — ``render_chunk_pairs`` returns (display_text, embed_text) where the
        embed text has the shared provenance header STRIPPED.
   §3 — the post-render degenerate-chunk guard drops near-empty chunks
        that the ``_fetch`` wire-level empty guard cannot catch.
+
+And the S36-WS2 part-1 number-first invariant:
+  S36-#106 — the numeric payload (APY/TVL/price/funding) LEADS each
+       chunk; the provenance header now TRAILS it so the rubric judge's
+       truncated snippet window always opens on a citable figure.
 
 Pure-function tests: no Mongo, no embedder, no network — light fakes only.
 """
@@ -46,10 +51,11 @@ class TestEmbedDisplayDecoupling:
         assert pairs, "expected at least one chunk pair"
         for display, embed in pairs:
             header = _provenance_header(ep, "2026-05-16")
-            # Display keeps the provenance header for citation.
-            assert display.startswith(header)
-            # Embed text drops it — the whole point of §4.
-            assert not embed.startswith(header)
+            # Display still carries the provenance header somewhere — it is
+            # the citable provenance — but S36-#106 moved it off the LEAD.
+            assert header in display
+            assert not display.startswith(header)
+            # Embed text drops it entirely — the whole point of §4.
             assert header not in embed
             # The signal content survives in both.
             assert "USDC Vault" in display
@@ -60,10 +66,67 @@ class TestEmbedDisplayDecoupling:
         # A segment with no header (e.g. a chunker-split docs tail).
         assert _strip_provenance_header("plain body text", header) == "plain body text"
 
-    def test_strip_header_peels_exact_prefix(self) -> None:
+    def test_strip_header_peels_leading_prefix(self) -> None:
+        # Legacy / fallback docs chunks still lead with the header.
         header = "Protocol-native API: kamino/kamino-vaults (as of 2026-05-16)."
         chunk = f"{header} Kamino USDC Vault — APY 6.2%."
         assert _strip_provenance_header(chunk, header) == "Kamino USDC Vault — APY 6.2%."
+
+    def test_strip_header_peels_interior_clause(self) -> None:
+        # S36-#106 number-first shape: header is interior, before Source:.
+        header = "Protocol-native API: kamino/kamino-vaults (as of 2026-05-16)."
+        chunk = f"Kamino USDC Vault: APY 6.2%. {header} Source: https://x.test."
+        out = _strip_provenance_header(chunk, header)
+        assert header not in out
+        assert "Kamino USDC Vault: APY 6.2%." in out
+        assert "Source: https://x.test." in out
+
+
+class TestNumberFirstInvariant:
+    """S36-#106 — the citable figure must lead the chunk text."""
+
+    def test_kamino_vault_leads_with_apy(self) -> None:
+        ep = _ep("kamino-vaults")
+        body = json.dumps([{"name": "JitoSOL-SOL Vault", "apy": 0.0742, "tvl": 12_500_000}])
+        pairs = render_chunk_pairs(ep, body, "2026-05-16")
+        assert pairs
+        display, _embed = pairs[0]
+        header = _provenance_header(ep, "2026-05-16")
+        # The APY figure appears BEFORE the provenance header.
+        apy_pos = display.find("APY")
+        header_pos = display.find(header)
+        assert apy_pos != -1 and header_pos != -1
+        assert apy_pos < header_pos, "numeric payload must precede provenance header"
+
+    def test_number_survives_truncation_window(self) -> None:
+        # The judge sees a truncated snippet. With number-first rendering a
+        # leading figure survives even a tight 200-char window.
+        ep = _ep("kamino-vaults")
+        body = json.dumps([{"name": "JitoSOL-SOL Vault", "apy": 0.0742, "tvl": 12_500_000}])
+        display, _embed = render_chunk_pairs(ep, body, "2026-05-16")[0]
+        truncated = display[:200]
+        # The APY value (rendered verbatim by _fmt_num) lands in-window.
+        assert "0.0742" in truncated, "APY figure must land inside the snippet window"
+        assert "12.50M" in truncated, "TVL figure must land inside the snippet window"
+
+    def test_drift_funding_record_leads_with_rate(self) -> None:
+        from gecko_core.sources.protocol_native import render_chunks
+
+        ep = ProtocolEndpoint(
+            protocol="drift",
+            slug="drift-funding-sol-perp",
+            url="https://data.api.drift.trade/market/SOL-PERP/fundingRates",
+            description="drift funding",
+            content_kind="quote",
+        )
+        body = json.dumps(
+            {"success": True, "records": [{"fundingRate": "0.000575916", "ts": 1700000000}]}
+        )
+        chunk = render_chunks(ep, body, "2026-05-16")[0]
+        truncated = chunk[:200]
+        # The raw funding rate lands inside the truncation window — the
+        # interpretation note no longer pushes it out.
+        assert "0.000575916" in truncated
 
 
 # ---------------------------------------------------------------------------
