@@ -36,6 +36,7 @@ from typing import Any, Protocol, cast
 
 from gecko_core.observability import emit_event
 from gecko_core.orchestration.trade_panel.agents import build_groupchat
+from gecko_core.orchestration.trade_panel.grounding_gate import apply_grounding_gate
 from gecko_core.orchestration.trade_panel.models import (
     Citation,
     TradePanelTurn,
@@ -1518,7 +1519,17 @@ def _strategist_intent_from_turn(turn: TradePanelTurn | None, protocol: str) -> 
     return intent
 
 
-_CITATION_SNIPPET_LIMIT: int = 240
+# S36-#106 — snippet cap raised 240 → 320. The S36-WS1 hallucination
+# diagnosis found the cited numeric figure was being truncated out of the
+# judge's view: the panel cut snippets at 240, the rubric scorer cut again
+# at 200, and protocol-native chunks led with a provenance header so the
+# APY/TVL/price landed past char 200. Part 1 of S36-WS2 makes the chunk
+# renderers number-first; this raises the cap so even a docs-prose chunk
+# whose figure sits a little later still survives. The rubric scorer
+# (score_defi_trade_rubric.py) is reconciled to NOT truncate a second
+# time — it grades the exact snippet text the panel emits, so the
+# grounding gate and the judge read identical text by construction.
+_CITATION_SNIPPET_LIMIT: int = 320
 
 
 def _coerce_provider_kind(raw: Any) -> ProviderKind:
@@ -1783,6 +1794,16 @@ async def run_trade_panel_with_retrieval(
         update["framework_context"] = framework_context
     if update:
         verdict = verdict.model_copy(update=update)
+
+    # S36-#106 — code-side numeric grounding-or-abstain gate. Runs
+    # unconditionally so the production path and the eval path agree. It
+    # scans every numeric claim in the verdict against the EXACT citation
+    # snippet text the rubric judge sees (post-truncation `Citation.snippet`
+    # of the lists attached just above), so a claim that passes the gate
+    # passes the judge by construction. On weak grounding it floors
+    # `confidence` and appends an explicit blocker — it never spends, never
+    # calls the model, and never flips the verdict literal.
+    verdict, _grounding_report = apply_grounding_gate(verdict)
 
     if not enable_backtest:
         return verdict

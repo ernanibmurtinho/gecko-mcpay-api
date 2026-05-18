@@ -644,7 +644,15 @@ def _format_panel_for_judge(
                     "provider_kind": c.provider_kind,
                     "freshness_tier": c.freshness_tier,
                     "url": c.url[:120],
-                    "snippet": (c.snippet or "")[:200],
+                    # S36-#106 — do NOT truncate a second time. The panel
+                    # already caps each snippet at _CITATION_SNIPPET_LIMIT
+                    # (320). The prior [:200] cut the cited APY/TVL/price
+                    # figure out of the judge's view for protocol-native
+                    # chunks (S36-WS1 diagnosis, Cause 1). The judge now
+                    # sees the exact snippet the panel emitted — which is
+                    # also the exact text the code-side grounding gate
+                    # reads, so gate and judge are self-consistent.
+                    "snippet": (c.snippet or ""),
                 }
             )
         return out
