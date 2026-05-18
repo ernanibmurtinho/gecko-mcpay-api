@@ -350,6 +350,76 @@ def _count_abstains(turns: list[TradePanelTurn]) -> int:
     return count
 
 
+# --- S37-WS2 — coordinator verdict escalation rules ----------------------
+# Two deterministic DEFER escalations on already-parsed turn tokens.
+# Per repo memory feedback_prompt_iteration_plateau, coordinator verdict
+# logic belongs in CODE, not a persona prompt — gpt-4o-mini rounds toward
+# caution on any defer-related prompt instruction. The #115 N=50 diagnosis
+# (docs/eval/2026-05-18-s37-A-verdict-accuracy-diagnosis.md) traced all 6
+# verdict_accuracy misses to coordinator reasoning; these two rules recover
+# 4 of them. The 2 jupiter-lst-rotation-msol rows are an upstream
+# panel-reasoning gap and are explicitly out of scope here.
+
+# Strategist closing-line tokens that mean "do not act now" — observe /
+# hold / wait / monitor. Rule 1 reads these off the strategist's
+# `strategic_intent`; the strategist turn is free-text so we substring-match.
+_STRATEGIST_NONACTION_TOKENS = ("observe", "hold", "wait", "monitor")
+
+# Framing substrings that flag the proposed action as a rotation, an all-in
+# concentration call, or a short — none of which the act/pass/defer model
+# represents cleanly. Rule 2 keys off these. Matched against the strategist
+# `strategic_intent` and the coordinator's own prose body (both restate the
+# research question's framing).
+_ROTATION_FRAMING_TOKENS = ("rotate", "rotation", "100%", "all-in", "all in", "short")
+
+# Risk bands at or above this severity satisfy Rule 2's "elevated risk" gate.
+_ELEVATED_RISK_BANDS = {"elevated", "unacceptable"}
+
+
+def _risk_band(turns: list[TradePanelTurn]) -> str | None:
+    """Return the risk_manager's closing-line band, lowercased, or None."""
+    for turn in turns:
+        if turn.agent != RISK_MANAGER:
+            continue
+        val = (turn.parsed_verdict or {}).get("risk_band")
+        if isinstance(val, str) and val.strip():
+            return val.strip().lower()
+    return None
+
+
+def _strategist_intent_line(turns: list[TradePanelTurn]) -> str:
+    """Return the strategist's `strategic_intent` closing line, lowercased."""
+    for turn in turns:
+        if turn.agent != STRATEGIST:
+            continue
+        val = (turn.parsed_verdict or {}).get("strategic_intent")
+        if isinstance(val, str):
+            return val.strip().lower()
+    return ""
+
+
+def _strategist_says_nonaction(turns: list[TradePanelTurn]) -> bool:
+    """True when the strategist intent contains an observe/hold/wait token."""
+    line = _strategist_intent_line(turns)
+    return any(tok in line for tok in _STRATEGIST_NONACTION_TOKENS)
+
+
+def _has_rotation_framing(turns: list[TradePanelTurn]) -> bool:
+    """True when the strategist intent or coordinator prose frames the
+    proposed action as a rotation / all-in concentration / short.
+
+    Keys off already-parsed turn tokens (no research-question threading):
+    the strategist closing line and the coordinator's prose body both
+    restate the question's framing, so a rotation/100%/short call is
+    visible on the recorded `turns[]` alone.
+    """
+    haystack = _strategist_intent_line(turns)
+    for turn in turns:
+        if turn.agent == COORDINATOR:
+            haystack += " " + (turn.content or "").lower()
+    return any(tok in haystack for tok in _ROTATION_FRAMING_TOKENS)
+
+
 # S24 night-shift confidence anchor — coordinator prompt instructs the
 # model to start from 0.70 and apply penalties. We re-apply the same
 # rules in code as a safety net against collapsed-band failure mode.
@@ -533,6 +603,51 @@ def _build_verdict_from_coordinator(
             *blocker_questions,
             f"{derived_abstains} of 4 primary analysts abstained — corpus too thin "
             "to support a directional call.",
+        ]
+        verdict = "defer"
+
+    # S37-WS2 Rule 1 — risk-veto DEFER escalation. The risk_manager holds a
+    # defined veto role (personas ROLE_TASKS: veto on oracle/slippage/
+    # contract/concentration risk). An `unacceptable` risk band is, by that
+    # role, structurally a defer trigger on its own — it should not need 2
+    # more voices to agree (the S24 dissent_count>=3 clause over-suppresses
+    # DEFER on exactly the high-risk fixtures where DEFER is calibrated).
+    # When the risk band is `unacceptable` AND the coordinator emitted a
+    # directional verdict AND the strategist itself said observe/hold/wait,
+    # escalate to defer. #115 diagnosis: recovers kamino-sol-leverage-entry
+    # and drift-jto-perp-short. Narrow on purpose — it does NOT fire on a
+    # genuine act/pass where the strategist proposes a concrete entry.
+    if (
+        verdict in {"act", "pass"}
+        and _risk_band(turns) == "unacceptable"
+        and _strategist_says_nonaction(turns)
+    ):
+        blocker_questions = [
+            *blocker_questions,
+            "Risk manager flagged risk as unacceptable and the strategist "
+            "declined to act — defer until the named risk is resolved.",
+        ]
+        verdict = "defer"
+
+    # S37-WS2 Rule 2 — rotation-framing DEFER escalation. act/pass/defer
+    # have no model for "the proposed action is a rotation / all-in
+    # concentration call / short", so "don't rotate" collapses to `pass`.
+    # On a rotation/100%/short-framed question the fixtures want the
+    # concentration risk *flagged* (DEFER), not the idea silently rejected
+    # (PASS). When the coordinator emitted `pass` on such a framed question
+    # AND the risk band is elevated-or-worse, escalate to defer. #115
+    # diagnosis: recovers both jupiter-jlp-vs-jitosol rows. Gated on `pass`
+    # only (a `pass` is the under-flagged reject; an `act` is the panel
+    # affirmatively endorsing the rotation and is left untouched).
+    if (
+        verdict == "pass"
+        and _has_rotation_framing(turns)
+        and (_risk_band(turns) in _ELEVATED_RISK_BANDS)
+    ):
+        blocker_questions = [
+            *blocker_questions,
+            "Rotation / all-in concentration framing with elevated risk — "
+            "defer to flag the concentration call rather than silently reject it.",
         ]
         verdict = "defer"
 
