@@ -1442,14 +1442,22 @@ class TradeResearchResponse(BaseModel):
     dissent_count: int = Field(default=0, ge=0)
     blocker_questions: list[str] = Field(default_factory=list)
     turns: list[dict[str, Any]] = Field(default_factory=list)
-    citations: list[dict[str, Any]] = Field(
+    evidence_citations: list[dict[str, Any]] = Field(
         default_factory=list,
         description=(
-            "Issue #15: structured cite list. Each entry: "
-            "{id, source, url, chunk_id, provider_kind, freshness_tier, snippet}. "
-            "Sibling to inline [N] markers in turns[].content; id links the two. "
-            "Empty list when the panel ran without retrieval. provider_kind / "
-            "freshness_tier mirror gecko_core.sources.types Literals."
+            "S35-#99 — 'the data'. Protocol/market-data chunks a panel turn "
+            "referenced via its inline [N] marker (provider_kind in "
+            "protocol_native / market_data / paysh_live / bazaar_live). Each "
+            "entry: {id, source, url, chunk_id, provider_kind, freshness_tier, "
+            "snippet}. Breaking change: replaces the old single citations[]."
+        ),
+    )
+    framework_context: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description=(
+            "S35-#99 — 'the lens'. Investor-canon chunks (provider_kind "
+            "canon_*) the panel reasoned over. Same item shape as "
+            "evidence_citations. Not relevance-trimmed: canon is cross-cutting."
         ),
     )
     backtest: dict[str, Any] | None = Field(
@@ -2363,7 +2371,8 @@ async def trade_research(req: TradeResearchRequest, request: Request) -> TradeRe
             "tool": "gecko_trade_research",
             "tier": req.tier,
             "latency_ms": latency_ms,
-            "citation_count": len(_payload.get("citations") or []),
+            "citation_count": len(_payload.get("evidence_citations") or [])
+            + len(_payload.get("framework_context") or []),
             "dissent_count": len(_payload.get("dissent") or []),
             "confidence": _payload.get("confidence"),
             "settlement_mode": _payload.get("settlement_mode"),
@@ -2481,7 +2490,8 @@ async def trade_research_pro(req: TradeResearchRequest, request: Request) -> Tra
             "tool": "gecko_trade_research_pro",
             "tier": "pro",
             "latency_ms": latency_ms,
-            "citation_count": len(payload.get("citations") or []),
+            "citation_count": len(payload.get("evidence_citations") or [])
+            + len(payload.get("framework_context") or []),
             "dissent_count": len(payload.get("dissent") or []),
             "confidence": payload.get("confidence"),
             "settlement_mode": payload.get("settlement_mode"),

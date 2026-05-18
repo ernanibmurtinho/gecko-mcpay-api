@@ -396,7 +396,9 @@ def reverdict_cmd(agent_id: str, tier: str, force: bool, dry_run: bool, live: bo
                 "tier": tier,
                 "verdict": verdict.get("verdict"),
                 "confidence": verdict.get("confidence"),
-                "n_citations": len(verdict.get("citations", []) or []),
+                # S35-#99 — verdict envelope split into two cite lists.
+                "n_citations": len(verdict.get("evidence_citations", []) or [])
+                + len(verdict.get("framework_context", []) or []),
                 "n_dissent": verdict.get("dissent_count", 0),
             },
         )
@@ -405,7 +407,7 @@ def reverdict_cmd(agent_id: str, tier: str, force: bool, dry_run: bool, live: bo
         click.echo(
             f"  verdict={verdict.get('verdict')}  "
             f"confidence={verdict.get('confidence')}  "
-            f"citations={len(verdict.get('citations', []) or [])}  "
+            f"citations={len(verdict.get('evidence_citations', []) or []) + len(verdict.get('framework_context', []) or [])}  "
             f"dissent={verdict.get('dissent_count', 0)}"
         )
         if not dry_run and hasattr(caller, "__self__"):

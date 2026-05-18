@@ -36,11 +36,13 @@ memory ``project_x402_stub_then_live``). The tests therefore submit a
 stub payment payload; a live-mode flip would require regenerating the
 header against the facilitator and is explicitly out of scope here.
 
-Issue #15 (2026-05-09): both basic and pro must carry a top-level
-``citations`` array with structured ``{id, source, url, chunk_id,
-provider_kind, freshness_tier, snippet}`` entries. The inline ``[N]``
-markers inside ``turns[].content`` keep working — the ``id`` field
-links the two surfaces. ``_assert_verdict_shape`` enforces this.
+Issue #15 (2026-05-09) + S35-#99 (2026-05-17): both basic and pro must
+carry two top-level cite arrays — ``evidence_citations`` (protocol/
+market data) and ``framework_context`` (investor-canon) — each with
+structured ``{id, source, url, chunk_id, provider_kind, freshness_tier,
+snippet}`` entries. The inline ``[N]`` markers inside ``turns[].content``
+keep working. S35-#99 is a clean break: the legacy single ``citations``
+key is gone. ``_assert_verdict_shape`` enforces this.
 
 Issue #14 (2026-05-09): the pro envelope MUST carry a ``backtest``
 field that the basic envelope does not. The dogfood that surfaced the
@@ -169,19 +171,30 @@ def _assert_verdict_shape(body: dict) -> None:
     assert isinstance(body.get("blocker_questions"), list)
     assert isinstance(body.get("dissent_count"), int)
 
-    # Issue #15: structured citations[] sibling to inline [N] markers in
-    # turns[].content. Each entry carries id/source/url/chunk_id/
-    # provider_kind/freshness_tier/snippet so skill authors can render
-    # cite chips without regex-extracting from prose. Empty list is only
-    # acceptable on a corpus-empty run; the kamino+dex smoke is expected
-    # to land >= 1 hit post-#16 ingest backfill.
-    citations = body.get("citations")
-    assert isinstance(citations, list), f"missing citations[]: {citations!r}"
-    assert len(citations) >= 1, (
-        "expected >= 1 structured citation on the wire; "
-        f"got {citations!r} — issue #15 regression or empty corpus"
+    # S35-#99: the verdict envelope splits citations into two top-level
+    # lists — evidence_citations ("the data": protocol/market chunks) and
+    # framework_context ("the lens": investor-canon chunks). Both carry the
+    # same id/source/url/chunk_id/provider_kind/freshness_tier/snippet
+    # contract. The kamino+dex smoke is expected to land >= 1 hit across
+    # the two lists combined post-#16 ingest backfill.
+    evidence_citations = body.get("evidence_citations")
+    framework_context = body.get("framework_context")
+    assert isinstance(evidence_citations, list), (
+        f"missing evidence_citations[]: {evidence_citations!r}"
     )
-    _assert_citation_shape(citations)
+    assert isinstance(framework_context, list), (
+        f"missing framework_context[]: {framework_context!r}"
+    )
+    assert "citations" not in body, (
+        "S35-#99 clean break: legacy citations[] must not be on the wire"
+    )
+    assert len(evidence_citations) + len(framework_context) >= 1, (
+        "expected >= 1 structured citation across evidence_citations + "
+        f"framework_context; got evidence={evidence_citations!r} "
+        f"framework={framework_context!r} — regression or empty corpus"
+    )
+    _assert_citation_shape(evidence_citations)
+    _assert_citation_shape(framework_context)
 
 
 def test_basic_route_serves_402_and_settles_in_stub(http_client: httpx.Client) -> None:

@@ -145,7 +145,9 @@ async def _score_one(
         "confidence": verdict.confidence,
         "dissent_count": verdict.dissent_count,
         "blocker_questions": list(verdict.blocker_questions),
-        "n_citations": len(getattr(verdict, "citations", []) or []),
+        # S35-#99 — verdict envelope split into two cite lists.
+        "n_citations": len(getattr(verdict, "evidence_citations", []) or [])
+        + len(getattr(verdict, "framework_context", []) or []),
         "wall_seconds": round(wall, 2),
         # Outcome attached AFTER the panel returns, for scoring only.
         "known_outcome": fixture["known_outcome_at_30d"],
@@ -220,10 +222,7 @@ async def run(*, limit: int | None, tier: str) -> int:
         raise SystemExit("OPENAI_API_KEY required for live trade-panel runs.")
     llm_config = _build_llm_config(api_key, tier)
 
-    print(
-        f"S24 WS-A defi-trade scorer | n={len(fixtures)} | tier={tier} | "
-        f"suite={SUITE_PATH.name}"
-    )
+    print(f"S24 WS-A defi-trade scorer | n={len(fixtures)} | tier={tier} | suite={SUITE_PATH.name}")
     rows: list[dict[str, Any]] = []
     for f in fixtures:
         print(f"  [{f['id']}] protocol={f['protocol']} as_of={f['as_of_date']} ... ", end="")

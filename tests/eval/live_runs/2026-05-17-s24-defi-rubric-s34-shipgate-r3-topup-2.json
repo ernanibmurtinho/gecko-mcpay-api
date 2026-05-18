@@ -1,0 +1,605 @@
+{
+  "date": "2026-05-17",
+  "tier": "basic",
+  "suite": "defi_trade_rubric_suite.json",
+  "n_fixtures_loaded": 2,
+  "n_scored": 2,
+  "retrieval_pregate": null,
+  "aggregate": {
+    "n": 2,
+    "overall_pass_rate": 0.0,
+    "per_dimension_means": {
+      "verdict_accuracy": 1.0,
+      "citation_relevance": 0.55,
+      "provider_kind_coverage": 1.0,
+      "hallucination_score": 0.0,
+      "dissent_grounding": 0.6,
+      "confidence_calibration": 0.525
+    },
+    "per_dimension_pass_rate": {
+      "verdict_accuracy": 1.0,
+      "citation_relevance": 1.0,
+      "provider_kind_coverage": 1.0,
+      "hallucination_score": 0.0,
+      "dissent_grounding": 1.0,
+      "confidence_calibration": 0.5
+    },
+    "thresholds": {
+      "verdict_accuracy": 0.85,
+      "citation_relevance": 0.5,
+      "provider_kind_coverage": 0.7,
+      "hallucination_score": 0.3,
+      "dissent_grounding": 0.5,
+      "confidence_calibration": 0.55
+    },
+    "statistical_gate": {
+      "method": "bootstrap percentile 95% CI, 10000 resamples, seed=4242; pass = CI_low >= threshold",
+      "per_dimension": {
+        "verdict_accuracy": {
+          "mean": 1.0,
+          "ci_low": 1.0,
+          "ci_high": 1.0,
+          "ci_halfwidth": 0.0,
+          "threshold": 0.85,
+          "point_pass": true,
+          "statistical_pass": true,
+          "margin_to_threshold": 0.15
+        },
+        "citation_relevance": {
+          "mean": 0.55,
+          "ci_low": 0.55,
+          "ci_high": 0.55,
+          "ci_halfwidth": 0.0,
+          "threshold": 0.5,
+          "point_pass": true,
+          "statistical_pass": true,
+          "margin_to_threshold": 0.05
+        },
+        "provider_kind_coverage": {
+          "mean": 1.0,
+          "ci_low": 1.0,
+          "ci_high": 1.0,
+          "ci_halfwidth": 0.0,
+          "threshold": 0.7,
+          "point_pass": true,
+          "statistical_pass": true,
+          "margin_to_threshold": 0.3
+        },
+        "hallucination_score": {
+          "mean": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.0,
+          "ci_halfwidth": 0.0,
+          "threshold": 0.3,
+          "point_pass": false,
+          "statistical_pass": false,
+          "margin_to_threshold": -0.3
+        },
+        "dissent_grounding": {
+          "mean": 0.6,
+          "ci_low": 0.5,
+          "ci_high": 0.7,
+          "ci_halfwidth": 0.1,
+          "threshold": 0.5,
+          "point_pass": true,
+          "statistical_pass": true,
+          "margin_to_threshold": 0.1
+        },
+        "confidence_calibration": {
+          "mean": 0.525,
+          "ci_low": 0.4,
+          "ci_high": 0.65,
+          "ci_halfwidth": 0.125,
+          "threshold": 0.55,
+          "point_pass": false,
+          "statistical_pass": false,
+          "margin_to_threshold": -0.025
+        }
+      },
+      "dims_statistically_green": [
+        "citation_relevance",
+        "dissent_grounding",
+        "provider_kind_coverage",
+        "verdict_accuracy"
+      ],
+      "dims_point_green": [
+        "citation_relevance",
+        "dissent_grounding",
+        "provider_kind_coverage",
+        "verdict_accuracy"
+      ],
+      "n_dims": 6,
+      "n_statistically_green": 4,
+      "ship_gate_pass": false
+    },
+    "n_policy": {
+      "ship_gate_n": 30,
+      "this_run_n": 2,
+      "ship_gate_eligible": false,
+      "note": "N=2 < 30: iteration run only. NOT ship-gate eligible \u2014 CIs too wide to certify a pass."
+    }
+  },
+  "rows": [
+    {
+      "id": "jito-mev-tip-band",
+      "protocol": "jito",
+      "vertical": "dex",
+      "as_of_date": "2026-05-16",
+      "panel": {
+        "verdict": "act",
+        "confidence": 0.55,
+        "dissent_count": 1,
+        "blocker_questions": [],
+        "n_citations": 15,
+        "provider_kinds_present": [
+          "canon_berkshire",
+          "canon_damodaran",
+          "canon_macro",
+          "canon_marks",
+          "canon_mauboussin",
+          "protocol_native"
+        ],
+        "citations": [
+          {
+            "id": 1,
+            "chunk_id": "6a0548d18e715ddfdb6bcc64",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://bundles.jito.wtf/api/v1/bundles/tip_floor",
+            "snippet": "Protocol-native API: jito / jito-mev-tip-floor-live (subkind=mev_tip_data) (as of 2026-05-14).\nEndpoint description: Jito tip-floor percentiles (P25/P50/P75/P95/P99) for bundle landing \u2014 current snapshot. Direct lamport figures that ground "
+          },
+          {
+            "id": 2,
+            "chunk_id": "6a08211a5b55deaf57a9ab02",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://bundles.jito.wtf/api/v1/bundles/tip_floor",
+            "snippet": "Protocol-native API: jito / jito-mev-tip-floor-live (subkind=mev_tip_data) (as of 2026-05-16).\nEndpoint description: Jito tip-floor percentiles (P25/P50/P75/P95/P99) for bundle landing \u2014 current snapshot. Direct lamport figures that ground "
+          },
+          {
+            "id": 3,
+            "chunk_id": "6a03d77e83de92abcb7200d0",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://bundles.jito.wtf/api/v1/bundles/tip_floor",
+            "snippet": "Protocol-native API: jito / jito-tip-floor (as of 2026-05-13).\nEndpoint description: Jito tip-floor percentiles (P25/P50/P75/P95) for bundle landing \u2014 current snapshot. Quote-kind; grounds tip-band decisions in real numbers instead of hallu"
+          },
+          {
+            "id": 4,
+            "chunk_id": "6a04bff201f7e6a8f8783d7a",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://bundles.jito.wtf/api/v1/bundles/tip_floor",
+            "snippet": "Protocol-native API: jito / jito-tip-floor (as of 2026-05-13).\nEndpoint description: Jito tip-floor percentiles (P25/P50/P75/P95/P99) for bundle landing \u2014 current snapshot. Grounds tip-band decisions in real lamport figures.\nSource URL: htt"
+          },
+          {
+            "id": 5,
+            "chunk_id": "6a0808e0aaf2166d3b4deb56",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://bundles.jito.wtf/api/v1/bundles/tip_floor",
+            "snippet": "Protocol-native API: jito/jito-tip-floor (as of 2026-05-16). Jito bundle tip floor \u2014 25th pct 0.000001 SOL; 50th pct 0.00000208 SOL; 75th pct 0.0000053 SOL; 95th pct 0.0001 SOL; 99th pct 0.00025913 SOL. EMA 50th pct 0.00000229 SOL. Source: "
+          },
+          {
+            "id": 6,
+            "chunk_id": "6a04c00501f7e6a8f8783eab",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://docs.jito.wtf/lowlatencytxnsend/",
+            "snippet": "0014479055000000002 , \"landed_tips_99th_percentile\" : 0.010007999 , \"ema_landed_tips_50th_percentile\" : 9.836078125000002e-06 } ] WebSocket showing tip amounts: \uf0c1 wscat - c wss : // bundles . jito . wtf / api / v1 / bundles / tip_stream Tip"
+          },
+          {
+            "id": 7,
+            "chunk_id": "6a0808eeaaf2166d3b4deb80",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://docs.jito.wtf/lowlatencytxnsend/",
+            "snippet": "anded_tips_50th_percentile\" : 9.836078125000002e-06 } ] WebSocket showing tip amounts: \uf0c1 wscat - c wss : // bundles . jito . wtf / api / v1 / bundles / tip_stream Tip Dashboard \uf0c1 To view dashboard please click here . Rate Limits \uf0c1 Default L"
+          },
+          {
+            "id": 8,
+            "chunk_id": "6a0548df8e715ddfdb6bcd00",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://docs.jito.wtf/lowlatencytxnsend/",
+            "snippet": "efficient MEV interactions. Rust Developers Explore the Jito Rust JSON-RPC , a performant SDK designed to leverage the power of Rust for interacting with Jito's infrastructure on Solana. Go Developers The Jito Go JSON-RPC library provides a"
+          },
+          {
+            "id": 9,
+            "chunk_id": "6a0808eeaaf2166d3b4deb6c",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://docs.jito.wtf/lowlatencytxnsend/",
+            "snippet": "Protocol-native API: jito/jito-docs-low-latency-txn-send (as of 2026-05-16). Jito low-latency transaction send \u2014 block engine, bundle submission API (sendBundle, getBundleStatuses, getInflightBundleStatuses, tip accounts), atomicity guarant"
+          },
+          {
+            "id": 10,
+            "chunk_id": "6a051bc2df7f467ce4181755",
+            "source": "web",
+            "provider_kind": "canon_berkshire",
+            "freshness_tier": "static",
+            "url": "https://www.berkshirehathaway.com/letters/1988.html",
+            "snippet": "p7 ]~\ufffd\ufffd'\ufffd\ufffd\ufffd2\ufffd|\ufffd\ufffd\ufffdoYf\ufffd\ufffd\u03d04\ufffdL\ufffd\u5f4eR4\ufffd\ufffd\u0238@\u0428\ufffdj\ufffd7\ufffds\ufffd\ufffd\ufffd1\ufffdlH\ufffd\ufffd 2Ac\ufffd9ApF\ufffd\ufffd!\ufffd-Mq\ufffd\ufffd\ufffd:\ufffd\ufffdgE+#\ufffd a\ufffd\ufffd\ufffdG\ufffd\ufffdl\ufffdt5\ufffd |\ufffdbxd\ufffd\ufffdJ\ufffd\ufffd)\ufffd!\u039bqC\ufffd\ufffd\ufffd5\ufffd$ \ufffd\ufffdwp\ufffd\ufffdE%d\ufffd\ufffd \ufffd\ufffd\ufffd\ufffdBS\ufffd\ufffd\ufffd4\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\u0193w\ufffd U\ufffd\"\ufffdJ\u0584C\ufffd\ufffd@H\ufffd\ufffdH\ufffd\ufffdi!\ufffdM\ufffdt\ufffd\ufffdk\ufffd\ufffd\ufffd\ufffdT\ufffd\ufffdf\ufffd\ufffdp\u03aab\ufffd\ufffd\ufffd\ufffd \ufffd\ufffd3\ufffd l*\ufffd\ufffd\ufffd_e\ufffd\ufffd\u007fk\ufffd\ufffdp\ufffd2\ufffdJ/\ufffd\ufffd\ufffd\ufffd\ufffdk\ufffdZ\ufffdJ,\uce0f\ufffd(\ufffdv|+\ufffd\ufffd\ufffd\ufffd7;\ufffdx8"
+          },
+          {
+            "id": 11,
+            "chunk_id": "6a02125867347ee7d9680109",
+            "source": "web",
+            "provider_kind": "canon_marks",
+            "freshness_tier": "static",
+            "url": "https://www.oaktreecapital.com/insights/memo/fewer-losers-or-more-winners",
+            "snippet": "okovic, Rafael Nadal, and Roger Federer. As a pronounced underdog, Eubanks probably recognized that he wasn\u2019t likely to outlast or out-steady Medvedev. Thus, he had to go for winners. If that was Eubanks\u2019s plan, he succeeded in executing it"
+          },
+          {
+            "id": 12,
+            "chunk_id": "6a0539228c085826f9a036a7",
+            "source": "web",
+            "provider_kind": "canon_mauboussin",
+            "freshness_tier": "static",
+            "url": "https://www.trendfollowing.com/pdfs/UntanglingSkillandLuck.pdf",
+            "snippet": "a very important issue in evaluating investment results, for instance. The \r\nstandard approach is to observe a distribution of outcomes and to make an estimate of the \r\nlikelihood that a really good outcome\u2014a result in the right tail of the"
+          },
+          {
+            "id": 13,
+            "chunk_id": "6a0538f6177dc0b1aff1fdd3",
+            "source": "web",
+            "provider_kind": "canon_macro",
+            "freshness_tier": "static",
+            "url": "https://www.bis.org/publ/work1164.pdf",
+            "snippet": "condition for the issuer. Since only arbitrageurs can\r\nredeem with the issuer, given a switching point x\r\n\u2217\r\n1\r\n, the issuer fails whenever the realized\r\nmass of redemptions is sufficiently large, \u03b8 < \u02dc\u03b8\r\n\u2217\r\n, where\r\n\u02dc\u03b8\r\n\u2217 = \u03bb\u03a6\r\np\r\n\u03b21(x\r\n\u2217\r"
+          },
+          {
+            "id": 14,
+            "chunk_id": "6a021bc5600a85667fd2c8e1",
+            "source": "web",
+            "provider_kind": "canon_damodaran",
+            "freshness_tier": "static",
+            "url": "https://www.stern.nyu.edu/~adamodar/pdfiles/papers/beta.pdf",
+            "snippet": "33\r\nWeekly 1.38\r\nMonthly 1.13\r\nQuarterly 0.44\r\nAnnual 0.77\r\nUsing shorter return intervals increases the number of observations in the regression,\r\nfor any given time period, but it does come with a cost. Assets do not trade on a\r\ncontinuou"
+          },
+          {
+            "id": 15,
+            "chunk_id": "6a051bd1df7f467ce418179e",
+            "source": "web",
+            "provider_kind": "canon_berkshire",
+            "freshness_tier": "static",
+            "url": "https://www.berkshirehathaway.com/letters/1991.html",
+            "snippet": "9\ufffd\ufffd\ufffd\ufffddF\ufffd%BCB\ufffd \ufffdp\ufffd>\ufffd0I\ufffd\ufffdeM\ufffd` ;\ufffd\ufffd%_\ufffd\ufffdV^\ufffd\ufffd\ufffd \ufffd\ufffd\ufffd\u03cd\ub6c4!\ufffd\ufffd\ufffd\ufffdJ\ufffd^;\ufffd\ufffd\ufffd \ufffdA\ufffd\ufffd\ufffd*}v\ufffdP\ufffd\ufffd\ufffd/\\\ufffdbC\ufffd\ufffd\ufffdm\ufffd\ufffd>\ufffd 5\ufffdR\ufffd\ufffd\ufffd\ufffd\ufffd#\ufffdA\ufffdL\ufffd\u060a\ufffd\ufffd\ufffd6)\ufffd{a\ufffdN [t\ufffd\ufffdN6]\u05b0^r\ufffd\ufffd\ufffd\ufffd8\ufffd\ufffd \ufffd\ufffd!\ufffd\ufffdKl\ufffd\ufffd \ufffdr/R\ufffd\ufffd\ufffdT\ufffdQkj`\ufffd\ufffdl\ufffd\"!\ufffd\ufffd^\ufffd\ufffdwX\ufffd\ufffd\u00d2\ufffd\ufffdI`\ufffd58\ufffd\ufffdG\u0501\ufffd\ufffdWLFZ\ufffd\\i\ufffd\ufffd\\c\ufffd=\ufffd\ufffdF\ufffd\ufffd\ufffd\ufffdf\ufffd\ufffd+\ufffd\u00e2Of\ufffdl\ufffdC\ufffd \ufffd^\u00e1?\ufffdq\ufffd\ufffd&;Gn\u0445A\ufffd3\ufffd\ufffd ^ \ufffd\ufffd\ufffd"
+          }
+        ],
+        "turns": [
+          {
+            "agent": "technical_analyst",
+            "content": "The current macro regime for Jito's MEV tip strategy appears to be one of heightened competition and urgency, suggesting that a P90 tip band may be more appropriate than a P75 band for the next week. This assessment is grounded in the recent data from the Jito protocol, which indicates increasing tip amounts across the percentiles. For instance, the P75 tip amount has risen to approximately 8.8785e-06 SOL as of May 16, 2026 [2], while the P90 tip amount is significantly higher at around 3.3531e-05 SOL [2]. This upward trend in tip amounts reflects a competitive environment where higher tips may be necessary to secure bundle landing.\n\nIn terms of volatility, the current regime can be characterized as elevated. The increasing tip amounts suggest that market participants are responding to competitive pressures, which typically leads to greater volatility in the MEV landscape. This aligns with the notion that as competition intensifies, the risk of missed opportunities increases, prompting traders to adjust their strategies accordingly.\n\nHistorically, this situation resembles periods of heightened activity in other competitive markets, where participants must adapt quickly to changing conditions. For example, during the 2020 DeFi summer, we saw similar dynamics where users had to increase their gas fees to ensure transaction priority amid surging demand. Additionally, the competitive nature of MEV strategies can be likened to the dynamics observed in high-frequency trading environments, where slight advantages in execution speed and cost can significantly impact profitability.\n\nGiven these factors, it is advisable to consider a P90 tip strategy to remain competitive in the current environment.\n\nTrend verdict: bullish",
+            "parsed_verdict": {
+              "trend_verdict": "bullish"
+            }
+          },
+          {
+            "agent": "sentiment_analyst",
+            "content": "The current sentiment surrounding Jito's MEV tip strategy indicates a bullish outlook, driven by increasing competition and the necessity for higher tip amounts to secure bundle landing. Recent data shows that the P75 tip amount has risen to approximately 8.8785e-06 SOL as of May 16, 2026, while the P90 tip amount is significantly higher at around 3.3531e-05 SOL [2]. This upward trend in tip amounts suggests that market participants are responding to competitive pressures, indicating a heightened urgency to optimize strategies.\n\nThe dominant narrative in the last observable window can be characterized as \"builder-mode,\" where participants are actively adjusting their strategies to align with the evolving market conditions. This is evident from the increasing tip amounts across percentiles, which reflect a competitive environment where higher tips may be necessary to secure successful bundle landings.\n\nKey concerns surfacing in the corpus include:\n1. The need for strategic adjustments in tip amounts to remain competitive, as evidenced by the rising P75 and P90 figures.\n2. The potential for increased volatility in the MEV landscape, as traders adapt to the competitive pressures and adjust their strategies accordingly.\n\nThere are no significant narrative pivots observed in the recent data; the sentiment remains consistently bullish as traders recognize the need to adapt to the competitive environment.\n\nIn summary, the current sentiment reflects a proactive approach among participants, with a clear indication that a P90 tip strategy may be more appropriate to navigate the heightened competition effectively.\n\nSentiment band: greed",
+            "parsed_verdict": {
+              "sentiment_band": "greed"
+            }
+          },
+          {
+            "agent": "fundamental_analyst",
+            "content": "Jito is a protocol that facilitates high-frequency MEV (Miner Extractable Value) transactions on the Solana blockchain, allowing users to submit bundles of transactions with tips to incentivize validators for prioritizing their transactions.\n\nThe retrieved corpus indicates that the tip amounts for Jito are on an upward trajectory. Specifically, the P75 tip amount has increased to approximately 8.8785e-06 SOL as of May 16, 2026 [2], compared to 5.04575e-06 SOL on May 14, 2026 [1]. This suggests a significant increase in the competitive landscape, where higher tips are becoming necessary to ensure successful bundle landing. The P90 tip amount is reported at around 3.3531e-05 SOL [2], further indicating that a P90 strategy may be more effective than a P75 strategy in the current environment.\n\nRegarding audit posture, the retrieved chunks do not provide specific information about the audit status of Jito's code or any critical findings. Therefore, it is unclear whether there are any unresolved issues or recent audits.\n\nRecent parameter changes or governance proposals are not explicitly mentioned in the retrieved corpus, indicating a lack of recent updates in this area.\n\nAs for the integration footprint, the corpus does not detail specific protocols or projects that depend on Jito downstream, which would typically indicate ecosystem risk if Jito were to degrade.\n\nIn summary, the current analysis suggests that Jito's competitive landscape is strengthening, as evidenced by the rising tip amounts. However, the lack of information on audit status and integration footprint presents a gap in the overall assessment.\n\nProtocol health: growing",
+            "parsed_verdict": {
+              "protocol_health": "growing"
+            }
+          },
+          {
+            "agent": "risk_manager",
+            "content": "Upon reviewing the Jito protocol and the retrieved corpus, several risk vectors are present that warrant attention:\n\n1. **Oracle Staleness or Manipulation**: The corpus does not explicitly mention any oracle mechanisms used by Jito. However, if the protocol relies on external data feeds for determining tip amounts or transaction prioritization, there is a risk of oracle manipulation or staleness, which could lead to incorrect pricing of tips. **Severity: Medium; Likelihood: Medium**.\n\n2. **Slippage on Size**: The increasing tip amounts suggest that larger transactions may face slippage as competition intensifies. If the bot operates with significant size, it may not be able to execute at the desired tip levels, leading to potential losses. **Severity: High; Likelihood: High**.\n\n3. **Smart-Contract Exploit Surface**: The corpus does not provide details on the audit status of Jito's smart contracts. If the contracts are unaudited or have known vulnerabilities, there is a risk of exploitation, especially in a high-frequency trading environment where speed is critical. **Severity: High; Likelihood: Medium**.\n\n4. **Concentration Risk**: The corpus does not mention the distribution of tip amounts or the presence of dominant players (whales) in the Jito ecosystem. If a few large players control a significant portion of the tip market, this could lead to market manipulation or sudden shifts in tip dynamics. **Severity: Medium; Likelihood: Medium**.\n\n5. **Regulatory Exposure**: The corpus does not address any regulatory concerns specific to Jito. However, as a protocol operating in the MEV space, it may face scrutiny from regulators regarding its practices, especially if they are perceived as harmful to the broader ecosystem. **Severity: Medium; Likelihood: Medium**.\n\n6. **Operational Risk**: The reliance on a single protocol for executing high-frequency trades introduces operational risks, such as downtime or failures in the transaction submission process. The corpus mentions rate limits and potential errors, indicating that operational issues could impact performance. **Severity: High; Likelihood: Medium**.\n\nThe risks identified imply a cautious approach to position sizing. Given the potential for slippage and operational risks, a size cap of 1% of liquid net worth is advisable to mitigate exposure while navigating the competitive landscape.\n\nIn conclusion, the combination of slippage risk, potential smart contract vulnerabilities, and operational risks leads to an elevated risk assessment for engaging with Jito at this time.\n\nRisk band: elevated",
+            "parsed_verdict": {
+              "risk_band": "elevated"
+            }
+          },
+          {
+            "agent": "strategist",
+            "content": "The research question focuses on determining whether a P75 tip strategy is reasonable for a high-frequency arb bot on Jito, or if a P90 strategy is necessary for the next 7 days. \n\nThe analysts present a consensus that suggests a bullish outlook for the Jito protocol, driven by increasing competition and rising tip amounts. The technical analysis indicates a clear upward trend in tip amounts, with the P75 tip rising to approximately 8.8785e-06 SOL as of May 16, 2026, while the P90 tip is significantly higher at around 3.3531e-05 SOL [2]. This trend indicates that the competitive landscape is intensifying, necessitating higher tips to secure successful bundle landings.\n\nThe sentiment analysis aligns with this bullish outlook, highlighting a proactive approach among participants who are adjusting their strategies to remain competitive. The sentiment is characterized as \"builder-mode,\" reflecting a recognition of the need for higher tips in response to market dynamics.\n\nFrom a fundamental perspective, the Jito protocol appears to be in a growing state, with no significant issues reported regarding audits or governance changes. However, the lack of information on audit status raises concerns about potential vulnerabilities.\n\nThe risk assessment identifies several key risks, including slippage on size, potential smart contract exploits, and operational risks associated with relying on a single protocol for high-frequency trading. Given these risks, the recommendation is to approach with caution, suggesting a size cap of 1% of liquid net worth to mitigate exposure.\n\nIn light of the bullish sentiment and the need for competitive positioning, the structured intent is as follows:\n\n- **Action**: open_long\n- **Direction**: long\n- **Size Band**: small\n- **Stop Band**: tight\n- **Horizon**: days\n\nThe overriding rationale for this intent is to capitalize on the upward trend in tip amounts while managing risk through a conservative position size and tight stop.\n\nThe single most important falsifier for this thesis would be a significant drop in the P90 tip amount below the current level, indicating a shift in market dynamics that could undermine the competitive landscape.\n\nStrategic intent: open small long, tight stop, days horizon \u2014 falsifier: P90 tip drops below 3.3531e-05 SOL.",
+            "parsed_verdict": {
+              "strategic_intent": "open small long, tight stop, days horizon \u2014 falsifier: P90 tip drops below 3.3531e-05 SOL."
+            }
+          },
+          {
+            "agent": "bull_bear_debater",
+            "content": "BULL CASE: The bull case for adopting a P75 tip strategy on Jito rests on the recent data showing a significant increase in tip amounts across the percentiles, indicating a robust competitive environment. The P75 tip amount has risen to approximately 8.8785e-06 SOL as of May 16, 2026 [2], suggesting that this level is still competitive enough to secure bundle landings without overextending capital. If the market continues to show resilience and the P75 level remains effective, it could lead to increased profitability for the arb bot. Furthermore, if transaction volumes and competition continue to rise, maintaining a P75 strategy could allow for better liquidity management and reduced slippage, confirming that the thesis is working.\n\nBEAR CASE: The bear case argues that a P75 tip strategy may be insufficient in the current competitive landscape, where the P90 tip amount is significantly higher at around 3.3531e-05 SOL [2]. If the arb bot fails to secure bundle landings due to underbidding, it could lead to missed opportunities and potential losses. A signal that the thesis is broken would be a consistent failure to land bundles at the P75 level, indicating that the market has shifted and that higher tips are necessary to remain competitive. Additionally, if the volatility in tip amounts continues to increase, the coordinator may be over-weighting the conviction in a P75 strategy, leading to greater risk exposure.\n\nDecisive question: Does the P75 tip amount consistently secure bundle landings over the next 7 days, or does it fall short compared to the P90 level?",
+            "parsed_verdict": {
+              "decisive_question": "Does the P75 tip amount consistently secure bundle landings over the next 7 days, or does it fall short compared to the P90 level?"
+            }
+          },
+          {
+            "agent": "coordinator",
+            "content": "The panel's stance is largely aligned in favor of adopting a P90 tip strategy for the Jito protocol, reflecting a consensus on the need for higher tips in the current competitive landscape. The technical analyst highlighted the upward trend in tip amounts, with the P75 tip rising to approximately 8.8785e-06 SOL, while the P90 tip is significantly higher at around 3.3531e-05 SOL [2]. The sentiment analyst echoed this bullish outlook, emphasizing the proactive adjustments being made by market participants. However, the risk manager raised concerns about potential vulnerabilities, including slippage and smart contract risks, which could impact the effectiveness of the strategy. The strategist and bull-bear debater also contributed to the discussion, framing the decision around the necessity of higher tips to secure bundle landings.\n\nGiven the strong alignment towards a P90 strategy and the identified risks, the panel supports executing the strategist's intent now.\n\n**Key drivers:**\n1. Upward trend in tip amounts indicating increased competition [Technical Analyst].\n2. Bullish sentiment reflecting proactive adjustments by participants [Sentiment Analyst].\n3. Concerns about slippage and smart contract risks that necessitate a cautious approach [Risk Manager].\n\n**Dissent count:** 1 (the risk manager raised concerns about potential vulnerabilities).\n\n**Blocker questions:** None identified, as the panel reached a consensus on the strategic intent.\n\n```json\n{\n  \"verdict\": \"act\",\n  \"confidence\": 0.75,\n  \"key_drivers\": [\n    \"Upward trend in tip amounts indicating increased competition\",\n    \"Bullish sentiment reflecting proactive adjustments by participants\",\n    \"Concerns about slippage and smart contract risks that necessitate a cautious approach\"\n  ],\n  \"dissent_count\": 1,\n  \"blocker_questions\": []\n}\n```\n\nFinal verdict: act",
+            "parsed_verdict": {
+              "verdict": "act"
+            }
+          }
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "ACT",
+        "expected_verdict_v2_set": [
+          "ACT",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "protocol_native",
+          "canon_mauboussin",
+          "canon_damodaran"
+        ],
+        "expected_dissent_topics": [
+          "mempool_depth_volatility",
+          "tip_inflation_risk",
+          "bot_competition_risk"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.55,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 0.0,
+        "dissent_grounding": 0.5,
+        "confidence_calibration": 0.4
+      },
+      "passed": false,
+      "judge_notes": "Citation relevance: Citations 1-9 are directly on-topic (Jito tip-floor API and docs), but citations 10-15 are completely irrelevant canon boilerplate (Berkshire letters, Oaktree, Mauboussin, BIS, Damodaran) \u2014 roughly 40% of citations are off-topic, pulling score down. Hallucination: Multiple specific lamport/SOL figures are cited (P75 ~8.8785e-06 SOL, P90 ~3.3531e-05 SOL) across agent turns without a matching paysh_live or market_data source \u2014 citation [2] is a protocol_native API snapshot that provides P25/P50/P75/P95/P99 but NOT P90, and the P75 value cited (8.8785e-06) does not match the snippet value (0.0000053 SOL). These ungrounded specific figures constitute hallucinations per must_not_hallucinate rules. Dissent grounding: The risk manager and bull-bear debater hint at bot competition risk and tip inflation risk, but these are not concretely labeled as such; mempool_depth_volatility is not surfaced at all \u2014 partial credit only. Confidence calibration: The coordinator's internal JSON shows 0.75 confidence while the envelope reports 0.55; the panel leans heavily toward P90 recommendation despite the question asking about P75 vs P90 defensibility, and with hallucinated figures and thin grounding, 0.55 is still somewhat overconfident given the data quality issues.",
+      "wall_seconds": {
+        "panel": 47.42,
+        "judge": 11.64
+      }
+    },
+    {
+      "id": "sanctum-unstake-vs-hold",
+      "protocol": "sanctum",
+      "vertical": "dex",
+      "as_of_date": "2026-05-16",
+      "panel": {
+        "verdict": "defer",
+        "confidence": 0.7,
+        "dissent_count": 0,
+        "blocker_questions": [
+          "Does the liquidity of the Sanctum Reserve improve significantly over the next 30 days, stabilizing the INF token's peg to SOL?"
+        ],
+        "n_citations": 15,
+        "provider_kinds_present": [
+          "canon_berkshire",
+          "canon_damodaran",
+          "canon_marks",
+          "canon_mauboussin",
+          "protocol_native"
+        ],
+        "citations": [
+          {
+            "id": 1,
+            "chunk_id": "6a04c051100c697d90d66581",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://learn.sanctum.so/docs/technical-documentation/router",
+            "snippet": "Protocol-native API: sanctum / sanctum-router-technical (as of 2026-05-13).\nEndpoint description: Sanctum Router \u2014 technical doc: instant LST\u2194LST and LST\u2192SOL conversion, spread computation, pool depth math, fee tier.\nSource URL: https://lea"
+          },
+          {
+            "id": 2,
+            "chunk_id": "6a04c055100c697d90d66586",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://learn.sanctum.so/docs/technical-documentation/infinity-non-technical",
+            "snippet": "Protocol-native API: sanctum / sanctum-infinity-non-technical (as of 2026-05-13).\nEndpoint description: Sanctum Infinity (non-technical) \u2014 INF user-facing explanation, what INF returns, when to use vs router.\nSource URL: https://learn.sanct"
+          },
+          {
+            "id": 3,
+            "chunk_id": "6a04c055100c697d90d66588",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://learn.sanctum.so/docs/technical-documentation/infinity-non-technical",
+            "snippet": "-grail-of-solana-yield As our roadmap for INF continues to evolve, you can find the most up-to-date information on the Sanctum Blog . Summary Sanctum powers many of the largest LSTs on Solana. Infinity exists In order to provide crucial liq"
+          },
+          {
+            "id": 4,
+            "chunk_id": "6a04c055100c697d90d66587",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://learn.sanctum.so/docs/technical-documentation/infinity-non-technical",
+            "snippet": "withdraw LST; deposit SOL, mint INF; and deposit INF (redeem), withdraw SOL. Infinity charges a small fee to facilitate these swaps. SOL yield for holders Infinity holds a basket of LSTs inside. Each epoch (approximately 2 days), these LSTs"
+          },
+          {
+            "id": 5,
+            "chunk_id": "6a04c04f100c697d90d6657f",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://learn.sanctum.so/docs/introduction-to-lsts/making-the-state-of-liquid-staking-optimal",
+            "snippet": "Protocol-native API: sanctum / sanctum-optimal-lst-state (as of 2026-05-13).\nEndpoint description: Sanctum on optimal LST state \u2014 fragmentation problem, unified liquidity argument, infrastructure layer.\nSource URL: https://learn.sanctum.so/"
+          },
+          {
+            "id": 6,
+            "chunk_id": "6a03d78383de92abcb7200d3",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://learn.sanctum.so/docs",
+            "snippet": "Protocol-native API: sanctum / sanctum-docs-learn (as of 2026-05-13).\nEndpoint description: Sanctum LSTs + router docs \u2014 INF token, router spread, unstaking mechanics, pool depth. HTML rendered to plain text at ingest.\nSource URL: https://l"
+          },
+          {
+            "id": 7,
+            "chunk_id": "6a04c053100c697d90d66583",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://learn.sanctum.so/docs/technical-documentation/infinity",
+            "snippet": "Protocol-native API: sanctum / sanctum-infinity-technical (as of 2026-05-13).\nEndpoint description: Sanctum Infinity pool \u2014 technical doc: INF as basket LST, underlying LST composition, weight bands, rebalance trigger, peg maintenance, LP f"
+          },
+          {
+            "id": 8,
+            "chunk_id": "6a04c057100c697d90d66589",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://learn.sanctum.so/docs/technical-documentation/reserve",
+            "snippet": "Protocol-native API: sanctum / sanctum-reserve-technical (as of 2026-05-13).\nEndpoint description: Sanctum Reserve \u2014 SOL backing reserves for instant unstakes, fee accrual model, depositor mechanics.\nSource URL: https://learn.sanctum.so/doc"
+          },
+          {
+            "id": 9,
+            "chunk_id": "6a04c071100c697d90d665b8",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://sanctum-extra-api.ngrok.dev/v1/apy/latest?lst=INF",
+            "snippet": "Protocol-native API: sanctum / sanctum-apy-inf (as of 2026-05-13).\nEndpoint description: Sanctum INF latest APY snapshot.\nSource URL: https://sanctum-extra-api.ngrok.dev/v1/apy/latest?lst=INF\nContent kind: quote\n----- body -----\n{\n  \"apys\":"
+          },
+          {
+            "id": 10,
+            "chunk_id": "6a021b48600a85667fd2c627",
+            "source": "web",
+            "provider_kind": "canon_damodaran",
+            "freshness_tier": "static",
+            "url": "https://www.stern.nyu.edu/~adamodar/pdfiles/papers/cashvaluation.pdf",
+            "snippet": "(treasury bills) = 2.25%\n\n14\r\nProportion of cash balance which is wasting cash = 1 \u2013 Book interest rate/ Market interest\r\nrate = 1 - .021/.0225 = 0.0667 or 6.67%\r\nThus, 6.67% of $ 200 million ($13.34 million) would be treated as wasting cas"
+          },
+          {
+            "id": 11,
+            "chunk_id": "6a051c3fdf7f467ce4181a62",
+            "source": "web",
+            "provider_kind": "canon_berkshire",
+            "freshness_tier": "static",
+            "url": "https://www.berkshirehathaway.com/letters/2010ltr.pdf",
+            "snippet": "and Japan. These contracts are tied to various equity indices, such as the S&P 500 in the U.S.\r\nand the FTSE 100 in the U.K. In the 2004-2008 period, we received $4.8 billion of premiums for 47 of these\r\ncontracts, most of which ran for 15 "
+          },
+          {
+            "id": 12,
+            "chunk_id": "6a0212ba67347ee7d96802a1",
+            "source": "web",
+            "provider_kind": "canon_marks",
+            "freshness_tier": "static",
+            "url": "https://www.oaktreecapital.com/insights/memo/thinking-about-macro",
+            "snippet": "like to see a free market in money, and to me that means interest rates that are \u201cnaturally occurring.\u201d Rates held artificially low distort the capital markets, penalizing savers, subsidizing borrowers, lifting asset prices and encouraging "
+          },
+          {
+            "id": 13,
+            "chunk_id": "6a0539528c085826f9a037db",
+            "source": "web",
+            "provider_kind": "canon_mauboussin",
+            "freshness_tier": "static",
+            "url": "https://www.morganstanley.com/im/publication/insights/articles/article_confidence.pdf",
+            "snippet": "of range of reasonable opinion in economics is an open letter that a number of economists, political \r\nstrategists, and investors sent to Ben Bernanke in November 2010. Bernanke was at the time the chairman of \r\nthe Federal Reserve. The let"
+          },
+          {
+            "id": 14,
+            "chunk_id": "6a021b48600a85667fd2c640",
+            "source": "web",
+            "provider_kind": "canon_damodaran",
+            "freshness_tier": "static",
+            "url": "https://www.stern.nyu.edu/~adamodar/pdfiles/papers/cashvaluation.pdf",
+            "snippet": "the overall market return as the expected return, thus making the implied assumption that\r\nthe fund invests in average risk stocks in these markets.\n\n38\r\nEstimated discount\r\n( )( )\r\n( )( )\r\n$667 million\r\n0.12\r\n0.10 0.12 4000\r\nExpected retur"
+          },
+          {
+            "id": 15,
+            "chunk_id": "6a051c0edf7f467ce4181910",
+            "source": "web",
+            "provider_kind": "canon_berkshire",
+            "freshness_tier": "static",
+            "url": "https://www.berkshirehathaway.com/letters/2002pdf.pdf",
+            "snippet": "derivatives, due to be settled many years\r\nin the future, were put on the books. Or say you want to write a contract speculating on the number of twins\r\nto be born in Nebraska in 2020. No problem \u2013 at a price, you will easily find an obligi"
+          }
+        ],
+        "turns": [
+          {
+            "agent": "technical_analyst",
+            "content": "The current macro regime for crypto risk assets, particularly in the context of holding 200 INF tokens in the Sanctum protocol, can be characterized as risk-off. This assessment is grounded in the framework of historical liquidity issues and market dynamics surrounding liquid staking tokens (LSTs). The Sanctum documentation highlights that during periods of abnormal sell pressure, the market price of LSTs can drop significantly, leading to a depeg from their intrinsic SOL value, which indicates a risk-off sentiment in the market [5: 'the market price of liquid staking tokens (LSTs) may drop, depending on the available liquidity in the market'].\n\nThe volatility regime appears to be elevated. This is inferred from the historical context where liquidity crises can lead to panic selling, exacerbating price declines and increasing volatility. The Sanctum Reserve acts as a backstop liquidity mechanism, indicating that there are underlying concerns about liquidity and stability in the market [8: 'The Reserve acts as backstop liquidity and is only used for last resort liquidity needs'].\n\nIn terms of historical analogues, the current regime resembles the liquidity crises observed in previous bear markets, where LSTs faced significant price pressure due to low liquidity and high volatility. This is akin to the market dynamics described by Howard Marks, where he emphasizes the importance of liquidity and the psychological aspects of market behavior during downturns [5: 'panic, leading to a negative momentum and further selling'].\n\nGiven these conditions, the risk-off sentiment suggests that holding INF tokens may expose you to potential devaluation risks, especially if market liquidity continues to be a concern. The elevated volatility regime further supports caution in decision-making regarding whether to unstake or hold.\n\nTrend verdict: bearish",
+            "parsed_verdict": {
+              "trend_verdict": "bearish"
+            }
+          },
+          {
+            "agent": "sentiment_analyst",
+            "content": "The current sentiment surrounding the Sanctum protocol, particularly for holders of the INF token, can be characterized as cautious and risk-averse. The dominant narrative reflects a concern about liquidity and potential price volatility, which is typical in the context of liquid staking tokens (LSTs). The documentation indicates that during periods of abnormal sell pressure, the market price of LSTs can drop significantly, leading to a \"depeg\" from their intrinsic SOL value, which can create panic and further selling pressure [5: 'the market price of liquid staking tokens (LSTs) may drop, depending on the available liquidity in the market'].\n\nSeveral concrete concerns are surfacing in the narrative:\n1. **Liquidity Issues**: The Sanctum Reserve is highlighted as a backstop liquidity mechanism, indicating ongoing concerns about the availability of liquidity in the market [8: 'The Reserve acts as backstop liquidity and is only used for last resort liquidity needs'].\n2. **Volatility Risks**: The potential for significant price fluctuations is underscored, especially during market downturns, which can lead to panic selling and exacerbate price declines [5: 'panic, leading to a negative momentum and further selling'].\n3. **Depeg Risks**: The risk of LSTs deviating from their true SOL value during periods of high volatility is a critical concern for investors [5: 'may drop, depending on the available liquidity in the market'].\n\nThere has been a noticeable pivot in the narrative from a more optimistic view of liquid staking to a more cautious stance, particularly as market conditions have shifted. This shift is evident in the increased focus on liquidity and volatility risks, which were less emphasized during more bullish market phases.\n\nIn terms of voice, the sentiment appears to be driven more by retail concerns rather than insider or builder perspectives, as the latter typically focus on the technical aspects and future potential of the protocol.\n\nOverall, the current market sentiment reflects a cautious approach, with holders weighing the risks of holding INF against the potential for liquidity challenges and price volatility.\n\nSentiment band: fear",
+            "parsed_verdict": {
+              "sentiment_band": "fear"
+            }
+          },
+          {
+            "agent": "fundamental_analyst",
+            "content": "Sanctum is a protocol designed to facilitate the liquidity of Liquid Staking Tokens (LSTs) by allowing users to swap between different LSTs and SOL, while also enabling holders to earn staking rewards and fees from these swaps.\n\nCurrently, there is no specific TVL or volume figure for Sanctum in the retrieved corpus. Therefore, I cannot provide a quantitative assessment of its financial health based on these metrics.\n\nRegarding the audit posture, the retrieved chunks do not mention any recent audits, critical findings, or any unaudited code paths. Thus, I cannot provide a clear picture of the protocol's security status.\n\nIn terms of recent governance or parameter changes, the retrieved corpus does not provide specific details on any recent proposals or adjustments to the protocol's parameters.\n\nAs for the integration footprint, the documentation indicates that Sanctum powers many of the largest LSTs on Solana and has integrations with major DeFi protocols and aggregators, which suggests a strong ecosystem presence. However, specific downstream dependencies were not detailed in the retrieved chunks.\n\nGiven the lack of quantitative data on TVL, volume, and audit status, I cannot definitively assess the protocol's health. The absence of these critical metrics leads to a conclusion that the health of Sanctum is stable, as there are no major positive or negative signals evident from the available information.\n\nProtocol health: stable",
+            "parsed_verdict": {
+              "protocol_health": "stable"
+            }
+          },
+          {
+            "agent": "risk_manager",
+            "content": "In evaluating the risks associated with holding 200 INF tokens in the Sanctum protocol, several specific risk vectors emerge from the corpus:\n\n1. **Liquidity Risk**: The documentation indicates that during periods of abnormal sell pressure, the market price of LSTs can drop significantly, leading to a potential depeg from their intrinsic SOL value. This could create panic selling and further exacerbate price declines [5: 'the market price of liquid staking tokens (LSTs) may drop, depending on the available liquidity in the market'].\n\n   - **Severity**: High\n   - **Likelihood**: Medium\n\n2. **Operational Risk**: The Sanctum Reserve acts as a backstop liquidity mechanism, which implies that there are concerns about the availability of liquidity in the market. If the Reserve is utilized, it indicates that other liquidity options are insufficient, which could lead to delays or complications in unstaking or swapping [8: 'The Reserve acts as backstop liquidity and is only used for last resort liquidity needs'].\n\n   - **Severity**: Medium\n   - **Likelihood**: Medium\n\n3. **Smart Contract Risk**: The protocol's reliance on smart contracts for swaps and liquidity management introduces the risk of potential exploits or bugs, particularly if any components are unaudited or have not been thoroughly tested. The corpus does not provide information on recent audits or vulnerabilities, which is a concern [6: 'The Router's primary role is to streamline complex staking and swapping processes'].\n\n   - **Severity**: High\n   - **Likelihood**: Medium\n\n4. **Concentration Risk**: The documentation mentions that Sanctum powers many of the largest LSTs on Solana, which could lead to concentration risk if a few large players dominate the liquidity pools. This could impact the stability of the INF token's price during market fluctuations [6: 'Sanctum powers many of the largest LSTs on Solana'].\n\n   - **Severity**: Medium\n   - **Likelihood**: Medium\n\nThe other analysts have under-weighted the operational risk associated with the reliance on the Sanctum Reserve as a liquidity backstop, which could lead to significant delays or complications in accessing liquidity during market stress. This was not explicitly addressed in the prior turns.\n\nGiven these risks, I recommend a position size cap of no more than 1% of liquid net worth due to the high severity of liquidity and smart contract risks, alongside the operational concerns regarding the Reserve.\n\nRisk band: elevated",
+            "parsed_verdict": {
+              "risk_band": "elevated"
+            }
+          },
+          {
+            "agent": "strategist",
+            "content": "The research question revolves around whether to unstake 200 INF tokens via the Sanctum router or hold them for an additional 30 days, weighing the yield against peg risk.\n\nThe dominant alignment across the analysts indicates a consensus on the elevated risks associated with holding INF tokens. The technical analyst highlighted liquidity concerns and potential price volatility, while the sentiment analyst noted a cautious, risk-averse market sentiment. The fundamental analyst pointed out the lack of specific quantitative metrics regarding the protocol's health, and the risk manager emphasized significant liquidity and operational risks.\n\nGiven this context, the structured intent is as follows:\n- **Action**: Observe\n- **Direction**: Neutral\n- **Size Band**: None\n- **Stop Band**: None\n- **Horizon**: Days\n\nThe risk manager's concerns about elevated liquidity and operational risks warrant a cautious approach. The potential for a depeg and the reliance on the Sanctum Reserve as a backstop for liquidity suggest that holding INF tokens may expose you to unnecessary risks in the current market environment. Therefore, it is prudent to observe the market dynamics for a short period before making any decisions regarding unstaking.\n\nThe single most important falsifier for this thesis would be a significant improvement in liquidity metrics or a stabilization of the INF token's price relative to SOL, indicating reduced peg risk.\n\nStrategic intent: observe INF tokens for now, reassess in days based on liquidity and market conditions.",
+            "parsed_verdict": {
+              "strategic_intent": "observe INF tokens for now, reassess in days based on liquidity and market conditions."
+            }
+          },
+          {
+            "agent": "bull_bear_debater",
+            "content": "BULL CASE: The Sanctum protocol's Infinity (INF) token represents a compelling opportunity for holders, particularly given its unique position in providing liquidity for Liquid Staking Tokens (LSTs). The primary strength of the INF token lies in its ability to generate yield through staking rewards and swap fees, which can significantly enhance returns, especially during periods of high trading volume. The recent historical performance indicates that INF can achieve substantial annual percentage yields (APY), as evidenced by a spike to 26.12% APY during a recent market event [4: 'INF earned a 26.12% APY epoch return']. Furthermore, the integration of INF with major DeFi protocols on Solana enhances its utility and liquidity, suggesting that the token's value could appreciate as demand for LST swaps increases. If the market conditions stabilize and liquidity improves, the INF token could see a significant price increase, making holding it a potentially lucrative decision.\n\nBEAR CASE: Conversely, the risks associated with holding INF tokens are substantial and could lead to significant losses. The primary concern is the potential for a depeg from SOL, which can occur during periods of market stress when liquidity is low. The documentation indicates that LSTs can experience severe price drops due to panic selling, which could lead to a loss of value for INF holders [5: 'the market price of liquid staking tokens (LSTs) may drop, depending on the available liquidity in the market']. Additionally, the reliance on the Sanctum Reserve for liquidity raises operational risks; if the Reserve is tapped, it may signal a liquidity crisis, further exacerbating price declines [8: 'The Reserve acts as backstop liquidity and is only used for last resort liquidity needs']. If the market fails to stabilize or if liquidity issues persist, the value of INF could plummet, making it a risky hold.\n\nDecisive question: Does the liquidity of the Sanctum Reserve improve significantly over the next 30 days, stabilizing the INF token's peg to SOL?",
+            "parsed_verdict": {
+              "decisive_question": "Does the liquidity of the Sanctum Reserve improve significantly over the next 30 days, stabilizing the INF token's peg to SOL?"
+            }
+          },
+          {
+            "agent": "coordinator",
+            "content": "The panel's stance reflects a strong consensus on the elevated risks associated with holding 200 INF tokens in the Sanctum protocol, particularly in light of liquidity concerns and potential price volatility. The technical analyst emphasized the risks of a depeg from SOL, while the sentiment analyst noted a cautious market sentiment characterized by fear. The fundamental analyst pointed out the lack of specific quantitative metrics regarding the protocol's health, and the risk manager highlighted significant liquidity and operational risks. The strategist recommended a cautious approach, suggesting to observe the market dynamics before making any decisions.\n\nGiven this alignment, the panel does not support immediate action to unstake the INF tokens. Instead, the recommendation is to hold and reassess the situation in 30 days, as the risks of a potential depeg and liquidity issues are significant.\n\nThe verdict is to **defer** action until further clarity on liquidity and market conditions is obtained, as the current risks outweigh the potential benefits of unstaking now.\n\n```json\n{\n  \"verdict\": \"defer\",\n  \"confidence\": 0.70,\n  \"key_drivers\": [\n    \"Elevated liquidity and operational risks highlighted by the risk manager.\",\n    \"Cautious market sentiment indicating fear and uncertainty.\",\n    \"Concerns about potential depeg from SOL during market stress.\"\n  ],\n  \"dissent_count\": 0,\n  \"blocker_questions\": [\n    \"Does the liquidity of the Sanctum Reserve improve significantly over the next 30 days, stabilizing the INF token's peg to SOL?\"\n  ]\n}\n```\n\nFinal verdict: defer",
+            "parsed_verdict": {
+              "verdict": "defer"
+            }
+          }
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "PASS",
+        "expected_verdict_v2_set": [
+          "PASS",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "protocol_native",
+          "canon_marks",
+          "canon_damodaran"
+        ],
+        "expected_dissent_topics": [
+          "peg_deviation_risk",
+          "router_spread_cost",
+          "yield_continuity_risk"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.55,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 0.0,
+        "dissent_grounding": 0.7,
+        "confidence_calibration": 0.65
+      },
+      "passed": false,
+      "judge_notes": "Citation relevance: Citations 1-9 are directly on-topic (Sanctum router, INF, Reserve, APY endpoint), but citations 10-15 are entirely off-topic canon boilerplate (Damodaran, Berkshire, Marks, Mauboussin) with no relevance to Sanctum/INF \u2014 roughly 6/15 are tangential, pulling score down. Hallucination: The bull_bear_debater cites '26.12% APY epoch return' attributed to citation [4], but citation 4 is the Sanctum Infinity non-technical doc snippet about deposit/withdraw mechanics \u2014 it does not contain that specific APY figure. This is a specific INF APY figure cited without a paysh_live or market_data source (citation 9 is the APY endpoint but its content is not shown to confirm this number), matching a must_not_hallucinate pattern. Score = 0.0. Dissent grounding: Peg deviation risk and router spread cost are surfaced (peg_deviation_risk clearly present in multiple turns; router_spread_cost hinted at but not concretely quantified; yield_continuity_risk touched on). At least one expected dissent topic is clearly present, but router_spread_cost and yield_continuity_risk are underexplored \u2014 partial credit. Confidence calibration: 0.70 confidence with thin quantitative grounding (no live TVL, no confirmed spread figures, no confirmed APY) and meaningful dissent topics present is mildly overconfident; DEFER verdict is reasonable but 0.70 is slightly high given the uncertainty acknowledged.",
+      "wall_seconds": {
+        "panel": 54.6,
+        "judge": 11.81
+      }
+    }
+  ]
+}

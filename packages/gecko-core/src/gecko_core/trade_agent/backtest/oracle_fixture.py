@@ -59,7 +59,8 @@ class RecordedOracleFixture(_CountingFixture):
     """Replay verdicts from a recorded JSON map.
 
     File format: ``{"<idea_hash>": {"verdict": "act"|"pass"|"defer",
-    "confidence": float, "verdict_id": str, "citations": [...]}}``
+    "confidence": float, "verdict_id": str, "evidence_citations": [...],
+    "framework_context": [...]}}``
 
     A missing key falls back to ``default`` (defaults to ``pass`` —
     conservative: an un-recorded idea is not authorised).
@@ -82,7 +83,8 @@ class RecordedOracleFixture(_CountingFixture):
         self._default = default or {
             "verdict": "pass",
             "confidence": 0.0,
-            "citations": [],
+            "evidence_citations": [],
+            "framework_context": [],
             "verdict_id": "default-pass",
         }
 
@@ -120,7 +122,8 @@ class OptimisticOracleFixture(_CountingFixture):
             "verdict": "act",
             "confidence": 1.0,
             "verdict_id": f"optimistic-{key[:8]}",
-            "citations": [],
+            "evidence_citations": [],
+            "framework_context": [],
         }
 
 
@@ -140,7 +143,8 @@ class PessimisticOracleFixture(_CountingFixture):
             "verdict": "pass",
             "confidence": 1.0,
             "verdict_id": f"pessimistic-{key[:8]}",
-            "citations": [],
+            "evidence_citations": [],
+            "framework_context": [],
         }
 
 

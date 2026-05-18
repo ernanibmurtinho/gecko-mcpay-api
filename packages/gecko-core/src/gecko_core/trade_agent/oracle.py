@@ -666,7 +666,9 @@ def make_stub_caller(
         "verdict": "act",
         "confidence": 0.6,
         "dissent": [],
-        "citations": [],
+        # S35-#99 — verdict envelope split into two cite lists.
+        "evidence_citations": [],
+        "framework_context": [],
     }
 
     async def _caller(*, idea: str | dict[str, Any], tier: Tier, agent_id: str) -> dict[str, Any]:
