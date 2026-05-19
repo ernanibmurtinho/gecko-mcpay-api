@@ -42,7 +42,9 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Iterator
 from dataclasses import dataclass, field
+from typing import Any
 
 from gecko_core.orchestration.trade_panel.models import (
     Citation,
@@ -234,8 +236,40 @@ def _snippet_corpus(verdict: TradePanelVerdict) -> list[str]:
     return [c.snippet for c in cites if c.snippet]
 
 
+def _iter_parsed_verdict_strings(pv: dict[str, Any] | None) -> Iterator[tuple[str, str]]:
+    """Yield ``(keypath, string)`` for every string in a parsed_verdict dict.
+
+    ``parsed_verdict`` is the structured closing-line extraction — it carries
+    prose the rubric judge reads (the coordinator's ``falsifier`` clause, the
+    bull/bear debater's ``decisive_question``). Recurses into nested dict/list
+    so a figure cannot hide one level down.
+    """
+    if pv is None:
+        return
+
+    def _walk(prefix: str, value: Any) -> Iterator[tuple[str, str]]:
+        if isinstance(value, str):
+            yield prefix, value
+        elif isinstance(value, dict):
+            for k, v in value.items():
+                child = f"{prefix}.{k}" if prefix else str(k)
+                yield from _walk(child, v)
+        elif isinstance(value, list):
+            for i, v in enumerate(value):
+                yield from _walk(f"{prefix}[{i}]", v)
+
+    for key, val in pv.items():
+        yield from _walk(str(key), val)
+
+
 def _verdict_surfaces(verdict: TradePanelVerdict) -> list[tuple[str, str]]:
-    """Every text surface the gate scans, tagged with its origin."""
+    """Every text surface the gate scans, tagged with its origin.
+
+    S37 jito fix — ``turns[].parsed_verdict`` strings are included: the judge
+    reads the full transcript, so a raw figure in ``falsifier`` /
+    ``decisive_question`` is scored even though it never appears in
+    ``content``. Detecting it here is what lets the redactor reach it.
+    """
     out: list[tuple[str, str]] = []
     for d in verdict.key_drivers:
         out.append(("key_drivers", d))
@@ -243,6 +277,8 @@ def _verdict_surfaces(verdict: TradePanelVerdict) -> list[tuple[str, str]]:
         out.append(("blocker_questions", q))
     for t in verdict.turns:
         out.append((f"turn:{t.agent}", t.content))
+        for keypath, value in _iter_parsed_verdict_strings(t.parsed_verdict):
+            out.append((f"turn:{t.agent}:parsed_verdict.{keypath}", value))
     return out
 
 
@@ -400,6 +436,35 @@ def _redact_text(text: str, ungrounded_raws: list[str], snippets: list[str]) -> 
     return out
 
 
+def _redact_parsed_verdict(
+    pv: dict[str, Any] | None,
+    ungrounded_raws: list[str],
+    snippets: list[str],
+) -> dict[str, Any] | None:
+    """Redact ungrounded numeric spans from a turn's ``parsed_verdict`` dict.
+
+    S37 jito fix — WS1a scrubbed ``turns[].content`` + ``key_drivers`` but not
+    this dict, so raw figures survived in the structured closing-line
+    extraction (``falsifier``, ``decisive_question``) and the judge — which
+    reads the full transcript — still penalised them. Walks every string
+    value (recursing into nested dict/list) and applies the same
+    rephrase-or-drop redaction. Non-string values pass through untouched.
+    """
+    if pv is None:
+        return None
+
+    def _walk(value: Any) -> Any:
+        if isinstance(value, str):
+            return _redact_text(value, ungrounded_raws, snippets)
+        if isinstance(value, dict):
+            return {k: _walk(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [_walk(v) for v in value]
+        return value
+
+    return {k: _walk(v) for k, v in pv.items()}
+
+
 def apply_grounding_gate(verdict: TradePanelVerdict) -> tuple[TradePanelVerdict, GroundingReport]:
     """Run the gate and scrub ungrounded figures from the verdict text.
 
@@ -436,7 +501,14 @@ def apply_grounding_gate(verdict: TradePanelVerdict) -> tuple[TradePanelVerdict,
     new_key_drivers = [d for d in new_key_drivers if d.strip()]
 
     new_turns = [
-        t.model_copy(update={"content": _redact_text(t.content, ungrounded_raws, snippets)})
+        t.model_copy(
+            update={
+                "content": _redact_text(t.content, ungrounded_raws, snippets),
+                "parsed_verdict": _redact_parsed_verdict(
+                    t.parsed_verdict, ungrounded_raws, snippets
+                ),
+            }
+        )
         for t in verdict.turns
     ]
 

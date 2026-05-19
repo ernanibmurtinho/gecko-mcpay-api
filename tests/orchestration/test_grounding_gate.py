@@ -285,3 +285,60 @@ class TestSnippetCapDoesNotDrift:
         # ValidationError before #111 unified the cap.
         cite = _cite(2, "y" * 300)
         assert len(cite.snippet) == 300
+
+
+class TestParsedVerdictRedaction:
+    """S37 jito fix — WS1a scrubbed turns[].content + key_drivers but left
+    raw figures in turns[].parsed_verdict (the coordinator's `falsifier`,
+    the bull/bear debater's `decisive_question`). The judge reads the full
+    transcript, so jito-mev-tip-band hard-failed hallucination 0/5 at #122.
+    The gate must redact parsed_verdict strings too.
+    """
+
+    def test_ungrounded_figure_in_parsed_verdict_is_redacted(self) -> None:
+        turn = TradePanelTurn(
+            agent="bull_bear_debater",
+            content="The tip-floor read is inconclusive.",
+            parsed_verdict={
+                "decisive_question": "Does the 1.052e-06 SOL tip floor hold 7d?",
+                "falsifier": "tip floor climbing past 8.8785e-06 SOL",
+            },
+        )
+        verdict = _verdict(
+            key_drivers=["tip band sits near 1.052e-06 SOL"],
+            turns=[turn],
+            evidence=[_cite(1, "Jito bundle landing telemetry — no tip figures.")],
+        )
+        adjusted, report = apply_grounding_gate(verdict)
+        assert report.abstained
+        pv = adjusted.turns[0].parsed_verdict
+        assert pv is not None
+        # The raw lamport figures must be gone from BOTH parsed_verdict keys.
+        assert "1.052e-06" not in pv["decisive_question"]
+        assert "8.8785e-06" not in pv["falsifier"]
+
+    def test_grounded_figure_in_parsed_verdict_survives(self) -> None:
+        turn = TradePanelTurn(
+            agent="coordinator",
+            content="P75 tip band is defensible.",
+            parsed_verdict={"falsifier": "tip floor drops below 7.42 lamports"},
+        )
+        verdict = _verdict(
+            key_drivers=["P75 band holds at 7.42"],
+            turns=[turn],
+            evidence=[_cite(1, "Jito tip floor: 75th percentile 7.42 lamports.")],
+        )
+        adjusted, report = apply_grounding_gate(verdict)
+        # Fully grounded — gate does not abstain, parsed_verdict untouched.
+        assert not report.abstained
+        assert adjusted.turns[0].parsed_verdict == turn.parsed_verdict
+
+    def test_parsed_verdict_none_is_safe(self) -> None:
+        turn = TradePanelTurn(agent="strategist", content="APY of 26.12%")
+        verdict = _verdict(
+            key_drivers=["APY of 26.12%"],
+            turns=[turn],
+            evidence=[_cite(1, "no figures in this snippet")],
+        )
+        adjusted, _report = apply_grounding_gate(verdict)
+        assert adjusted.turns[0].parsed_verdict is None
