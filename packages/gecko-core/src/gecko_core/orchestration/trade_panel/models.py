@@ -19,6 +19,14 @@ from gecko_core.types import SettlementMode
 # Final-verdict tokens. Mirrors the coordinator's closing-line regex.
 TradeVerdictLiteral = Literal["act", "pass", "defer"]
 
+# S36-#111 — canonical citation-snippet length cap. Pattern A: single source
+# of truth. The panel driver (__init__.py) imports this to derive its
+# truncation limit `_CITATION_SNIPPET_LIMIT`, so the truncation window and the
+# Pydantic `max_length` validator can never drift. S36-WS2 raised the cap
+# 240 -> 320 (validated by #107's truncation investigation) so number-first
+# chunk figures survive into the judge's view.
+CITATION_SNIPPET_MAX_LEN = 320
+
 
 class TradePanelTurn(BaseModel):
     """A single agent's turn in the panel.
@@ -79,8 +87,8 @@ class Citation(BaseModel):
     )
     snippet: str = Field(
         default="",
-        max_length=240,
-        description="First 240 chars of the cited chunk content.",
+        max_length=CITATION_SNIPPET_MAX_LEN,
+        description="Cited chunk content, truncated to CITATION_SNIPPET_MAX_LEN chars.",
     )
 
 

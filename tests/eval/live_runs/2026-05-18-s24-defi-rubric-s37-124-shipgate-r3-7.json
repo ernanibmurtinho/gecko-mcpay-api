@@ -1,0 +1,1588 @@
+{
+  "date": "2026-05-18",
+  "tier": "basic",
+  "suite": "defi_trade_rubric_suite.json",
+  "n_fixtures_loaded": 10,
+  "n_scored": 7,
+  "contaminated": false,
+  "n_attempted": 7,
+  "n_valid": 7,
+  "n_dropped": 0,
+  "contamination": {
+    "n_attempted": 7,
+    "n_valid": 7,
+    "n_dropped": 0,
+    "drop_rate": 0.0,
+    "threshold": 0.2,
+    "contaminated": false,
+    "note": "0/7 rows dropped as rate-limit garbage (0% <= 20%) \u2014 within tolerance; N=7 surviving rows scored."
+  },
+  "retrieval_pregate": {
+    "n": 10,
+    "production_top_k": 15,
+    "fixture_k": 15,
+    "canon_floor_rate": 1.0,
+    "canon_floor_count": 10,
+    "per_dimension_means": {
+      "provider_kind_coverage": 0.9667,
+      "precision_at_k": 0.7333,
+      "recall_at_k": 0.9667,
+      "mrr": 0.3857
+    },
+    "gate": {
+      "canon_floor_target": 0.8,
+      "pk_coverage_target": 0.8,
+      "canon_floor_pass": true,
+      "pk_coverage_pass": true
+    },
+    "at_fixture_k": {
+      "canon_floor_rate": 1.0,
+      "canon_floor_count": 10,
+      "per_dimension_means": {
+        "provider_kind_coverage": 0.9667,
+        "precision_at_k": 0.7333,
+        "recall_at_k": 0.9667,
+        "mrr": 0.3857
+      },
+      "gate": {
+        "canon_floor_target": 0.8,
+        "pk_coverage_target": 0.8,
+        "canon_floor_pass": true,
+        "pk_coverage_pass": true
+      }
+    }
+  },
+  "aggregate": {
+    "n": 7,
+    "overall_pass_rate": 0.286,
+    "per_dimension_means": {
+      "verdict_accuracy": 1.0,
+      "citation_relevance": 0.571,
+      "provider_kind_coverage": 1.0,
+      "hallucination_score": 0.714,
+      "dissent_grounding": 0.786,
+      "confidence_calibration": 0.629
+    },
+    "per_dimension_pass_rate": {
+      "verdict_accuracy": 1.0,
+      "citation_relevance": 0.571,
+      "provider_kind_coverage": 1.0,
+      "hallucination_score": 0.714,
+      "dissent_grounding": 1.0,
+      "confidence_calibration": 0.714
+    },
+    "thresholds": {
+      "verdict_accuracy": 0.85,
+      "citation_relevance": 0.5,
+      "provider_kind_coverage": 0.7,
+      "hallucination_score": 0.3,
+      "dissent_grounding": 0.5,
+      "confidence_calibration": 0.55
+    },
+    "statistical_gate": {
+      "method": "bootstrap percentile 95% CI, 10000 resamples, seed=4242; pass = CI_low >= threshold",
+      "per_dimension": {
+        "verdict_accuracy": {
+          "mean": 1.0,
+          "ci_low": 1.0,
+          "ci_high": 1.0,
+          "ci_halfwidth": 0.0,
+          "threshold": 0.85,
+          "point_pass": true,
+          "statistical_pass": true,
+          "margin_to_threshold": 0.15
+        },
+        "citation_relevance": {
+          "mean": 0.5714,
+          "ci_low": 0.4143,
+          "ci_high": 0.7571,
+          "ci_halfwidth": 0.1714,
+          "threshold": 0.5,
+          "point_pass": true,
+          "statistical_pass": false,
+          "margin_to_threshold": 0.0714
+        },
+        "provider_kind_coverage": {
+          "mean": 1.0,
+          "ci_low": 1.0,
+          "ci_high": 1.0,
+          "ci_halfwidth": 0.0,
+          "threshold": 0.7,
+          "point_pass": true,
+          "statistical_pass": true,
+          "margin_to_threshold": 0.3
+        },
+        "hallucination_score": {
+          "mean": 0.7143,
+          "ci_low": 0.4286,
+          "ci_high": 1.0,
+          "ci_halfwidth": 0.2857,
+          "threshold": 0.3,
+          "point_pass": true,
+          "statistical_pass": true,
+          "margin_to_threshold": 0.4143
+        },
+        "dissent_grounding": {
+          "mean": 0.7857,
+          "ci_low": 0.6571,
+          "ci_high": 0.9143,
+          "ci_halfwidth": 0.1286,
+          "threshold": 0.5,
+          "point_pass": true,
+          "statistical_pass": true,
+          "margin_to_threshold": 0.2857
+        },
+        "confidence_calibration": {
+          "mean": 0.6286,
+          "ci_low": 0.5,
+          "ci_high": 0.7286,
+          "ci_halfwidth": 0.1143,
+          "threshold": 0.55,
+          "point_pass": true,
+          "statistical_pass": false,
+          "margin_to_threshold": 0.0786
+        }
+      },
+      "dims_statistically_green": [
+        "dissent_grounding",
+        "hallucination_score",
+        "provider_kind_coverage",
+        "verdict_accuracy"
+      ],
+      "dims_point_green": [
+        "citation_relevance",
+        "confidence_calibration",
+        "dissent_grounding",
+        "hallucination_score",
+        "provider_kind_coverage",
+        "verdict_accuracy"
+      ],
+      "n_dims": 6,
+      "n_statistically_green": 4,
+      "ship_gate_pass": false
+    },
+    "n_policy": {
+      "ship_gate_n": 30,
+      "this_run_n": 7,
+      "ship_gate_eligible": false,
+      "note": "N=7 < 30: iteration run only. NOT ship-gate eligible \u2014 CIs too wide to certify a pass."
+    }
+  },
+  "rows": [
+    {
+      "id": "kamino-jlpusdc-entry",
+      "protocol": "kamino",
+      "vertical": "dex",
+      "as_of_date": "2026-05-16",
+      "panel": {
+        "verdict": "defer",
+        "confidence": 0.7,
+        "dissent_count": 1,
+        "blocker_questions": [
+          "Is there a recent audit report confirming the security of Kamino's smart contracts?",
+          "What measures are in place to ensure operational transparency and security?",
+          "3 of 4 primary analysts abstained \u2014 corpus too thin to support a directional call.",
+          "Grounding gate: 2 numeric figures could not be confirmed against any cited snippet and were removed from the verdict text as unverified."
+        ],
+        "n_evidence_citations": 2,
+        "n_framework_context": 6,
+        "evidence_provider_kinds": [
+          "protocol_native"
+        ],
+        "framework_provider_kinds": [
+          "canon_berkshire",
+          "canon_damodaran",
+          "canon_macro",
+          "canon_marks",
+          "canon_mauboussin"
+        ],
+        "evidence_citations": [
+          {
+            "id": 1,
+            "chunk_id": "6a0ba926c5069823e6ee3246",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/staking-yields",
+            "snippet": "Kamino kamino-staking-yields: APY 0.055110825328398032, token mint 3sf Kamino kamino-staking-yields: APY 0.055110825328398032, token mint 3sfANVyJiq5uZCZvyizaDzBtHQQTNBr6RBGdXVmFcN5p. Source: https://api.kamino.finance/v2/staking-yields."
+          },
+          {
+            "id": 2,
+            "chunk_id": "6a0ba926c5069823e6ee322b",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/staking-yields",
+            "snippet": "Kamino kamino-staking-yields: APY 0.061159254430432391, token mint jup Kamino kamino-staking-yields: APY 0.061159254430432391, token mint jupSoLaHXQiZZTSfEWMTRRgpnyFm8f6sZdosWBjx93v. Source: https://api.kamino.finance/v2/staking-yields."
+          }
+        ],
+        "framework_context": [
+          {
+            "id": 1,
+            "chunk_id": "6a051b93df7f467ce4181656",
+            "source": "web",
+            "provider_kind": "canon_berkshire",
+            "freshness_tier": "static",
+            "url": "https://www.berkshirehathaway.com/letters/1978.html",
+            "snippet": "$ KS\ufffd\u01ab\ufffd\ufffd\ufffd}\ufffdv \ufffd\ufffd\u0098\ufffde!l\u074f \ufffd\u0347\ufffd\ufffd l\ufffd\ufffd~ 9\ufffdeL\ufffd\ufffdT\ufffdp\ufffd,\ufffd\ufffd \ufffd \ufffd>\ufffd\ufffd\ufffd\ufffd\u07d8\ufffd\ufffd\ufffd\ufffdWuY \ufffd <&D\u007f\ufffdb\ufffd\ufffdu{\ufffdz\ufffd`Y\ufffd\ufffd\ufffdF\ufffdM\ufffd\ufffd\ufffd\ufffdXP\ufffd+\ufffd\ufffd\ufffd\ufffd25\ufffdo|\ufffd\ufffd^\ufffd \ufffdNn\ufffd\ufffd;\ufffdE\ufffdN\ufffd\ufffd\"J\ufffd\ufffdL\ufffd\ufffd\"\ufffd\ufffd>\ufffd[5\ufffd%w\ufffd\u007f\ufffd9>>=\ufffdX\ufffdwb%nP Gw\ufffdz\ufffd \ufffd \ufffd\ufffd X\ufffd\ufffd\ufffd\ufffd1\ufffdj\ufffd\ufffdj\ufffd\ufffd\u00cd\ufffd \ufffd)\ufffd \u0268\ufffdH]\ufffd]\ufffd\ufffd7\ufffd\ufffd\ufffdk\ufffdUCS\ufffdw\ufffd\ufffd\u0743U\ufffd\ufffd5 \ufffd\ufffd\ufffd\ufffdj\ufffd!\ufffd\ufffdn\ufffd\ufffd\\(\ufffd&\ufffd \ufffd\ufffd\ufffdG,\ufffd\ufffd}\ufffd\ufffdh=2Q\u0781\ufffd\ufffd\ufffd\ufffd\ufffd 4hI4 \ufffd\ufffd\ucfe3 \ufffd`R\ufffd\ucf64\ufffd\ufffd\ufffdh\ufffdw -k\ufffd jM@\ufffd\"` m\ufffd\uf8d1\ufffd\ufffd\ufffd\ufffd\u00ec5\ufffd|?\ufffd\ufffd4\ufffd\ufffdB7\ufffd`N\ufffd\ufffd\ufffd5\ufffdk\ufffd\ufffd\ufffd&\ufffd\ufffd \ufffdJV"
+          },
+          {
+            "id": 2,
+            "chunk_id": "6a0539528c085826f9a037db",
+            "source": "web",
+            "provider_kind": "canon_mauboussin",
+            "freshness_tier": "static",
+            "url": "https://www.morganstanley.com/im/publication/insights/articles/article_confidence.pdf",
+            "snippet": "of range of reasonable opinion in economics is an open letter that a number of economists, political \r\nstrategists, and investors sent to Ben Bernanke in November 2010. Bernanke was at the time the chairman of \r\nthe Federal Reserve. The letter expressed concern that asset purchases associated with quantitative easing \r"
+          },
+          {
+            "id": 3,
+            "chunk_id": "6a021ba1600a85667fd2c810",
+            "source": "web",
+            "provider_kind": "canon_damodaran",
+            "freshness_tier": "static",
+            "url": "https://www.stern.nyu.edu/~adamodar/pdfiles/papers/realopt.pdf",
+            "snippet": "that\r\nthe present value of the cash inflows may change over that time, because of changes in\r\neither the cash flows or the discount rate. Thus, the project may have a negative net present\r\nvalue right now, but it may still be a good project if the firm waits. Defining V again as the\r\npresent value of the cash flows, th"
+          },
+          {
+            "id": 4,
+            "chunk_id": "6a0538f6177dc0b1aff1fdd5",
+            "source": "web",
+            "provider_kind": "canon_macro",
+            "freshness_tier": "static",
+            "url": "https://www.bis.org/publ/work1164.pdf",
+            "snippet": "as a portfolio-weighted convolution\r\nIn the context of our model, stablecoins are backed by a vector of reserve assets that have a\r\ncombined dollar value captured by \u03b8. Stablecoin holders perceive \u03b8 to be a random variable\r\ndrawn from the portfolio-weighted convolution of all component reserve asset distributions,\r\nwit"
+          },
+          {
+            "id": 5,
+            "chunk_id": "6a02129867347ee7d968021c",
+            "source": "web",
+            "provider_kind": "canon_marks",
+            "freshness_tier": "static",
+            "url": "https://www.oaktreecapital.com/insights/memo/taking-the-temperature",
+            "snippet": "bottom has been reached . . . ever. Oaktree explicitly rejects the notion of waiting for the bottom; we buy when we can access value cheap. Even though there\u2019s no way to say the bottom is at hand, the conditions that make bargains available certainly are materializing. Given the price drops and selling we\u2019ve seen so fa"
+          },
+          {
+            "id": 6,
+            "chunk_id": "6a051c55df7f467ce4181b15",
+            "source": "web",
+            "provider_kind": "canon_berkshire",
+            "freshness_tier": "static",
+            "url": "https://www.berkshirehathaway.com/letters/2014ltr.pdf",
+            "snippet": "store is about $9 million.)\r\n20\n\nTo obtain the Berkshire discount at NFM, you must make your purchases between Tuesday, April 28th\r\nand Monday, May 4th inclusive, and also present your meeting credential. The period\u2019s special pricing will even\r\napply to the products of several prestigious manufacturers that normally ha"
+          }
+        ],
+        "turns": [
+          {
+            "agent": "technical_analyst",
+            "content": "The prevailing macro regime for crypto risk assets appears to be risk-off, characterized by elevated volatility. This assessment is informed by the historical context provided by Howard Marks, who emphasizes the importance of understanding the cycle position and the prevailing sentiment in the market. In times of risk-off sentiment, investors tend to be more cautious, often leading to increased volatility as they react to uncertainty and potential downturns in the market.\n\nCurrently, the volatility regime can be described as elevated. This is consistent with the notion that during risk-off periods, market participants often exhibit heightened sensitivity to negative news and economic indicators, leading to larger price swings. The environment is marked by a cautious approach from investors, which aligns with the elevated volatility observed historically during similar macroeconomic conditions.\n\nTwo historical analogues that resonate with the current regime include the market conditions during the 2008 financial crisis and the early stages of the COVID-19 pandemic in 2020. During both periods, we witnessed significant risk aversion among investors, leading to sharp declines in asset prices and increased market volatility. Marks' insights on the cyclical nature of investing suggest that we may be in a phase where caution prevails, and the potential for further downside exists as investors grapple with uncertainty.\n\nGiven the current risk-off sentiment and elevated volatility, it would be prudent to consider the implications of entering a position in the Kamino JLP-USDC multiply vault at this time. The cautious environment suggests that waiting for more favorable conditions may be a strategic approach.\n\nTrend verdict: bearish",
+            "parsed_verdict": {
+              "trend_verdict": "bearish"
+            }
+          },
+          {
+            "agent": "sentiment_analyst",
+            "content": "The current sentiment surrounding the Kamino protocol appears to be neutral, with no significant emotional polarization detected in the retrieved corpus. The data primarily consists of technical information regarding staking yields, with various APY figures reported across different token mints. For example, the APY for one token mint is reported at 0.055110825328398032 [1], while another shows an APY of 0.061159254430432391 [3]. However, there are no discussions or narratives indicating strong bullish or bearish sentiments.\n\nThe dominant narrative in the last observable window is one of stability, as the APY figures suggest a consistent yield environment without any dramatic fluctuations or events that would typically trigger a shift in sentiment. There are no indications of accumulation or capitulation, and the absence of any significant news or community discussions further supports a neutral stance.\n\nConcrete concerns are not explicitly surfacing in the corpus, as the focus remains on yield metrics rather than operational issues or governance disputes. This lack of discourse may imply that the community is currently in a builder-mode phase, focusing on protocol development and yield optimization rather than engaging in speculative or emotional trading behavior.\n\nThere are no evident narrative pivots in the timestamps provided, indicating that the sentiment has remained stable and consistent over the observed period. Additionally, the corpus does not include any insider or builder voices that could provide deeper insights into the protocol's direction, further reinforcing the neutral sentiment.\n\nIn summary, the current sentiment around Kamino is characterized by stability and a lack of emotional engagement from the community.\n\nSentiment band: neutral",
+            "parsed_verdict": {
+              "sentiment_band": "neutral"
+            }
+          },
+          {
+            "agent": "fundamental_analyst",
+            "content": "Kamino is a decentralized finance (DeFi) protocol that allows users to stake assets in liquidity pools, earning yield primarily from trading fees generated by the underlying assets in those pools. Users deposit assets like USDC into the Kamino JLP-USDC multiply vault, and in return, they receive yield based on the trading activity within the protocol.\n\nNo TVL/volume figure for Kamino in the retrieved corpus. \n\nRegarding the audit posture, the retrieved corpus does not provide any information about the audit status of Kamino, including whether there are any unaudited code paths, recent audits passed, or open critical findings.\n\nRecent parameter or governance changes are not mentioned in the retrieved corpus, indicating that there may not have been significant updates or proposals affecting the protocol's mechanics recently.\n\nThe integration footprint of Kamino is not detailed in the corpus, so it is unclear which other protocols or platforms depend on Kamino downstream. This lack of information could indicate potential ecosystem risk if the protocol were to experience degradation.\n\nOverall, the absence of quantitative data on TVL, volume, and audit status, along with no recent governance changes or integration insights, suggests that the protocol's foundation is currently stable but lacks visible growth indicators.\n\nProtocol health: stable",
+            "parsed_verdict": {
+              "protocol_health": "stable"
+            }
+          },
+          {
+            "agent": "risk_manager",
+            "content": "several specific risk vectors emerge from the corpus and the known posture of the protocol. 1. **Smart Contract Risk**: The corpus does not provide any information regarding the audit status of Kamino's smart contracts. This absence raises concerns about potential vulnerabilities, particularly if there are unaudited code paths or if the protocol has not undergone recent audits. Given the nature of DeFi protocols, this risk is characterized as **high severity** and **medium likelihood** due to the common occurrence of exploits in unaudited contracts. 2. **Oracle Staleness or Manipulation**: The corpus does not mention the use of oracles within the Kamino protocol. However, if oracles are employed for price feeds, there is a risk of staleness or manipulation, especially in volatile market conditions. This risk is assessed as **medium severity** and **medium likelihood**, contingent on the protocol's reliance on external price feeds. 3. **Regulatory Exposure**: The corpus lacks any discussion on regulatory compliance or exposure to jurisdictional risks. Given the evolving regulatory landscape for DeFi, this represents a **medium severity** risk with **medium likelihood**, as regulatory actions could impact the protocol's operations or user access. 4. **Operational Risk**: There is no information in the corpus regarding key management practices or multisig signers for the protocol. This lack of transparency raises concerns about operational risks, particularly if there are single points of failure in governance or asset management. This risk is characterized as **high severity** and **medium likelihood**. 5. **Concentration Risk**: The corpus does not provide insights into the distribution of liquidity providers or the presence of whale dominance within the vault. If a few large players control a significant portion of the liquidity, this could lead to volatility and slippage. This risk is assessed as **medium severity** and **medium likelihood**. Given these identified risks, and operational risks, alongside the medium likelihood of regulatory and concentration risks. In summary, the risks associated with the Kamino protocol suggest a cautious approach to investment. Risk band: elevated",
+            "parsed_verdict": {
+              "risk_band": "elevated"
+            }
+          },
+          {
+            "agent": "strategist",
+            "content": "Across the analysts' perspectives, we observe a dominant alignment of **technical neutral + sentiment neutral + fundamentals stable + risk elevated**. The technical analysis indicates a lack of strong directional signals, while sentiment remains neutral, reflecting a stable yield environment without emotional engagement from the community. The fundamentals of the protocol are stable, but the absence of critical data regarding audit status and operational transparency raises significant risk concerns. Given this synthesis, the structured intent is as follows:\n- **Action**: observe\n- **Direction**: neutral\n- **Size band**: none\n- **Stop band**: none\n- **Horizon**: weeks The elevated risk identified by the risk manager, particularly concerning smart contract vulnerabilities and operational risks, necessitates a cautious approach. While the fundamentals appear stable, the lack of transparency and potential vulnerabilities warrant a decision to hold off on depositing funds until further clarity or improvements in the protocol's risk profile are established. The single most important falsifier for this thesis would be a significant improvement in the protocol's audit status or a clear indication of enhanced operational security, which would shift the risk assessment favorably. Strategic intent: observe the Kamino JLP-USDC multiply vault for improved risk metrics before considering a deposit.",
+            "parsed_verdict": {
+              "strategic_intent": "observe the Kamino JLP-USDC multiply vault for improved risk metrics before considering a deposit."
+            }
+          },
+          {
+            "agent": "bull_bear_debater",
+            "content": "BULL CASE: , which are competitive in the DeFi landscape. For instance, one token mint offers an APY of 0.061159254430432391 [3], indicating a potentially lucrative yield for liquidity providers. The stability of the protocol, as indicated by the absence of significant fluctuations in yield metrics, suggests that the current parameters may be underappreciated by the market. If the overall DeFi market sentiment shifts positively, leading to increased trading volume and liquidity, the vault could generate even higher returns. Additionally, entering now allows for immediate participation in yield generation, which could compound over time, enhancing the overall investment return. BEAR CASE: Conversely, the lack of information regarding the audit status of Kamino's smart contracts raises significant concerns about potential vulnerabilities. Without recent audits or transparency regarding operational practices, the risk of a smart contract exploit is heightened, which could lead to substantial losses. Furthermore, the absence of a clear growth narrative or community engagement in the corpus suggests that the protocol may not be attracting new liquidity, which could stagnate yield generation. If the protocol were to experience a major exploit or regulatory scrutiny, the investment could be severely impacted, leading to a loss of capital. The coordinator may be over-weighting the current yield metrics without fully accounting for these underlying risks. Decisive question: Is there a recent audit report confirming the security of Kamino's smart contracts?",
+            "parsed_verdict": {
+              "decisive_question": "Is there a recent audit report confirming the security of Kamino's smart contracts?"
+            }
+          },
+          {
+            "agent": "coordinator",
+            "content": "The technical analyst noted a neutral trend, while the sentiment analyst reported a neutral sentiment, indicating a lack of strong emotional engagement in the market. The fundamental analyst highlighted stable protocol health but pointed out the absence of critical data on audit status and operational transparency. The risk manager raised concerns about elevated risks, particularly regarding smart contract vulnerabilities and operational risks. The strategist suggested observing the protocol for improved risk metrics before making a deposit. The bull-bear debater presented balanced arguments, emphasizing the potential yield against the risks of vulnerabilities. Given the mixed signals and elevated risks, the panel does not support immediate action. The consensus leans towards caution, suggesting that further clarity on the protocol's security and operational practices is necessary before proceeding. **Verdict: pass** Confidence score: 0.70 Key drivers:\n1. Neutral technical trend and sentiment (technical analyst, sentiment analyst).\n2. Stable protocol health but lack of critical audit information (fundamental analyst).\n3. Elevated risks concerning smart contract vulnerabilities (risk manager). Dissent count: 1 (the risk manager points against immediate action). Blocker questions:\n1. Is there a recent audit report confirming the security of Kamino's smart contracts?\n2. What measures are in place to ensure operational transparency and security? ```json\n{ \"verdict\": \"pass\", \"confidence\": 0.70, \"key_drivers\": [ \"Neutral technical trend and sentiment\", \"Stable protocol health but lack of critical audit information\", \"Elevated risks concerning smart contract vulnerabilities\" ], \"dissent_count\": 1, \"blocker_questions\": [ \"Is there a recent audit report confirming the security of Kamino's smart contracts?\", \"What measures are in place to ensure operational transparency and security?\" ]\n}\n``` Final verdict: pass",
+            "parsed_verdict": {
+              "verdict": "pass"
+            }
+          }
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "ACT",
+        "expected_verdict_v2_set": [
+          "ACT",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "protocol_native",
+          "canon_marks",
+          "canon_damodaran",
+          "canon_berkshire"
+        ],
+        "expected_dissent_topics": [
+          "smart_contract_risk",
+          "leverage_unwind_risk",
+          "vault_parameter_change_risk"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.4,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 1.0,
+        "dissent_grounding": 0.9,
+        "confidence_calibration": 0.7
+      },
+      "passed": false,
+      "judge_notes": "citation_relevance: Both evidence citations are from Kamino's staking-yields API (protocol_native, daily), which is on-topic for Kamino but pertains to generic staking APYs (3sf and jupSOL token mints), not specifically to the JLP-USDC multiply vault parameters the question asks about. They are Kamino-native but only tangentially relevant to the specific vault in question \u2014 hence 0.4. hallucination_score: No specific USD price level, exact TVL figure, or APY percentage is cited without a protocol_native source. The APY figures cited (0.0551, 0.0611) are grounded in evidence_citation[1] and [2] from the Kamino API. No must_not_hallucinate patterns triggered \u2014 score 1.0. dissent_grounding: Smart contract risk is clearly and prominently surfaced by the risk_manager and bull_bear_debater turns, and appears in blocker_questions. Leverage unwind risk is not explicitly named, but vault_parameter_change_risk is absent. Smart contract risk alone satisfies \u22651 expected dissent topic \u2014 score 0.9. confidence_calibration: Panel states 0.7 confidence for a DEFER/pass verdict with thin, tangentially relevant citations and elevated dissent. Given the corpus thinness (only 2 evidence cites, neither directly about the JLP-USDC multiply vault), 0.7 is mildly overconfident for a directional call but reasonable for a cautious DEFER \u2014 score 0.7.",
+      "panel_retries": 0,
+      "degraded_turn_count": 0,
+      "total_turns": 7,
+      "wall_seconds": {
+        "panel": 85.28,
+        "judge": 11.26
+      }
+    },
+    {
+      "id": "kamino-sol-leverage-entry",
+      "protocol": "kamino",
+      "vertical": "dex",
+      "as_of_date": "2026-05-16",
+      "panel": {
+        "verdict": "defer",
+        "confidence": 0.7,
+        "dissent_count": 2,
+        "blocker_questions": [
+          "Is there a confirmed audit of the Kamino protocol's smart contracts?",
+          "Grounding gate: 1 numeric figure could not be confirmed against any cited snippet and was removed from the verdict text as unverified."
+        ],
+        "n_evidence_citations": 9,
+        "n_framework_context": 6,
+        "evidence_provider_kinds": [
+          "protocol_native"
+        ],
+        "framework_provider_kinds": [
+          "canon_berkshire",
+          "canon_damodaran",
+          "canon_macro",
+          "canon_marks",
+          "canon_mauboussin"
+        ],
+        "evidence_citations": [
+          {
+            "id": 1,
+            "chunk_id": "6a0ba918c5069823e6ee3212",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/kamino-market",
+            "snippet": "Kamino rstSOL/bbSOL Leverage Market: lending-market pubkey SZ8M Kamino rstSOL/bbSOL Leverage Market: lending-market pubkey SZ8MbzSojH84K41jYGUvMJDSCTCWgemh3vanWtCx181, described as rstSOL/bbSOL leverage pool. Source: https://api.kamino.finance/v2/kamino-market."
+          },
+          {
+            "id": 2,
+            "chunk_id": "6a0ba918c5069823e6ee321b",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/kamino-market",
+            "snippet": "Kamino Superstate Opening Bell Market: lending-market pubkey CF Kamino Superstate Opening Bell Market: lending-market pubkey CF32kn7AY8X1bW7ZkGcHc4X9ZWTxqKGCJk6QwrQkDcdw, described as Superstate stocks leverage pool. Source: https://api.kamino.finance/v2/kamino-market."
+          },
+          {
+            "id": 3,
+            "chunk_id": "6a0ba918c5069823e6ee3210",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/kamino-market",
+            "snippet": "Kamino Exponent PT-SOL Market: lending-market pubkey F4Pn9mAvbU Kamino Exponent PT-SOL Market: lending-market pubkey F4Pn9mAvbUazDmWET5yYATTiyLHLaCRTWgGex4tiMXAs, described as Exponent PT-SOL/SOL leverage pool. Source: https://api.kamino.finance/v2/kamino-market."
+          },
+          {
+            "id": 4,
+            "chunk_id": "6a0ba918c5069823e6ee321d",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/kamino-market",
+            "snippet": "Kamino Offchain Collateral Market: lending-market pubkey 4pEmni Kamino Offchain Collateral Market: lending-market pubkey 4pEmnimmqXkx9dRbQdLCGuYu9ZhhATjhTkC9wu9ezKUc, described as Custodied SOL leverage pool. Source: https://api.kamino.finance/v2/kamino-market."
+          },
+          {
+            "id": 5,
+            "chunk_id": "6a0ba918c5069823e6ee320f",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/kamino-market",
+            "snippet": "Kamino Marinade Market: lending-market pubkey GVDUXFwS8uvBG35Rj Kamino Marinade Market: lending-market pubkey GVDUXFwS8uvBG35RjZv6Y8S1AkV5uASiMJ9qTUKqb5PL, described as MSOL-SOL 10x leverage pool. Source: https://api.kamino.finance/v2/kamino-market."
+          },
+          {
+            "id": 6,
+            "chunk_id": "6a0ba918c5069823e6ee320a",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/kamino-market",
+            "snippet": "Kamino Jito Market: lending-market pubkey H6rHXmXoCQvq8Ue81MqNh Kamino Jito Market: lending-market pubkey H6rHXmXoCQvq8Ue81MqNh7ow5ysPa1dSozwW3PU1dDH6, described as JitoSOL-SOL 10x leverage pool. Source: https://api.kamino.finance/v2/kamino-market."
+          },
+          {
+            "id": 7,
+            "chunk_id": "6a0ba918c5069823e6ee321a",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/kamino-market",
+            "snippet": "Kamino Solstice Market: lending-market pubkey 9Y7uwXgQ68mGqRtZf Kamino Solstice Market: lending-market pubkey 9Y7uwXgQ68mGqRtZfuFaP4hc4fxeJ7cE9zTtqTxVhfGU, described as eUSX leverage pool. Source: https://api.kamino.finance/v2/kamino-market."
+          },
+          {
+            "id": 8,
+            "chunk_id": "6a0ba918c5069823e6ee321c",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/kamino-market",
+            "snippet": "Kamino Figure Market: lending-market pubkey CqAoLuqWtavaVE8deBj Kamino Figure Market: lending-market pubkey CqAoLuqWtavaVE8deBjMKe8ZfSt9ghR6Vb8nfsyabyHA, described as PRIME leverage pool. Source: https://api.kamino.finance/v2/kamino-market."
+          },
+          {
+            "id": 9,
+            "chunk_id": "6a0ba918c5069823e6ee3218",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/kamino-market",
+            "snippet": "Kamino OnRe Market: lending-market pubkey 47tfyEG9SsdEnUm9cw5kY Kamino OnRe Market: lending-market pubkey 47tfyEG9SsdEnUm9cw5kY9BXngQGqu3LBoop9j5uTAv8, described as ONYC leverage pool. Source: https://api.kamino.finance/v2/kamino-market."
+          }
+        ],
+        "framework_context": [
+          {
+            "id": 1,
+            "chunk_id": "6a0214963169a51804eebf14",
+            "source": "web",
+            "provider_kind": "canon_berkshire",
+            "freshness_tier": "static",
+            "url": "https://www.berkshirehathaway.com/letters/1981.html",
+            "snippet": "\ufffd\ufffdI\ufffd=\ufffd\ufffd\ufffd ;\ufffd.\ufffd>\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdM\ufffdO\ufffd\ufffdK Ex\ufffd\ufffd\ufffd\ufffdm\ufffdg\ufffdH\ufffd\ufffd\ufffdO\ufffd_\ufffd\ufffd}\ufffdw\ufffd)\ufffdSK/P 2\ufffd\ufffd\ufffdk\ufffd\u0475ayy\ufffd\\\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdo\ufffd\ufffd{\ufffdS>\ufffd"
+          },
+          {
+            "id": 2,
+            "chunk_id": "6a02125b67347ee7d9680120",
+            "source": "web",
+            "provider_kind": "canon_marks",
+            "freshness_tier": "static",
+            "url": "https://www.oaktreecapital.com/insights/memo/further-thoughts-on-sea-change",
+            "snippet": "is the potential for profit there is also the possibility of loss. This memorandum is being made available for educational purposes only and should not be used for any other purpose. The information contained herein does not constitute and should not be construed as an offering of advisory services or an offer to sell "
+          },
+          {
+            "id": 3,
+            "chunk_id": "6a021b88600a85667fd2c794",
+            "source": "web",
+            "provider_kind": "canon_damodaran",
+            "freshness_tier": "static",
+            "url": "https://www.stern.nyu.edu/~adamodar/pdfiles/papers/Transparency.pdf",
+            "snippet": "=5 5\r\nExpected Growth\r\nrate\r\n4. Unsustainably high return Is your firm's ROC much higher than industry\r\naverage? Yes Yes=5 5\r\n1. Multiple businesses Number of businesses (more than 10% of\r\nrevenues) = 2 1.00 2\r\n2. Operations in emerging markets Percent of revenues= 30% 5.00 1.5\r\n3. Is the debt market traded? Yes or No "
+          },
+          {
+            "id": 4,
+            "chunk_id": "6a0539528c085826f9a037de",
+            "source": "web",
+            "provider_kind": "canon_mauboussin",
+            "freshness_tier": "static",
+            "url": "https://www.morganstanley.com/im/publication/insights/articles/article_confidence.pdf",
+            "snippet": "a complex system. As Hardin \r\nwrites, the essential question with ecolate analysis is, \u201cAnd then what?\u201d See Garrett Hardin, Filters Against Folly: \r\nHow to Survive Despite Economists, Ecologists, and the Merely Eloquent (New York: Penguin Books, 1985). \r\n30 There has been a recent back-and-forth between Phil Tetlock, a"
+          },
+          {
+            "id": 5,
+            "chunk_id": "6a0538df177dc0b1aff1fd3e",
+            "source": "web",
+            "provider_kind": "canon_macro",
+            "freshness_tier": "static",
+            "url": "https://www.federalreserve.gov/econres/feds/files/2024011r1pap.pdf",
+            "snippet": "thermore, panel 3 of table (2) shows that shock estimates are never zero throughout the ELB period\r\nand about 66 percent are negative and hence expansionary in periods of record monetary stimulus. The\r\nlargest negative observations occurred when the Federal Reserve extended or announced LSAP programs\r\nin March 2009 and"
+          },
+          {
+            "id": 6,
+            "chunk_id": "6a051bb4df7f467ce41816ed",
+            "source": "web",
+            "provider_kind": "canon_berkshire",
+            "freshness_tier": "static",
+            "url": "https://www.berkshirehathaway.com/letters/1985.html",
+            "snippet": "\"\ufffd}n=\ufffdKl\ufffd )\ufffd\ufffd3\ufffd\ufffdtg \ufffd9\ufffdf\ufffd\ufffd\u0482\u0791M5\ufffd\ufffd\ufffd\ufffdNAj\u007f)v\ufffd\ufffd\ufffd\u05c7\ufffd\ufffd\u0300\ufffd=K\ufffd/\u071a\u061d\ufffd\u01d3 O9\ufffd9.G\ufffd<\ufffd\ufffdn\ufffd309m\ufffd@I\ufffdmq5\ufffd \ufffd\\\u020b#\ufffdk\ufffd\ufffdlC\\\ufffd\ufffdhUyS\ufffd\ufffd\ufffd\ufffdD\u425e\ufffd*\ufffd\ufffdpU\ufffd\ufffd+=\ufffd\ufffdN\ufffd\ufffd\ufffd\"a\ufffdT^\ufffdAs\ufffd\ufffd[WR\ufffd\ufffdi\ufffd\ufffda\ufffd.\ufffd'GW\ufffd\ufffd)\u0215\ufffde\ufffd\ufffd\ub120l\u3874XPE:\ufffd\ufffd\u016cg\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdM\ufffd\ufffd\ufffd7\ufffd7`\u0668'\ufffd\ufffdTm\ufffd\ufffd\u05e7 \ufffd\ufffd\u0215\ufffdI\ufffd\ufffd N\ufffdvi\ufffd\u01d9\ufffd\ufffd\ufffd\ufffd\ufffdfpv\ufffd\u0453 O\ufffdi\ufffd\u0331\ufffd4Xj+\ufffdQ\ufffdnt\ufffdU\ufffd \ufffdVw\ufffdF\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd5\ufffd(A#\ufffd\ufffd#\ufffd\ufffdX\ufffd\ufffd~1 sx\ue213\ufffd\ufffd\ufffd\\^&\ufffd[)y\ufffd\u046e\ufffdK9}\ufffd\ufffd.PHU\ufffdG\ufffd\ufffdkgb\ufffd.\ufffd\u007f\ufffd\ufffd!?'\ufffdu}\ufffd'\u1fe6Z\ufffd\ufffd%\ufffd\ufffdn\ufffd\ufffdpNA\ufffd"
+          }
+        ],
+        "turns": [
+          {
+            "agent": "technical_analyst",
+            "content": "The prevailing macro regime for crypto risk assets appears to be risk-on, characterized by a normal volatility regime. This assessment is grounded in the frameworks provided by Marks on cycle position and Damodaran's insights on equity risk premium. In a risk-on environment, investors are generally more willing to take on risk, which aligns with the sentiment around leveraged positions in crypto assets like SOL.\n\nIn terms of volatility, the current conditions suggest a normal regime. This is inferred from the typical behavior of risk assets during periods of economic recovery or bullish sentiment, where volatility tends to stabilize as market participants gain confidence. The absence of extreme price movements or panic selling indicates that the market is not in an elevated or extreme volatility state.\n\nHistorically, this regime resembles the post-2020 recovery phase, where risk assets experienced a significant rebound following the initial shock of the pandemic, as described by Marks in his discussions on market cycles. Additionally, the current environment can be likened to the early stages of the 2017 crypto bull market, where investor enthusiasm began to build, leading to increased risk appetite.\n\nGiven the risk-on environment and normal volatility, opening a 3x SOL-long leveraged position could be seen as sensible, as it aligns with the prevailing market sentiment. However, it's essential to remain cautious, as leverage amplifies both potential gains and losses.\n\nTrend verdict: bullish",
+            "parsed_verdict": {
+              "trend_verdict": "bullish"
+            }
+          },
+          {
+            "agent": "sentiment_analyst",
+            "content": "The current sentiment surrounding the Kamino protocol appears to be neutral, with no strong emotional polarization evident in the retrieved corpus. The chunks primarily consist of technical descriptions of various leverage markets within the Kamino ecosystem, such as the rstSOL/bbSOL Leverage Market and the Superstate Opening Bell Market, without any explicit commentary on market sentiment or investor behavior.\n\n1. **Dominant Narrative**: The narrative surrounding Kamino is predominantly technical and focused on the functionality of its leverage pools. There is no clear indication of accumulation or capitulation; rather, it seems to be in a builder-mode phase, where the emphasis is on the development and deployment of various leverage markets. The lack of emotional language suggests that the market is currently stable and not experiencing significant fluctuations in sentiment.\n\n2. **Concrete Concerns**: While the corpus does not highlight specific concerns, the absence of discussions around user experiences or potential issues may indicate a lack of engagement or awareness among users. This could be a concern if the protocol is not actively addressing user needs or if there are underlying issues that have not been publicly discussed.\n\n3. **Narrative Pivots**: There are no evident narrative pivots in the retrieved chunks. The technical nature of the content suggests a consistent focus on the protocol's offerings without significant shifts in sentiment or perspective.\n\n4. **Insider vs. Retail Voice**: The corpus primarily reflects an insider or builder voice, as it consists of technical descriptions and market functionalities rather than retail or influencer commentary. This indicates that the current discourse is more about the protocol's infrastructure rather than its market perception among retail investors.\n\nOverall, the sentiment around Kamino is neutral, with a focus on its technical capabilities rather than emotional engagement from the market.\n\nSentiment band: neutral",
+            "parsed_verdict": {
+              "sentiment_band": "neutral"
+            }
+          },
+          {
+            "agent": "fundamental_analyst",
+            "content": "Kamino is a decentralized finance protocol that facilitates leveraged trading through various leverage pools, allowing users to borrow against their assets to amplify their positions in SOL and other tokens.\n\n1. **Current Core Mechanic**: Kamino enables users to engage in leveraged trading by borrowing assets from different leverage pools, where the yield primarily comes from trading fees and interest on borrowed assets.\n\n2. **TVL / Volume / Fee Trajectory**: No TVL figure for Kamino in the retrieved corpus.\n\n3. **Audit Posture**: The retrieved corpus does not provide any information regarding the audit status of Kamino, including whether there are any unaudited code paths, recent audits passed, or open critical findings.\n\n4. **Recent Parameter or Governance Changes**: The corpus does not mention any recent parameter or governance changes for the Kamino protocol.\n\n5. **Integration Footprint**: The retrieved chunks do not specify any downstream dependencies or integrations that rely on the Kamino protocol, which indicates a potential gap in understanding the ecosystem risk if the protocol were to degrade.\n\nGiven the lack of quantitative data regarding TVL and other core metrics, it is challenging to assess the overall health of the Kamino protocol. The absence of audit information and governance changes further complicates the evaluation. Therefore, the best-supported direction based on the available data is that the protocol's health is currently stable, but this is contingent on the lack of critical information.\n\nProtocol health: stable",
+            "parsed_verdict": {
+              "protocol_health": "stable"
+            }
+          },
+          {
+            "agent": "risk_manager",
+            "content": "In evaluating the risks associated with opening a 3x SOL-long leveraged position on the Kamino protocol, several specific risk vectors emerge from the corpus and the protocol's known posture: 1. **Smart Contract Risk**: The Kamino protocol's leverage pools, such as the rstSOL/bbSOL Leverage Market and others, involve complex smart contracts. If any of these contracts have not been audited or contain vulnerabilities, this poses a high risk. The corpus does not provide information on the audit status of these contracts, which raises concerns about potential exploits. - **Severity**: High - **Likelihood**: Medium 2. **Oracle Staleness**: The performance of leveraged positions is heavily dependent on accurate price feeds. If the protocol relies on oracles that are not sufficiently decentralized or have known vulnerabilities, this could lead to significant losses due to price manipulation or staleness. - **Severity**: Medium - **Likelihood**: Medium 3. **Concentration Risk**: The leverage pools may be subject to whale dominance, where a few large holders can significantly impact the market. This could lead to slippage on size when entering or exiting positions, especially in a leveraged context. - **Severity**: Medium - **Likelihood**: High 4. **Operational Risk**: The reliance on multisig signers or key management practices within the protocol could introduce risks if not managed properly. If key holders are compromised or if there are issues with the multisig setup, this could lead to unauthorized access or loss of funds. - **Severity**: Medium - **Likelihood**: Medium 5. **Regulatory Exposure**: Given the evolving regulatory landscape for DeFi protocols, there is a risk that Kamino could face scrutiny or restrictions based on jurisdictional regulations, which could impact its operations and user access. - **Severity**: Medium - **Likelihood**: Medium The other analysts have not sufficiently addressed the potential for smart contract vulnerabilities and oracle staleness, which are critical risks in a leveraged trading context. The technical analyst focused on the protocol's mechanics without highlighting these risks, and the sentiment analyst did not consider the implications of market manipulation. Given these identified risks, I recommend a position-size cap of no more than a high figure of liquid net worth due to the high severity of smart contract and oracle risks, combined with the medium likelihood of operational and regulatory issues. Risk band: elevated",
+            "parsed_verdict": {
+              "risk_band": "elevated"
+            }
+          },
+          {
+            "agent": "strategist",
+            "content": "The research question is whether it is sensible to open a 3x leveraged long position in SOL on the Kamino protocol at the current price, with a 30-day horizon.\n\nThe dominant alignment across the analysts is as follows: \n- Technical analysis indicates a bullish outlook based on the current market conditions and the mechanics of the Kamino protocol.\n- Sentiment analysis reveals a neutral sentiment, suggesting a lack of strong emotional engagement from the market.\n- Fundamental analysis shows that the protocol is stable but lacks critical quantitative data, such as TVL and audit status, which raises concerns.\n- Risk management highlights elevated risks, particularly around smart contract vulnerabilities and oracle staleness.\n\nGiven this synthesis, the structured intent is as follows:\n- **Action**: open_long\n- **Direction**: long\n- **Size_band**: small (due to elevated risks)\n- **Stop_band**: tight (to mitigate potential losses)\n- **Horizon**: weeks (30-day timeframe)\n\nThe risk manager's concerns about elevated risks are acknowledged, particularly regarding smart contract vulnerabilities and oracle staleness. However, the bullish technical outlook and the potential for profit in a risk-on environment justify proceeding with a small long position, albeit with a tight stop to manage risk effectively.\n\nThe single most important falsifier for this thesis would be a significant exploit or vulnerability discovered in the Kamino protocol's smart contracts, leading to a loss of funds or a substantial drop in SOL's price.\n\nStrategic intent: open small long, tight stop, 30-day horizon \u2014 falsifier: significant exploit in Kamino's smart contracts.",
+            "parsed_verdict": {
+              "strategic_intent": "open small long, tight stop, 30-day horizon \u2014 falsifier: significant exploit in Kamino's smart contracts."
+            }
+          },
+          {
+            "agent": "bull_bear_debater",
+            "content": "BULL CASE: Opening a 3x leveraged long position in SOL on the Kamino protocol is sensible given the current risk-on market environment, which favors bullish sentiment towards crypto assets. The Kamino protocol offers various leverage pools that allow users to amplify their positions, potentially leading to significant gains if SOL's price appreciates. The technical analysis suggests that the market is in a normal volatility regime, indicating that price movements are likely to be stable and conducive to leveraged trading. Furthermore, if SOL's price breaks above key resistance levels, it would signal strong bullish momentum, confirming that the thesis is working and potentially leading to even higher price targets. The coordinator may under-weight the conviction around the potential for substantial gains in a favorable market environment.\n\nBEAR CASE: Conversely, opening a 3x leveraged long position in SOL on Kamino carries significant risks that could lead to substantial losses. The lack of critical information regarding the audit status of the protocol raises concerns about potential smart contract vulnerabilities, which could be exploited, resulting in a loss of funds. Additionally, if SOL's price experiences a sharp downturn or if oracle prices become stale, the leveraged position could be liquidated, leading to a total loss of the investment. The coordinator may over-weight the bullish sentiment without adequately considering the elevated risks highlighted by the risk manager, particularly around smart contract and oracle vulnerabilities.\n\nDecisive question: Is there a confirmed audit of the Kamino protocol's smart contracts that ensures their security against vulnerabilities?",
+            "parsed_verdict": {
+              "decisive_question": "Is there a confirmed audit of the Kamino protocol's smart contracts that ensures their security against vulnerabilities?"
+            }
+          },
+          {
+            "agent": "coordinator",
+            "content": "The panel's stance on opening a 3x leveraged long position in SOL on the Kamino protocol is mixed. The technical analyst and strategist support the action based on a bullish market outlook and the mechanics of the Kamino protocol. However, the sentiment analyst presents a neutral sentiment, indicating a lack of strong emotional engagement. The fundamental analyst raises concerns about the absence of critical quantitative data, while the risk manager highlights elevated risks associated with smart contract vulnerabilities and oracle staleness. The bull-bear debater presents a balanced view, emphasizing the potential for gains against the risks involved.\n\nGiven the mixed signals, the panel does not reach a consensus on executing the action. The concerns raised by the risk manager and the fundamental analyst about the protocol's stability and security are significant enough to warrant caution.\n\nTherefore, the verdict is to **defer** the decision until the decisive question regarding the audit status of the Kamino protocol's smart contracts is answered.\n\nKey drivers for this verdict include:\n1. The bullish technical outlook supporting the action (strategist).\n2. The neutral sentiment indicating a lack of strong market engagement (sentiment analyst).\n3. The elevated risks highlighted by the risk manager concerning smart contract vulnerabilities (risk manager).\n4. The absence of critical quantitative data regarding the protocol's health (fundamental analyst).\n\nDissent count: 2 (fundamental analyst and risk manager).\n\nBlocker questions:\n1. Is there a confirmed audit of the Kamino protocol's smart contracts that ensures their security against vulnerabilities?\n\n```json\n{\n  \"verdict\": \"defer\",\n  \"confidence\": 0.70,\n  \"key_drivers\": [\"bullish technical outlook\", \"neutral sentiment\", \"elevated risks from smart contracts\", \"lack of critical quantitative data\"],\n  \"dissent_count\": 2,\n  \"blocker_questions\": [\"Is there a confirmed audit of the Kamino protocol's smart contracts?\"]\n}\n```\n\nFinal verdict: defer",
+            "parsed_verdict": {
+              "verdict": "defer"
+            }
+          }
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "DEFER",
+        "expected_verdict_v2_set": [
+          "ACT",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "protocol_native",
+          "canon_marks",
+          "canon_damodaran",
+          "canon_berkshire"
+        ],
+        "expected_dissent_topics": [
+          "liquidation_cascade_risk",
+          "drawdown_path_risk",
+          "audit_status_uncertainty",
+          "leverage_unwind_risk"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.4,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 1.0,
+        "dissent_grounding": 0.7,
+        "confidence_calibration": 0.7
+      },
+      "passed": false,
+      "judge_notes": "citation_relevance: All 9 evidence citations are from the Kamino protocol API and are on-topic for the protocol, but none of them pertain to a SOL-specific leverage pool (they cover rstSOL/bbSOL, Superstate stocks, PT-SOL, custodied SOL, MSOL-SOL, JitoSOL-SOL, eUSX, PRIME, ONYC). There is no direct evidence citation for a SOL/USDC or SOL-long multiply pool, making the citations only partially relevant to the specific question asked. Score ~0.4. hallucination_score: No specific USD price for SOL, no specific liquidation price, no specific funding rate, and no claim that 3x leverage is universally safe appears in the verdict or turns. The panel correctly defers and avoids ungrounded figures. One blocker note mentions a removed unverified figure, which is appropriate self-correction. Score 1.0. dissent_grounding: The panel surfaces audit_status_uncertainty (blocker question #1, bull_bear_debater decisive question, fundamental analyst, risk manager) and smart contract/leverage unwind risk (risk manager turn). Liquidation cascade risk is mentioned implicitly ('leveraged position could be liquidated') but not as a named cascade risk. Drawdown path risk is not explicitly named. At least one expected dissent topic (audit_status_uncertainty) is clearly and concretely surfaced; leverage_unwind_risk is partially present. Score 0.7. confidence_calibration: Panel states 0.7 confidence with a DEFER verdict, 2 dissenting agents, and thin/tangential evidence citations. A DEFER with strong dissent and weak on-topic data warrants lower confidence (0.5-0.6 range would be more calibrated). 0.7 is mildly overconfident given the citation gaps and dissent. Score 0.65, rounded to 0.65.",
+      "panel_retries": 0,
+      "degraded_turn_count": 0,
+      "total_turns": 7,
+      "wall_seconds": {
+        "panel": 50.37,
+        "judge": 15.25
+      }
+    },
+    {
+      "id": "kamino-jitosol-vault",
+      "protocol": "kamino",
+      "vertical": "dex",
+      "as_of_date": "2026-05-16",
+      "panel": {
+        "verdict": "defer",
+        "confidence": 0.75,
+        "dissent_count": 1,
+        "blocker_questions": [
+          "What is the current audit status of the Kamino protocol?",
+          "Are there any known vulnerabilities in the smart contracts governing the JitoSOL-SOL vault?",
+          "3 of 4 primary analysts abstained \u2014 corpus too thin to support a directional call."
+        ],
+        "n_evidence_citations": 3,
+        "n_framework_context": 6,
+        "evidence_provider_kinds": [
+          "protocol_native"
+        ],
+        "framework_provider_kinds": [
+          "canon_berkshire",
+          "canon_damodaran",
+          "canon_macro",
+          "canon_marks",
+          "canon_mauboussin"
+        ],
+        "evidence_citations": [
+          {
+            "id": 1,
+            "chunk_id": "6a0ba926c5069823e6ee3226",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/staking-yields",
+            "snippet": "Kamino kamino-staking-yields: APY 0.054267312945750548, token mint J1t Kamino kamino-staking-yields: APY 0.054267312945750548, token mint J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn. Source: https://api.kamino.finance/v2/staking-yields."
+          },
+          {
+            "id": 2,
+            "chunk_id": "6a0ba926c5069823e6ee3227",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/staking-yields",
+            "snippet": "Kamino kamino-staking-yields: APY 0.0594058647936322219, token mint Cg Kamino kamino-staking-yields: APY 0.0594058647936322219, token mint CgnTSoL3DgY9SFHxcLj6CgCgKKoTBr6tp4CPAEWy25DE. Source: https://api.kamino.finance/v2/staking-yields."
+          },
+          {
+            "id": 3,
+            "chunk_id": "6a0ba926c5069823e6ee3223",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/staking-yields",
+            "snippet": "Kamino kamino-staking-yields: APY 0.0591842754820410159, token mint mS Kamino kamino-staking-yields: APY 0.0591842754820410159, token mint mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So. Source: https://api.kamino.finance/v2/staking-yields."
+          }
+        ],
+        "framework_context": [
+          {
+            "id": 1,
+            "chunk_id": "6a051c66df7f467ce4181b92",
+            "source": "web",
+            "provider_kind": "canon_berkshire",
+            "freshness_tier": "static",
+            "url": "https://www.berkshirehathaway.com/letters/2016ltr.pdf",
+            "snippet": ".\r\nIn my opinion, the disappointing results for hedge-fund investors that this bet exposed are almost certain\r\nto recur in the future. I laid out my reasons for that belief in a statement that was posted on the Long Bets website\r\nwhen the bet commenced (and that is still posted there). Here is what I asserted:\r\nOver a "
+          },
+          {
+            "id": 2,
+            "chunk_id": "6a021a68600a85667fd2c114",
+            "source": "web",
+            "provider_kind": "canon_damodaran",
+            "freshness_tier": "static",
+            "url": "https://www.stern.nyu.edu/~adamodar/pdfiles/papers/nothingisriskfree.pdf",
+            "snippet": ".09%\r\n1987 9.30% -0.20% 10.09%\r\n1988 9.40% 0.10% 23.37%\r\n1989 10.40% 1.00% -10.61%\r\n1990 11.40% 1.00% 24.62%\r\n1991 7.60% -3.80% 4.09%\r\n1992 8.30% 0.70% 6.98%\r\n1993 7.80% -0.50% -2.66%\r\n1994 8.30% 0.50% 31.68%\r\n1995 7.80% -0.50% 18.79%\r\n1996 6.20% -1.60% 26.81%\r\n1997 6.10% -0.10% 23.61%\r\n1998 4.80% -1.30% 16.38%\n\n14\r\n19"
+          },
+          {
+            "id": 3,
+            "chunk_id": "6a0538ee177dc0b1aff1fdaa",
+            "source": "web",
+            "provider_kind": "canon_macro",
+            "freshness_tier": "static",
+            "url": "https://www.bis.org/publ/work1270.pdf",
+            "snippet": "possible\r\nthat the IRF estimates in Figure 12 are also subject to endogeneity from omit\ufffeted variable bias. For example, macroeconomic conditions can jointly impact\r\nthe demand for cryptocurrencies and stablecoins while also impacting Trea\ufffesury yields.38\r\nB Additional figures\r\n36While stablecoins generally do not pay in"
+          },
+          {
+            "id": 4,
+            "chunk_id": "6a05394e8c085826f9a037c0",
+            "source": "web",
+            "provider_kind": "canon_mauboussin",
+            "freshness_tier": "static",
+            "url": "https://www.morganstanley.com/im/publication/insights/articles/article_probabilitiesandpayoffs.pdf",
+            "snippet": "-5.5\r\n5.5-6.0\r\n6.0-6.5\r\n6.5-7.0\r\n7.0-7.5\r\n7.5-8.0\r\n8.0-8.5\r\n8.5-9.0\r\n9.0-9.5\r\n9.5-10.0\r\n>10.0\r\nFrequency (Percent)\r\nMultiple of Invested Capital\n\n \r\n\u00a9 2026 Morgan Stanley. All rights reserved. 5184426 Exp. 2/29/2028 27\r\nIf you extend the time horizon, the cumulative impact of compounding leads to even more skewed resul"
+          },
+          {
+            "id": 5,
+            "chunk_id": "6a0212c067347ee7d96802b4",
+            "source": "web",
+            "provider_kind": "canon_marks",
+            "freshness_tier": "static",
+            "url": "https://www.oaktreecapital.com/insights/memo/what-really-matters",
+            "snippet": "not convinced is usually the case. \u201cWhat about you?\u201d I asked. \u201cIf you help a client establish an appropriate asset allocation, does it follow that you\u2019re not earning your fees if you don\u2019t change it a month later?\u201d Likewise, the day The Illusion of Knowledge came out, an old friend asked me, \u201cBut you have to take a pos"
+          },
+          {
+            "id": 6,
+            "chunk_id": "6a051c66df7f467ce4181b90",
+            "source": "web",
+            "provider_kind": "canon_berkshire",
+            "freshness_tier": "static",
+            "url": "https://www.berkshirehathaway.com/letters/2016ltr.pdf",
+            "snippet": ".5% 16.8% 26.6%\r\n2010 5.9% 6.8% 13.3% 4.9% 11.9% 15.1%\r\n2011 -6.3% -1.3% 5.9% -6.3% -2.8% 2.1%\r\n2012 3.4% 9.6% 5.7% 6.2% 9.1% 16.0%\r\n2013 10.5% 15.2% 8.8% 14.2% 14.4% 32.3%\r\n2014 4.7% 4.0% 18.9% 0.7% -2.1% 13.6%\r\n2015 1.6% 2.5% 5.4% 1.4% -5.0% 1.4%\r\n2016 -2.9% 1.7% -1.4% 2.5% 4.4% 11.9%\r\nGain to\r\nDate 8.7% 28.3% 62.8% "
+          }
+        ],
+        "turns": [
+          {
+            "agent": "technical_analyst",
+            "content": "The prevailing macro regime for crypto risk assets appears to be risk-on, characterized by a low volatility environment. This assessment is grounded in the frameworks of Howard Marks, who emphasizes the cyclical nature of markets, and Aswath Damodaran's insights on equity risk premiums, which suggest that favorable conditions for risk assets often correlate with lower volatility and increased investor confidence.\n\nCurrently, the volatility regime can be described as low. In a low volatility environment, investors are generally more willing to take on risk, leading to increased capital flows into risk assets like cryptocurrencies. This aligns with the notion that during periods of low volatility, market participants are less fearful and more optimistic about future returns, which can drive up asset prices.\n\nHistorical analogues that resemble the current regime include the post-2016 Bitcoin bull run, where low volatility coincided with a surge in investor interest and capital inflows into the crypto space. Additionally, the period following the 2008 financial crisis, when markets began to stabilize and recover, also exhibited similar characteristics of low volatility and risk-on sentiment.\n\nGiven the presence of market data in the retrieved corpus, particularly regarding the Kamino protocol's staking yields, which indicate potential returns for idle SOL, I can infer a bullish sentiment towards the strategy of parking idle SOL into the Kamino JitoSOL-SOL vault for 30 days. The yields presented suggest that this approach could outperform a straightforward JitoSOL holding, especially in a risk-on environment where investors are seeking higher returns.\n\nTrend verdict: bullish",
+            "parsed_verdict": {
+              "trend_verdict": "bullish"
+            }
+          },
+          {
+            "agent": "sentiment_analyst",
+            "content": "The current sentiment surrounding the Kamino protocol appears to be cautiously optimistic, reflecting a narrative of accumulation rather than outright exuberance. The retrieved corpus primarily discusses staking yields and market mechanics, suggesting that users are exploring ways to optimize their returns, particularly through the JitoSOL-SOL vault.\n\n1. **Dominant Narrative**: The overarching sentiment is one of accumulation, as users seem to be weighing the benefits of parking idle SOL into the Kamino JitoSOL-SOL vault for a 30-day period. The focus on yields indicates a desire to enhance returns, which is a positive sign for the protocol's attractiveness.\n\n2. **Concrete Concerns**: While the corpus does not explicitly highlight major concerns, a few issues can be inferred:\n   - **Yield Variability**: The APYs reported range from 0.0044 to 0.0594, indicating variability that could lead to uncertainty about expected returns (chunks [2], [4], [5]).\n   - **Market Competition**: The presence of multiple staking options may lead to concerns about whether Kamino can maintain its competitive edge in yield offerings.\n   - **User Experience**: There may be underlying concerns about the user interface or the complexity of utilizing the vault, although this is not directly mentioned in the corpus.\n\n3. **Narrative Pivots**: There are no clear shifts from bullish to bearish sentiment in the retrieved chunks. The language remains consistently focused on yield generation and market mechanics without signs of panic or capitulation.\n\n4. **Voice Distinction**: The corpus primarily reflects a builder/insider voice, focusing on technical aspects of staking yields and market mechanics, rather than retail or influencer sentiment which might typically express more emotional reactions.\n\nOverall, the sentiment surrounding Kamino is characterized by a pragmatic approach to yield generation, with users actively considering how to optimize their holdings. The lack of significant negative sentiment or concerns suggests that the market feels relatively stable and optimistic about the protocol's offerings.\n\nSentiment band: neutral",
+            "parsed_verdict": {
+              "sentiment_band": "neutral"
+            }
+          },
+          {
+            "agent": "fundamental_analyst",
+            "content": "Kamino is a protocol that allows users to deposit SOL into the JitoSOL-SOL vault, where they can earn yield through leveraged liquidity provision in a decentralized lending market.\n\n1. **Current Core Mechanic**: Users deposit SOL into the Kamino JitoSOL-SOL vault, which utilizes a 10x leverage pool to generate yield, effectively allowing users to earn returns on their idle SOL.\n\n2. **TVL / Volume / Fee Trajectory**: No TVL figure for Kamino in the retrieved corpus.\n\n3. **Audit Posture**: The retrieved corpus does not provide information regarding the audit status of Kamino, including any unaudited code paths, recent audits passed, or open critical findings.\n\n4. **Recent Parameter or Governance Changes**: The retrieved corpus does not mention any recent parameter or governance changes for Kamino.\n\n5. **Integration Footprint**: The corpus does not specify any downstream dependencies or integrations that rely on Kamino, which would indicate ecosystem risk if the protocol were to degrade.\n\nGiven the lack of quantitative data regarding TVL, audit status, and governance changes, it is challenging to assess the overall health of the Kamino protocol. However, the absence of negative signals or critical findings suggests that the protocol is currently stable, albeit with limited visibility into its operational metrics.\n\nProtocol health: stable",
+            "parsed_verdict": {
+              "protocol_health": "stable"
+            }
+          },
+          {
+            "agent": "risk_manager",
+            "content": "In evaluating the risks associated with parking idle SOL into the Kamino JitoSOL-SOL vault for 30 days, several specific risk vectors emerge from the corpus and the protocol's known posture:\n\n1. **Smart Contract Risk**: The JitoSOL-SOL vault operates on a leveraged liquidity provision model. If there are any vulnerabilities in the smart contract code, particularly in the liquidation logic or leverage mechanics, this could lead to significant losses. The corpus does not mention any audits or known vulnerabilities, which raises concerns about the potential for exploits. \n   - **Severity**: High\n   - **Likelihood**: Medium\n\n2. **Oracle Staleness or Manipulation**: The protocol's reliance on price oracles for determining asset values in a leveraged environment introduces risks related to oracle manipulation or staleness. If the price feeds are compromised, it could lead to incorrect valuations and unintended liquidations.\n   - **Severity**: High\n   - **Likelihood**: Medium\n\n3. **Concentration Risk**: The JitoSOL-SOL vault may be subject to concentration risk if a few large players dominate the liquidity pool. This could lead to slippage and increased volatility in the vault's performance, particularly during market downturns.\n   - **Severity**: Medium\n   - **Likelihood**: Medium\n\n4. **Operational Risk**: The lack of information regarding the protocol's operational robustness, including multisig governance and key management, presents an operational risk. If key management practices are weak, it could lead to governance failures or exploits.\n   - **Severity**: Medium\n   - **Likelihood**: Medium\n\n5. **Regulatory Exposure**: The protocol operates in a rapidly evolving regulatory landscape. Any sudden regulatory clampdowns or sanctions could impact the protocol's operations and user access.\n   - **Severity**: Medium\n   - **Likelihood**: Medium\n\n**Under-weighted Risks**: The sentiment and fundamental analysts did not sufficiently address the potential for oracle manipulation and concentration risks, which are critical in a leveraged environment. The absence of a clear audit status also raises operational concerns that were not highlighted.\n\n**Position-Size Constraint**: Given the high severity and medium likelihood of the identified risks, I would recommend a position size cap at 1% of liquid net worth for this strategy, with a focus on closely monitoring the protocol's performance and any emerging risks.\n\nRisk band: elevated",
+            "parsed_verdict": {
+              "risk_band": "elevated"
+            }
+          },
+          {
+            "agent": "strategist",
+            "content": "The research question at hand is whether parking idle SOL into the Kamino JitoSOL-SOL vault for 30 days will outperform a straightforward JitoSOL holding. \n\nAcross the analysts' perspectives, we see a dominant alignment of bullish sentiment regarding the potential yield generation from the Kamino protocol, despite some elevated risk concerns. The technical analyst's bullish outlook is supported by the sentiment analyst's neutral to optimistic view, while the fundamental analyst emphasizes the protocol's stable operational mechanics. However, the risk manager raises valid concerns about smart contract vulnerabilities and oracle risks, indicating an elevated risk environment.\n\n### Structured Intent\n- **Action**: open_long\n- **Direction**: long\n- **Size Band**: small\n- **Stop Band**: tight\n- **Horizon**: weeks\n\nGiven the elevated risk concerns raised by the risk manager, particularly regarding smart contract vulnerabilities and oracle manipulation, I recommend a cautious approach. The intent is to open a small long position in the Kamino JitoSOL-SOL vault, with a tight stop to mitigate potential losses. This approach allows for participation in the yield generation while managing exposure to the identified risks.\n\n### Risk Management\nThe risk manager's concerns are acknowledged, and the decision to open a small long position with a tight stop is a direct response to those concerns. This strategy allows for potential upside while limiting exposure to significant losses.\n\n### Falsifier\nThe single most important falsifier for this thesis would be a significant exploit or vulnerability discovered in the Kamino protocol's smart contracts, leading to a loss of user funds or a substantial drop in the vault's performance metrics.\n\nStrategic intent: open small long, tight stop, weeks horizon \u2014 falsifier: significant exploit in Kamino's smart contracts.",
+            "parsed_verdict": {
+              "strategic_intent": "open small long, tight stop, weeks horizon \u2014 falsifier: significant exploit in Kamino's smart contracts."
+            }
+          },
+          {
+            "agent": "bull_bear_debater",
+            "content": "BULL CASE: The Kamino JitoSOL-SOL vault presents a compelling opportunity for idle SOL, particularly given its 10x leverage pool, which can significantly amplify returns compared to a straightforward JitoSOL holding. The current average APY for the vault is around 5.4% to 5.9% based on the retrieved data [2: 'APY 0.054267312945750548', 4: 'APY 0.0594058647936322219', 5: 'APY 0.0591842754820410159']. This suggests that users can earn a higher yield by utilizing the vault, especially in a risk-on environment where capital flows into yield-generating assets. If the market maintains its current bullish sentiment and the protocol continues to attract liquidity, the performance of the vault could outperform traditional JitoSOL holdings. Confirmation of this thesis would come from sustained high APYs and increasing total value locked (TVL) in the vault.\n\nBEAR CASE: The thesis could break down if the Kamino protocol experiences significant smart contract vulnerabilities or oracle manipulation, which could lead to unexpected losses for users. The absence of any reported audits raises concerns about the security of the vault, and if a major exploit were to occur, it could severely impact user confidence and liquidity. Additionally, if the APY were to drop significantly below the yields of straightforward JitoSOL holdings, it would indicate that the vault is not providing the expected value. The coordinator may be over-weighting the potential upside without fully accounting for these risks, particularly the operational and security concerns highlighted by the risk manager.\n\nDecisive question: Does the Kamino JitoSOL-SOL vault maintain an APY above 5% while demonstrating no significant security vulnerabilities over the next 30 days?",
+            "parsed_verdict": {
+              "decisive_question": "Does the Kamino JitoSOL-SOL vault maintain an APY above 5% while demonstrating no significant security vulnerabilities over the next 30 days?"
+            }
+          },
+          {
+            "agent": "coordinator",
+            "content": "The panel's stance on parking idle SOL into the Kamino JitoSOL-SOL vault for 30 days is generally positive, with a consensus leaning towards the potential for outperforming a straightforward JitoSOL holding. The technical analyst highlighted the vault's leverage and yield potential, while the sentiment analyst reflected a cautiously optimistic view. The fundamental analyst noted the protocol's stable operational mechanics, although the risk manager raised concerns about smart contract vulnerabilities and oracle risks, indicating an elevated risk environment. The strategist outlined a cautious approach to opening a small long position, while the bull-bear debater presented balanced arguments for both sides.\n\nOverall, the panel is aligned in supporting action, but with a clear emphasis on risk management due to the elevated concerns raised.\n\n### Verdict\nGiven the panel's overall support for the strategy, I call for action to proceed with parking idle SOL into the Kamino JitoSOL-SOL vault for 30 days, while implementing a tight stop-loss strategy to mitigate potential risks.\n\n### Confidence Score\n0.75 \u2014 there is a high conviction in the potential for yield generation, but the elevated risks warrant caution.\n\n### Key Drivers\n1. **Yield Potential**: The vault's APY ranges from 5.4% to 5.9%, indicating attractive returns (fundamental analyst).\n2. **Market Sentiment**: A generally bullish sentiment towards yield-generating assets in a risk-on environment (sentiment analyst).\n3. **Risk Management**: Acknowledgment of smart contract and oracle risks, leading to a cautious approach (risk manager).\n\n### Dissent Count\n1 dissenting voice (risk manager).\n\n### Blocker Questions\n1. What is the current audit status of the Kamino protocol?\n2. Are there any known vulnerabilities in the smart contracts governing the JitoSOL-SOL vault?\n\n```json\n{\n  \"verdict\": \"act\",\n  \"confidence\": 0.75,\n  \"key_drivers\": [\"Yield Potential\", \"Market Sentiment\", \"Risk Management\"],\n  \"dissent_count\": 1,\n  \"blocker_questions\": [\"What is the current audit status of the Kamino protocol?\", \"Are there any known vulnerabilities in the smart contracts governing the JitoSOL-SOL vault?\"]\n}\n```\n\nFinal verdict: act",
+            "parsed_verdict": {
+              "verdict": "act"
+            }
+          }
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "DEFER",
+        "expected_verdict_v2_set": [
+          "PASS",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "protocol_native",
+          "canon_damodaran",
+          "canon_marks"
+        ],
+        "expected_dissent_topics": [
+          "marginal_yield_uplift_risk",
+          "peg_deviation_risk",
+          "transaction_cost_overhead"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.6,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 0.0,
+        "dissent_grounding": 0.7,
+        "confidence_calibration": 0.3
+      },
+      "passed": false,
+      "judge_notes": "citation_relevance: All 3 evidence citations are from Kamino's staking-yields API and are protocol-native/daily-fresh, so they are on-topic. However, none of the cited token mints are confirmed to be the JitoSOL-SOL vault specifically (mints appear to be mSOL and cgSOL variants, not JitoSOL J1toso1u), reducing relevance slightly. Score 0.6. | hallucination_score: The bull_bear_debater and coordinator both cite specific APY figures (5.4%-5.9%) directly from the evidence_citations, so those numbers are grounded. However, the coordinator's verdict text states 'action to proceed' and implies outperformance potential without a grounded APY differential vs. straight JitoSOL \u2014 this edges toward the must_not_hallucinate pattern of 'specific APY differential cited without a protocol_native source' and 'claim of guaranteed outperformance.' The panel also references a '10x leverage pool' with no citation support anywhere in the corpus. This ungrounded specific claim triggers a hallucination flag. Score 0.0. | dissent_grounding: The risk_manager turn surfaces smart contract risk and oracle risk (touching transaction_cost_overhead and peg_deviation_risk tangentially), and the bull_bear_debater raises the bear case. Marginal yield uplift risk is hinted at but not concretely named; peg deviation risk is not explicitly surfaced. Score 0.7. | confidence_calibration: The envelope verdict is 'defer' at 0.75, but the coordinator's parsed_verdict is 'act' \u2014 a direct contradiction. The corpus is thin (no JitoSOL-specific vault APY differential, no audit data, no TVL), yet confidence is 0.75. Given thin cites, strong dissent on smart contract risk, and the ground truth noting DEFER/PASS is correct, 0.75 confidence for an ACT call is severely miscalibrated. Score 0.3.",
+      "panel_retries": 0,
+      "degraded_turn_count": 0,
+      "total_turns": 7,
+      "wall_seconds": {
+        "panel": 52.1,
+        "judge": 13.64
+      }
+    },
+    {
+      "id": "kamino-usdc-pyusd-roll",
+      "protocol": "kamino",
+      "vertical": "dex",
+      "as_of_date": "2026-05-16",
+      "panel": {
+        "verdict": "defer",
+        "confidence": 0.7,
+        "dissent_count": 0,
+        "blocker_questions": [
+          "What is the current total value locked (TVL) in the Kamino USDC-PYUSD stablecoin vault?",
+          "Is there an updated audit status for the Kamino protocol?",
+          "Risk manager flagged risk as unacceptable and the strategist declined to act \u2014 defer until the named risk is resolved."
+        ],
+        "n_evidence_citations": 1,
+        "n_framework_context": 6,
+        "evidence_provider_kinds": [
+          "protocol_native"
+        ],
+        "framework_provider_kinds": [
+          "canon_berkshire",
+          "canon_damodaran",
+          "canon_marks",
+          "canon_mauboussin"
+        ],
+        "evidence_citations": [
+          {
+            "id": 1,
+            "chunk_id": "6a0ba926c5069823e6ee322b",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://api.kamino.finance/v2/staking-yields",
+            "snippet": "Kamino kamino-staking-yields: APY 0.061159254430432391, token mint jup Kamino kamino-staking-yields: APY 0.061159254430432391, token mint jupSoLaHXQiZZTSfEWMTRRgpnyFm8f6sZdosWBjx93v. Source: https://api.kamino.finance/v2/staking-yields."
+          }
+        ],
+        "framework_context": [
+          {
+            "id": 1,
+            "chunk_id": "6a0214913169a51804eebf00",
+            "source": "web",
+            "provider_kind": "canon_berkshire",
+            "freshness_tier": "static",
+            "url": "https://www.berkshirehathaway.com/letters/1980.html",
+            "snippet": "$8\ufffd \"p2y\ufffd \ufffdQ9\u007f0\ufffd }l\ufffdL\ufffd\ufffdU\u048cV /\ufffd\ufffd\ufffd\ufffdD\u0197\ufffd\ufffdL\ufffd\ufffdD\ufffdM Z\u067f\ufffd\ufffd9a\ufffd\ufffdQ';D\ufffdo\ufffdK\ufffd,\ufffd1 \ufffd\ufffd\ufffd\ufffd\u02b0\ufffdf\ufffdO kNi\ufffd \u01f1\ufffd#\ufffd\ufffd\ufffdCU#MK6\u071em\ufffd& \ufffd\ufffd\ufffd>\ufffd\ufffdL\ufffd\ufffd <&\ufffd"
+          },
+          {
+            "id": 2,
+            "chunk_id": "6a05394e8c085826f9a037b6",
+            "source": "web",
+            "provider_kind": "canon_mauboussin",
+            "freshness_tier": "static",
+            "url": "https://www.morganstanley.com/im/publication/insights/articles/article_probabilitiesandpayoffs.pdf",
+            "snippet": "made one bet of one dollar per week but could not \r\nreinvest his winnings, he should maximize expected value. This is Markowitz. \r\nBut the math changes if the winnings are reinvested from one period to the next. Instead of seeking the outcome \r\nwith the best arithmetic mean, the objective is to find the opportunity wit"
+          },
+          {
+            "id": 3,
+            "chunk_id": "6a02126067347ee7d9680125",
+            "source": "web",
+            "provider_kind": "canon_marks",
+            "freshness_tier": "static",
+            "url": "https://www.oaktreecapital.com/insights/memo/gimme-credit",
+            "snippet": "\u2019ll do so to a lesser degree when they\u2019re optimistic about creditworthiness. Thus, the spread is a good barometer of investor psychology, or a \u201cfear gauge.\u201d It\u2019s worth noting the obvious: the spread doesn\u2019t tell you what the actual default rate will be, as some mistakenly say. It tells you what investors think the defa"
+          },
+          {
+            "id": 4,
+            "chunk_id": "6a021a5c600a85667fd2c0a6",
+            "source": "web",
+            "provider_kind": "canon_damodaran",
+            "freshness_tier": "static",
+            "url": "https://www.stern.nyu.edu/~adamodar/pdfiles/papers/ERP2012.pdf",
+            "snippet": "23%\r\nEven using all of the entire Ibbotson data (about 85 years) yields a substantial standard \r\nerror of 2.2%. Note that that the standard errors from ten-year and twenty-year estimates \r\nare likely to be almost as large or larger than the actual risk premium estimated. This cost \r\nof using shorter time periods seems,"
+          },
+          {
+            "id": 5,
+            "chunk_id": "6a051bf3df7f467ce4181851",
+            "source": "web",
+            "provider_kind": "canon_berkshire",
+            "freshness_tier": "static",
+            "url": "https://www.berkshirehathaway.com/letters/1997.html",
+            "snippet": "1) (2) Yearend Yield Underwriting Approximate on Long-Term Loss Average Float Cost of Funds Govt. Bonds (In $ Millions) (Ratio of 1 to 2) 1967 profit 17.3 less than zero 5.50% 1968 profit 19.9 less than zero 5.90% 1969 profit 23.4 less than zero 6.79% 1970 0.37 32.4 1.14% 6.25% 1971 profit 52.5 less than zero 5.81% 197"
+          },
+          {
+            "id": 6,
+            "chunk_id": "6a05394e8c085826f9a037ca",
+            "source": "web",
+            "provider_kind": "canon_mauboussin",
+            "freshness_tier": "static",
+            "url": "https://www.morganstanley.com/im/publication/insights/articles/article_probabilitiesandpayoffs.pdf",
+            "snippet": ": John Wiley & Sons, \r\n2023), 15-25. You can find a version of this game at https://elmwealth.com/coin-flip/. 73 Another simple approach to Kelly for even money bets is f = 2p \u2013 1. In this case p = 0.60, to f = 0.20 ([2 \u00d7 \r\n0.60] \u2013 1 = 0.20).\r\n74 Rachel E.S. Ziemba and William T. Ziemba, Scenarios for Risk Management a"
+          }
+        ],
+        "turns": [
+          {
+            "agent": "technical_analyst",
+            "content": "The prevailing macro regime for the Kamino USDC-PYUSD stablecoin vault appears to be risk-off, characterized by thin yields that may not justify entry. This assessment is grounded in the framework of yield expectations and investor behavior, as discussed in the canon literature regarding risk premiums and market conditions.\n\nThe volatility regime can be described as low to normal. Given the current yields reported for the Kamino vaults, which range from approximately 0.0039% to 0.0612% APY across various token mints [1-9], this suggests a stable environment with limited volatility. In a risk-off regime, investors typically seek safer assets, leading to lower yields as demand for stability increases. This aligns with the notion that in times of uncertainty, the risk premium tends to compress, resulting in lower expected returns.\n\nHistorically, this regime resembles periods of low yield spreads, similar to what Howard Marks discusses regarding credit conditions. In his analysis, Marks notes that narrow spreads often indicate a lack of perceived risk, which can lead to lower returns for riskier assets [12]. Additionally, Aswath Damodaran's insights on equity risk premiums suggest that in risk-off environments, investors demand less return for taking on risk, further supporting the notion that the yields in the Kamino vault may be too thin to warrant investment [13].\n\nIn conclusion, the current macro regime suggests a bearish outlook for entering the Kamino USDC-PYUSD stablecoin vault, as the yields are likely insufficient to compensate for the risks involved.\n\nTrend verdict: bearish",
+            "parsed_verdict": {
+              "trend_verdict": "bearish"
+            }
+          },
+          {
+            "agent": "sentiment_analyst",
+            "content": "The current sentiment surrounding the Kamino USDC-PYUSD stablecoin vault is predominantly neutral, with a slight inclination towards caution due to the low yields reported. The data retrieved indicates that the annual percentage yields (APY) for various token mints within the Kamino protocol range from approximately 0.0039% to 0.0612% [1-9]. These figures suggest a lack of compelling incentive for investors to enter the vault, as the yields are relatively thin.\n\nThe dominant narrative in the recent corpus reflects a builder-mode mentality, with a focus on the technical aspects of yield generation rather than emotional trading behavior. There are no significant signs of accumulation or capitulation; instead, the conversation appears muted, indicating that investors are weighing their options without strong conviction in either direction.\n\nHowever, a few concrete concerns emerge from the corpus:\n1. **Low Yield Levels**: The yields reported are quite low, with the highest being 0.0612% [5], which may not attract significant interest from yield-seeking investors.\n2. **Market Conditions**: The overall market sentiment appears cautious, as indicated by the lack of bullish language or excitement surrounding the vault's performance.\n\nThere are no clear narrative pivots in the retrieved chunks, suggesting that the sentiment has remained stable without significant shifts towards either bullish or bearish framing. The voices present in the corpus are primarily from protocol insiders discussing yield metrics, with no notable retail or influencer commentary that would indicate a shift in sentiment.\n\nIn summary, the current sentiment around the Kamino USDC-PYUSD stablecoin vault is characterized by a cautious neutrality, driven by low yield expectations and a lack of compelling narratives to encourage investment.\n\nSentiment band: neutral",
+            "parsed_verdict": {
+              "sentiment_band": "neutral"
+            }
+          },
+          {
+            "agent": "fundamental_analyst",
+            "content": "The Kamino protocol facilitates yield generation through liquidity provision in stablecoin vaults, where users deposit assets and earn yield from trading fees and other sources. \n\nNo TVL/volume figure for Kamino in the retrieved corpus. The corpus does not provide specific metrics on total value locked (TVL) or trading volume, which are critical for assessing the protocol's current standing.\n\nRegarding audit posture, the retrieved chunks do not mention any audit status, findings, or recent audits. Therefore, it is unclear whether there are any unaudited code paths or unresolved issues.\n\nRecent parameter or governance changes are not explicitly mentioned in the corpus, indicating a lack of recent updates or proposals that could impact the protocol's mechanics or user incentives.\n\nThe integration footprint of Kamino is not detailed in the retrieved chunks, leaving us without information on which other protocols or projects depend on Kamino for liquidity or services. This absence of integration data could indicate potential ecosystem risk if Kamino's performance were to degrade.\n\nOverall, the lack of quantitative data on TVL and volume, audit status, governance changes, and integration footprint suggests that the protocol's health is currently uncertain. Without these critical metrics, it is challenging to ascertain whether the foundation of Kamino is degrading, holding, or strengthening.\n\nProtocol health: stable",
+            "parsed_verdict": {
+              "protocol_health": "stable"
+            }
+          },
+          {
+            "agent": "risk_manager",
+            "content": "In evaluating the Kamino USDC-PYUSD stablecoin vault, several risk vectors are present based on the retrieved corpus and the known posture of the Kamino protocol.\n\n1. **Smart Contract Risk**: There is no mention of an audit status or any recent audits in the corpus. This raises concerns about potential vulnerabilities in the smart contracts, particularly if there are unaudited code paths. Given the lack of information, I would categorize this risk as **high severity** and **medium likelihood** due to the inherent risks associated with unaudited contracts.\n\n2. **Oracle Staleness or Manipulation**: The corpus does not provide any information on the oracle mechanisms used by Kamino. If the protocol relies on external price feeds without robust mechanisms to mitigate manipulation or staleness, this could pose a significant risk. I would rate this as **medium severity** and **medium likelihood**, as many protocols face this risk but may have mitigations in place.\n\n3. **Concentration Risk**: The corpus does not provide details on the distribution of liquidity providers or the presence of large holders (whales) in the vault. If a few entities dominate the liquidity, this could lead to significant volatility or liquidity issues. This risk is rated as **medium severity** and **medium likelihood** due to the potential impact of whale behavior on price stability.\n\n4. **Regulatory Exposure**: The corpus does not mention any regulatory concerns or compliance measures taken by Kamino. Given the evolving regulatory landscape for stablecoins, this could pose a risk if the protocol is not compliant with relevant regulations. I would categorize this as **medium severity** and **medium likelihood**.\n\n5. **Operational Risk**: The lack of information regarding key management practices, multisig signers, or frontend dependencies raises concerns about operational risk. If there are insufficient safeguards in place, this could lead to significant vulnerabilities. This risk is rated as **high severity** and **medium likelihood**.\n\n**Risks Missed by Other Analysts**: The technical and sentiment analysts did not address the potential for smart contract vulnerabilities or the lack of audit information, which is critical for assessing the overall risk profile of the protocol.\n\nGiven these risks, I recommend a position size cap of **1% of liquid net worth** due to the high severity of smart contract risk and operational vulnerabilities.\n\nRisk band: unacceptable",
+            "parsed_verdict": {
+              "risk_band": "unacceptable"
+            }
+          },
+          {
+            "agent": "strategist",
+            "content": "The research question focuses on whether to enter the Kamino USDC-PYUSD stablecoin vault, considering the yield potential over the next 30 days. \n\nThe analysts present a mixed view: the technical analyst highlights low yields and a stable environment, the sentiment analyst notes a neutral sentiment with cautious undertones, the fundamental analyst points out the lack of critical metrics like TVL and audit status, and the risk manager raises concerns about significant risks, particularly around smart contract vulnerabilities and operational risks.\n\nThe dominant alignment across the analysts can be summarized as follows: **technical neutral + sentiment neutral + fundamentals stable + risk elevated**. This indicates a consensus that while the environment is stable, the risks associated with entering the vault are considerable.\n\nGiven the elevated risks identified by the risk manager, particularly the high severity of smart contract vulnerabilities and operational risks, the structured intent will lean towards caution. Therefore, the action will be to **observe** rather than enter the vault at this time.\n\n- **Action**: observe\n- **Direction**: neutral\n- **Size band**: none\n- **Stop band**: none\n- **Horizon**: weeks\n\nThe risk manager's concerns about unacceptable risk levels warrant this cautious approach, as entering the vault could expose investors to significant vulnerabilities without adequate yield compensation.\n\nThe single most important falsifier for this thesis would be the emergence of a successful audit or significant improvements in the protocol's risk profile, such as a substantial increase in yield or a reduction in smart contract vulnerabilities.\n\nStrategic intent: observe the Kamino USDC-PYUSD stablecoin vault for the next 30 days due to elevated risks and low yields.",
+            "parsed_verdict": {
+              "strategic_intent": "observe the Kamino USDC-PYUSD stablecoin vault for the next 30 days due to elevated risks and low yields."
+            }
+          },
+          {
+            "agent": "bull_bear_debater",
+            "content": "BULL CASE: The Kamino USDC-PYUSD stablecoin vault presents a compelling opportunity for investors seeking yield in a stablecoin environment. With yields reported as high as 0.0612% APY [5], this vault offers a competitive return compared to traditional savings accounts or other low-risk investments. The stability of the underlying assets, combined with the potential for yield generation through liquidity provision, suggests that the vault could outperform other fixed-income options in the current market. Furthermore, as the DeFi ecosystem continues to mature, increased adoption of stablecoins may drive higher liquidity and yield opportunities, making this vault an attractive entry point for yield-seeking investors. A confirmation of this thesis would be an increase in total value locked (TVL) in the vault, indicating growing investor confidence and participation.\n\nBEAR CASE: Conversely, the Kamino USDC-PYUSD stablecoin vault may not be worth entering due to the thin yields and significant risks associated with the protocol. The highest yield reported is only 0.0612% APY [5], which may not adequately compensate for the risks involved, particularly given the lack of information regarding audit status and potential vulnerabilities in the smart contracts. If the protocol were to experience a security breach or a significant drop in liquidity, investors could face substantial losses. A clear signal that the thesis is broken would be a decline in total value locked (TVL) or a negative incident related to the protocol's security, which would undermine investor confidence and lead to a withdrawal of funds.\n\nDecisive question: Does the total value locked (TVL) in the Kamino USDC-PYUSD stablecoin vault increase over the next 30 days?",
+            "parsed_verdict": {
+              "decisive_question": "Does the total value locked (TVL) in the Kamino USDC-PYUSD stablecoin vault increase over the next 30 days?"
+            }
+          },
+          {
+            "agent": "coordinator",
+            "content": "The panel's stance on entering the Kamino USDC-PYUSD stablecoin vault is predominantly cautious, with a consensus that the current yield levels are too thin to justify investment. The technical analyst highlighted low yields and a stable environment, while the sentiment analyst noted a neutral outlook with cautious undertones. The fundamental analyst pointed out the absence of critical metrics like total value locked (TVL) and audit status, which are essential for assessing the protocol's health. The risk manager raised significant concerns about smart contract vulnerabilities and operational risks, categorizing the overall risk band as unacceptable. \n\nThe panel did not find strong enough evidence to support immediate action, leading to a unified recommendation to observe the vault rather than enter it. The conflicting views primarily stem from the risk manager's emphasis on elevated risks, which overshadow the potential benefits highlighted by the bull case.\n\nGiven this analysis, the verdict is to **pass** on entering the vault at this time, as the risks outweigh the potential rewards.\n\n```json\n{\n  \"verdict\": \"pass\",\n  \"confidence\": 0.70,\n  \"key_drivers\": [\n    \"Low yield levels reported (highest at 0.0612% APY) [5]\",\n    \"Concerns about smart contract vulnerabilities and lack of audit information\",\n    \"Absence of critical metrics like total value locked (TVL)\"\n  ],\n  \"dissent_count\": 0,\n  \"blocker_questions\": [\n    \"What is the current total value locked (TVL) in the Kamino USDC-PYUSD stablecoin vault?\",\n    \"Is there an updated audit status for the Kamino protocol?\"\n  ]\n}\n```\n\nFinal verdict: pass",
+            "parsed_verdict": {
+              "verdict": "pass"
+            }
+          }
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "PASS",
+        "expected_verdict_v2_set": [
+          "PASS",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "protocol_native",
+          "canon_marks",
+          "canon_damodaran"
+        ],
+        "expected_dissent_topics": [
+          "yield_trap_risk",
+          "stablecoin_peg_risk",
+          "opportunity_cost"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.3,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 1.0,
+        "dissent_grounding": 0.7,
+        "confidence_calibration": 0.7
+      },
+      "passed": false,
+      "judge_notes": "citation_relevance: The single evidence citation (Kamino staking-yields API) is from the correct protocol but returns JUP/jupSOL staking yields, not the USDC-PYUSD stablecoin vault yield \u2014 tangentially related at best, not directly on-topic for the specific vault in question. Score penalized accordingly. hallucination_score: No specific peg deviation, guaranteed roll-forward yield, or APY figure cited solely from canon memo is present; the 0.0612% figure is tied to the protocol_native citation, so no hallucination detected. dissent_grounding: The panel surfaces yield_trap_risk (thin yields insufficient to compensate for risk) and opportunity_cost (strategist recommends observe/pass, bull-bear debater raises alternative options) clearly, though stablecoin_peg_risk is only lightly touched. At least one expected dissent topic is clearly present. confidence_calibration: Confidence of 0.7 with a single tangentially-relevant evidence citation and zero dissent is mildly over-confident, but the directional signal (pass/defer) is consistent across agents and the reasoning is coherent, so only mild miscalibration.",
+      "panel_retries": 0,
+      "degraded_turn_count": 0,
+      "total_turns": 7,
+      "wall_seconds": {
+        "panel": 81.01,
+        "judge": 10.23
+      }
+    },
+    {
+      "id": "drift-sol-perp-long",
+      "protocol": "drift",
+      "vertical": "dex",
+      "as_of_date": "2026-05-16",
+      "panel": {
+        "verdict": "defer",
+        "confidence": 0.65,
+        "dissent_count": 2,
+        "blocker_questions": [
+          "What is the expected market reaction to the FOMC meeting?",
+          "Will SOL price maintain above the current level post-FOMC meeting?"
+        ],
+        "n_evidence_citations": 4,
+        "n_framework_context": 6,
+        "evidence_provider_kinds": [
+          "protocol_native"
+        ],
+        "framework_provider_kinds": [
+          "canon_berkshire",
+          "canon_damodaran",
+          "canon_macro",
+          "canon_marks",
+          "canon_mauboussin"
+        ],
+        "evidence_citations": [
+          {
+            "id": 1,
+            "chunk_id": "6a0ba92cc5069823e6ee3261",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://data.api.drift.trade/market/SOL-PERP/fundingRates?limit=30",
+            "snippet": "Drift SOL-PERP funding record \u2014 funding rate 0.000575916, long rate 0. Drift SOL-PERP funding record \u2014 funding rate 0.000575916, long rate 0.000575916, short rate 0.000575916, oracle price TWAP 82.504218, mark price TWAP 82.501540, period revenue -358.076085, ts 1774983600, slot 410149921. Source: https://data.api.drif"
+          },
+          {
+            "id": 2,
+            "chunk_id": "6a0ba92cc5069823e6ee325b",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://data.api.drift.trade/market/SOL-PERP/fundingRates?limit=30",
+            "snippet": "Drift SOL-PERP funding record \u2014 funding rate -0.000338958, long rate - Drift SOL-PERP funding record \u2014 funding rate -0.000338958, long rate -0.000338958, short rate -0.000338958, oracle price TWAP 82.991924, mark price TWAP 82.967191, period revenue 118.714315, ts 1775005200, slot 410205151. Source: https://data.api.dr"
+          },
+          {
+            "id": 3,
+            "chunk_id": "6a0ba92cc5069823e6ee3258",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://data.api.drift.trade/market/SOL-PERP/fundingRates?limit=30",
+            "snippet": "Drift SOL-PERP funding record \u2014 funding rate -0.000443250, long rate - Drift SOL-PERP funding record \u2014 funding rate -0.000443250, long rate -0.000443250, short rate -0.000443250, oracle price TWAP 83.011389, mark price TWAP 82.984149, period revenue 238.812244, ts 1775016006, slot 410232821. Source: https://data.api.dr"
+          },
+          {
+            "id": 4,
+            "chunk_id": "6a0ba92cc5069823e6ee3262",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://data.api.drift.trade/market/SOL-PERP/fundingRates?limit=30",
+            "snippet": "Drift SOL-PERP funding record \u2014 funding rate 0.000462083, long rate 0. Drift SOL-PERP funding record \u2014 funding rate 0.000462083, long rate 0.000462083, short rate 0.000462083, oracle price TWAP 82.185181, mark price TWAP 82.179834, period revenue -594.572435, ts 1774980000, slot 410140791. Source: https://data.api.drif"
+          }
+        ],
+        "framework_context": [
+          {
+            "id": 1,
+            "chunk_id": "6a0214963169a51804eebf14",
+            "source": "web",
+            "provider_kind": "canon_berkshire",
+            "freshness_tier": "static",
+            "url": "https://www.berkshirehathaway.com/letters/1981.html",
+            "snippet": "\ufffd\ufffdI\ufffd=\ufffd\ufffd\ufffd ;\ufffd.\ufffd>\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdM\ufffdO\ufffd\ufffdK Ex\ufffd\ufffd\ufffd\ufffdm\ufffdg\ufffdH\ufffd\ufffd\ufffdO\ufffd_\ufffd\ufffd}\ufffdw\ufffd)\ufffdSK/P 2\ufffd\ufffd\ufffdk\ufffd\u0475ayy\ufffd\\\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdo\ufffd\ufffd{\ufffdS>\ufffd"
+          },
+          {
+            "id": 2,
+            "chunk_id": "6a0538df177dc0b1aff1fd53",
+            "source": "web",
+            "provider_kind": "canon_macro",
+            "freshness_tier": "static",
+            "url": "https://www.federalreserve.gov/econres/feds/files/2024011r1pap.pdf",
+            "snippet": "waRIIc /bhBN03u #FFhBN03u\r\n(c) Full Sample ex. crisis & Covid\r\nAYzS\r\nz\r\nYzS\r\nYzl\r\nYzk\r\nKTS\r\nhhhhhhhhhhhhhhhhhhhhhhh/jhRNIw\r\n77: Mb\r\nhhhhhhhhhhhhhhhhhhhhhhhhh/jhN0hL3j@R0c\r\n#`r Mbh0j\r\n#`rhL3j@R0\r\nhhhhhhhhhhhhhhhhhhhhhhBNj3a,@N<30\r\n#`rh0j\r\nMbhL3j@R0\r\n#In3h+@CUh;/Th`3qY MRN8aLhTwaRIIc /bhBN03u #FFhBN03u\r\n(d) NS Sample\r\nAY"
+          },
+          {
+            "id": 3,
+            "chunk_id": "6a0539528c085826f9a037de",
+            "source": "web",
+            "provider_kind": "canon_mauboussin",
+            "freshness_tier": "static",
+            "url": "https://www.morganstanley.com/im/publication/insights/articles/article_confidence.pdf",
+            "snippet": "a complex system. As Hardin \r\nwrites, the essential question with ecolate analysis is, \u201cAnd then what?\u201d See Garrett Hardin, Filters Against Folly: \r\nHow to Survive Despite Economists, Ecologists, and the Merely Eloquent (New York: Penguin Books, 1985). \r\n30 There has been a recent back-and-forth between Phil Tetlock, a"
+          },
+          {
+            "id": 4,
+            "chunk_id": "6a021b88600a85667fd2c794",
+            "source": "web",
+            "provider_kind": "canon_damodaran",
+            "freshness_tier": "static",
+            "url": "https://www.stern.nyu.edu/~adamodar/pdfiles/papers/Transparency.pdf",
+            "snippet": "=5 5\r\nExpected Growth\r\nrate\r\n4. Unsustainably high return Is your firm's ROC much higher than industry\r\naverage? Yes Yes=5 5\r\n1. Multiple businesses Number of businesses (more than 10% of\r\nrevenues) = 2 1.00 2\r\n2. Operations in emerging markets Percent of revenues= 30% 5.00 1.5\r\n3. Is the debt market traded? Yes or No "
+          },
+          {
+            "id": 5,
+            "chunk_id": "6a02125367347ee7d96800fe",
+            "source": "web",
+            "provider_kind": "canon_marks",
+            "freshness_tier": "static",
+            "url": "https://www.oaktreecapital.com/insights/memo/easy-money",
+            "snippet": "considerably more optimistic than that, anticipating more/earlier/bigger rate cuts. While on the subject of consensus thinking, I\u2019ll point out the following: Eighteen months ago, it was near-universally accepted that the Fed\u2019s aggressive program of rate increases would result in a recession in 2023. That was wrong. Twe"
+          },
+          {
+            "id": 6,
+            "chunk_id": "6a051bb4df7f467ce41816fe",
+            "source": "web",
+            "provider_kind": "canon_berkshire",
+            "freshness_tier": "static",
+            "url": "https://www.berkshirehathaway.com/letters/1985.html",
+            "snippet": "\ufffdo\ufffd\ufffd\ufffdF\ufffd\ufffd\u07d1\ufffd\ufffd\ufffd)\ufffd\"\ufffd\ufffd\ufffdDo`h\ufffd\ufffd\ufffd\ufffdY\u0472\ufffdBYf\ufffdPB1\ufffd\ufffd\ufffdN8 \ufffd\ufffd+ `\ufffd\ufffd2(\ufffd\ufffd\ufffd\u045f.\ufffd<\ufffd\ufffd\u05e8q\ufffd \ufffd\ufffd\ufffd\ufffd\u0571\ufffd\ufffd)VE2(\ufffdORgI\ufffdU\ufffd^\ufffd`\ufffd^\ufffdN\ufffd;\ufffdU)&\ufffd 2\ufffd\ufffdQg\ufffd \ufffd$^\ufffd\ufffd\ufffdJ \\\ufffdx\ufffd \ufffd6\ufffd\ufffdK\ufffdH:{P\ufffd\ufffdv\ufffdn\ufffd0H\ufffde\ufffd\ufffd'\ufffd\ufffd\ufffdR\ufffdD\ufffd|\ufffd Y\ufffd\ufffd\ufffd5Z\ufffd#\ufffdVL\ufffd<`O\ufffdR\u02d1\ufffd\ufffd\ufffd\ufffdy\ufffd\ufffd\ufffdJ? G\ufffdv~\ufffd\ufffdp\ufffd\ufffd\ufffdr%\ufffdH\ufffdc\ufffd\ufffd\ufffd E\ufffd\ufffdJN \ufffdw\uc56b\ufffd\u0234\ufffd$\ufffd{\ufffd fwZ\ufffd'\ufffd7\ufffd# H9 \ufffd_,\ufffd\ufffd0\ufffd\u01f2\u0322\ufffd/\ufffd\ufffda\ufffd-]T\ufffdT\ufffd\ufffd@\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdz2\ufffd\ufffd\ufffd(0\ufffd\ufffd\ufffd\ufffd \ufffd0\ufffd\ufffd\ufffd \ufffdm\ufffd(\u04a3\ufffdU7\ufffd\ufffd]\ufffd\ufffd&%&\ufffdR\ufffd Z\ufffdcjt*\ufffd{\ufffd~\ufffd\u0677\ufffd\ufffd\ufffdJ\ufffd\ufffd\ufffd\ufffd\ufffd "
+          }
+        ],
+        "turns": [
+          {
+            "agent": "technical_analyst",
+            "content": "The prevailing macro regime for crypto risk assets appears to be risk-on, characterized by a low volatility environment. This assessment is grounded in the funding rates observed in the Drift SOL-PERP market, which have shown a mix of positive and negative rates, indicating a relatively stable trading environment. Specifically, the funding rates have fluctuated around zero, with recent rates such as 0.000575916 [1] and -0.000338958 [4], suggesting that traders are not overly bearish or bullish, but rather maintaining a balanced outlook.\n\nIn terms of volatility, the current conditions can be described as low. This is inferred from the relatively stable funding rates and the absence of extreme fluctuations in the mark prices, which have remained within a narrow range around the oracle prices. Such stability typically reflects a low volatility regime, where market participants are not experiencing significant price swings, allowing for a more favorable environment for long positions.\n\nHistorically, this regime resembles the periods described by Howard Marks regarding the cycle position, where markets are neither in a state of euphoria nor despair, but rather in a cautious optimism phase. Additionally, it aligns with Aswath Damodaran's discussions on equity risk premiums, where low volatility often corresponds with lower risk premiums, indicating a more favorable environment for risk assets. \n\nGiven the current risk-on sentiment and low volatility, opening a 2x SOL-PERP long position ahead of the next FOMC meeting could be considered sensible, as the market appears to be positioned for potential upward movement without the immediate threat of volatility spikes.\n\nTrend verdict: bullish",
+            "parsed_verdict": {
+              "trend_verdict": "bullish"
+            }
+          },
+          {
+            "agent": "sentiment_analyst",
+            "content": "The current sentiment surrounding the Drift protocol, particularly regarding the SOL-PERP market, reflects a cautious optimism as traders prepare for the upcoming FOMC meeting. The dominant narrative appears to be one of accumulation, as evidenced by the mixed funding rates observed in recent data. For instance, the funding rates have fluctuated, with values like 0.000575916 [1] and -0.000338958 [4], indicating a balance between long and short positions. This suggests that traders are not overly bearish or bullish, but rather maintaining a wait-and-see approach as they anticipate potential market movements.\n\nSeveral concrete concerns have surfaced in the corpus. Firstly, there is a notable fluctuation in funding rates, which can create uncertainty for traders. For example, the recent funding rates have shown both positive and negative values, such as 0.000462083 [6] and -0.000443250 [5]. Secondly, the market is closely monitoring the implications of the upcoming FOMC meeting, which could significantly impact market sentiment and volatility.\n\nThere has been a subtle narrative pivot observed in the corpus. Earlier discussions hinted at a more bearish outlook, but recent data and commentary suggest a shift towards a more optimistic view as traders position themselves for potential gains. This shift is particularly relevant given the low volatility environment, which typically fosters a more favorable atmosphere for long positions.\n\nIt's important to distinguish the voices in this narrative. Insider and builder voices seem to focus on the technical aspects of the funding rates and market mechanics, while retail voices may express a more emotional response to the upcoming FOMC meeting, reflecting a mix of anticipation and caution.\n\nOverall, the sentiment surrounding Drift and the SOL-PERP market is leaning towards cautious optimism, with traders positioning themselves for potential upward movement while remaining aware of the risks associated with upcoming macroeconomic events.\n\nSentiment band: neutral",
+            "parsed_verdict": {
+              "sentiment_band": "neutral"
+            }
+          },
+          {
+            "agent": "fundamental_analyst",
+            "content": "Drift is a decentralized perpetual futures trading protocol that allows users to trade SOL-PERP contracts, where traders can take long or short positions on the price of SOL, with funding rates determining the cost of holding these positions. \n\nIn terms of market metrics, the funding rates for SOL-PERP have shown variability, with recent figures including 0.000575916 [1] and -0.000338958 [4]. However, there is no specific TVL, volume, or fee data provided in the retrieved corpus, leading to the conclusion that there is no TVL/volume figure for Drift in the retrieved corpus.\n\nRegarding audit posture, the retrieved chunks do not provide any information about the audit status of the Drift protocol, including whether there are any unaudited code paths, recent audits passed, or open critical findings. \n\nRecent governance or parameter changes are not explicitly mentioned in the retrieved corpus, indicating a lack of visible updates in this area.\n\nThe integration footprint of Drift is not detailed in the retrieved corpus, so it is unclear which protocols or platforms depend on Drift downstream, which could indicate ecosystem risk if the protocol were to degrade.\n\nOverall, the lack of specific quantitative data on TVL, volume, fees, audit status, and governance changes limits the ability to assess the protocol's health comprehensively. Given the mixed signals from the funding rates and the absence of critical metrics, the overall health of the Drift protocol appears to be stable but with significant gaps in data.\n\nProtocol health: stable",
+            "parsed_verdict": {
+              "protocol_health": "stable"
+            }
+          },
+          {
+            "agent": "risk_manager",
+            "content": "In evaluating the risks associated with opening a 2x SOL-PERP long on Drift ahead of the next FOMC meeting, several specific risk vectors are present based on the retrieved corpus.\n\n1. **Oracle Risk**: The funding rates and price data are derived from oracles, which can be subject to manipulation or staleness. The funding rates have shown variability, with recent rates such as 0.000575916 [1] and -0.000338958 [4]. If the oracle prices do not reflect the true market conditions, this could lead to significant losses.\n\n   - **Severity**: High\n   - **Likelihood**: Medium\n\n2. **Slippage Risk**: Given the current funding rates and the observed market conditions, executing a large position could lead to slippage, particularly if the market is thinly traded or experiences sudden volatility around the FOMC meeting.\n\n   - **Severity**: Medium\n   - **Likelihood**: Medium\n\n3. **Regulatory Exposure**: The upcoming FOMC meeting could lead to regulatory scrutiny or changes in market sentiment that may affect trading conditions. While not explicitly mentioned in the corpus, the broader regulatory environment surrounding crypto assets remains uncertain.\n\n   - **Severity**: Medium\n   - **Likelihood**: High\n\n4. **Operational Risk**: The Drift protocol's reliance on smart contracts introduces operational risks, particularly if there are any undisclosed vulnerabilities or if the contracts have not been audited recently. The corpus does not provide information on the audit status of the smart contracts.\n\n   - **Severity**: High\n   - **Likelihood**: Medium\n\n5. **Concentration Risk**: If there are large holders (whales) in the SOL-PERP market, their actions could significantly impact price movements, especially in a volatile environment leading up to the FOMC meeting.\n\n   - **Severity**: Medium\n   - **Likelihood**: Medium\n\nThe other analysts have under-weighted the operational risk associated with the smart contracts, as there is no mention of their audit status or any recent governance changes that could affect the protocol's security posture. This gap is critical, especially given the potential for exploits in unaudited contracts.\n\nGiven these risks, I recommend a position size cap at 1% of liquid net worth due to the high severity and medium likelihood of oracle and operational risks, combined with the potential for slippage and regulatory exposure.\n\nRisk band: elevated",
+            "parsed_verdict": {
+              "risk_band": "elevated"
+            }
+          },
+          {
+            "agent": "strategist",
+            "content": "The research question is whether it is sensible to open a 2x SOL-PERP long position on Drift at the current price ahead of the next FOMC meeting, with a 14-day horizon.\n\nThe dominant alignment across the analysts is as follows: technical bullish sentiment, neutral sentiment, stable fundamentals, and elevated risk. The technical analyst indicates a bullish outlook based on stable funding rates and low volatility, while the sentiment analyst reflects a cautious optimism among traders. The fundamental analyst notes a stable protocol health but highlights gaps in critical data, and the risk manager raises concerns about oracle risk, operational risk, and regulatory exposure.\n\nGiven this synthesis, the structured intent is as follows:\n- **Action**: open_long\n- **Direction**: long\n- **Size_band**: small\n- **Stop_band**: tight\n- **Horizon**: days\n\nThe risk manager's concerns about elevated risks, particularly regarding oracle and operational risks, necessitate a cautious approach. Therefore, while the overall sentiment is bullish, the position size should be limited to mitigate potential losses.\n\nThe single most important falsifier for this thesis would be a significant adverse movement in the funding rates or a major negative shift in market sentiment following the FOMC meeting, indicating a loss of confidence in the market.\n\nStrategic intent: open small long, tight stop, 14-day horizon \u2014 falsifier: significant adverse movement in funding rates post-FOMC meeting.",
+            "parsed_verdict": {
+              "strategic_intent": "open small long, tight stop, 14-day horizon \u2014 falsifier: significant adverse movement in funding rates post-FOMC meeting."
+            }
+          },
+          {
+            "agent": "bull_bear_debater",
+            "content": "BULL CASE: Opening a 2x SOL-PERP long on Drift ahead of the next FOMC meeting is a sensible strategy given the current market conditions. The recent funding rates have shown a mix of stability, with rates like 0.000575916 [1] and -0.000338958 [4], indicating that traders are not overly bearish or bullish, which suggests a balanced market sentiment. If the FOMC meeting leads to a dovish stance or signals a pause in interest rate hikes, it could trigger a rally in crypto assets, particularly SOL, as traders seek to capitalize on potential upward price movements. Additionally, the low volatility environment supports the case for a long position, as it reduces the risk of sudden adverse price swings. A confirmation of the thesis would be a sustained increase in SOL prices following the FOMC meeting, indicating that market sentiment is indeed shifting positively.\n\nBEAR CASE: Conversely, opening a 2x SOL-PERP long could be a risky move, especially given the potential for adverse market reactions post-FOMC meeting. The mixed funding rates, including negative values like -0.000338958 [4], suggest that there is uncertainty among traders, which could lead to increased volatility. If the FOMC meeting results in a hawkish tone or unexpected rate hikes, it could trigger a sell-off in risk assets, including SOL, leading to significant losses for long positions. Furthermore, the operational risks associated with the Drift protocol, particularly if there are undisclosed vulnerabilities or a lack of recent audits, could exacerbate losses. A clear signal that the thesis is broken would be a sharp decline in SOL prices immediately following the FOMC meeting, indicating a loss of market confidence.\n\nDecisive question: Does SOL price maintain above the current level post-FOMC meeting, indicating sustained bullish sentiment?",
+            "parsed_verdict": {
+              "decisive_question": "Does SOL price maintain above the current level post-FOMC meeting, indicating sustained bullish sentiment?"
+            }
+          },
+          {
+            "agent": "coordinator",
+            "content": "The panel's overall stance is cautiously optimistic regarding the proposal to open a 2x SOL-PERP long position on Drift ahead of the next FOMC meeting. The technical analyst supports a bullish outlook based on stable funding rates and low volatility, while the sentiment analyst reflects a neutral sentiment among traders. The fundamental analyst notes stable protocol health but highlights gaps in critical data, and the risk manager raises concerns about elevated risks, particularly regarding oracle and operational risks. The bull-bear debater presents balanced arguments for both sides, indicating that while there is potential for upward movement, there are also significant risks that could lead to adverse outcomes.\n\nGiven this synthesis, the verdict is to **defer** action until further clarity is obtained regarding the potential market reaction to the FOMC meeting. The decisive question posed by the bull-bear debater about SOL price movement post-FOMC meeting remains unresolved, which is critical for determining the viability of the proposed long position.\n\nKey drivers for this verdict include:\n1. **Technical Analysis**: Bullish outlook based on stable funding rates and low volatility (Technical Analyst).\n2. **Sentiment**: Neutral sentiment among traders, indicating caution (Sentiment Analyst).\n3. **Fundamental Stability**: Stable protocol health but with significant data gaps (Fundamental Analyst).\n4. **Risk Concerns**: Elevated risks related to oracle and operational vulnerabilities (Risk Manager).\n5. **Balanced Debate**: The bull-bear debater presents a balanced view, indicating uncertainty in the market (Bull-Bear Debater).\n\nDissent count: 2 (Risk Manager and Bull-Bear Debater).\n\nBlocker questions: \n1. What is the expected market reaction to the FOMC meeting?\n2. Will SOL price maintain above the current level post-FOMC meeting?\n\n```json\n{\n  \"verdict\": \"defer\",\n  \"confidence\": 0.65,\n  \"key_drivers\": [\n    \"Bullish outlook based on stable funding rates and low volatility\",\n    \"Neutral sentiment among traders indicating caution\",\n    \"Stable protocol health but with significant data gaps\",\n    \"Elevated risks related to oracle and operational vulnerabilities\",\n    \"Balanced view indicating uncertainty in the market\"\n  ],\n  \"dissent_count\": 2,\n  \"blocker_questions\": [\n    \"What is the expected market reaction to the FOMC meeting?\",\n    \"Will SOL price maintain above the current level post-FOMC meeting?\"\n  ]\n}\n```\n\nFinal verdict: defer",
+            "parsed_verdict": {
+              "verdict": "defer"
+            }
+          }
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "PASS",
+        "expected_verdict_v2_set": [
+          "PASS",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "protocol_native",
+          "canon_marks",
+          "canon_macro",
+          "canon_damodaran"
+        ],
+        "expected_dissent_topics": [
+          "macro_event_risk",
+          "leverage_unwind_risk",
+          "funding_rate_risk",
+          "liquidation_cascade_risk"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 1.0,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 1.0,
+        "dissent_grounding": 1.0,
+        "confidence_calibration": 0.75
+      },
+      "passed": true,
+      "judge_notes": "All 4 evidence citations are protocol-native Drift SOL-PERP funding rate records \u2014 fully on-topic. No hallucinated figures: funding rates and oracle prices are all sourced from protocol_native citations; no specific USD price level, OI figure, or FOMC outcome prediction is asserted without a source. Expected dissent topics are well-covered: macro_event_risk (FOMC uncertainty surfaced by coordinator, bull-bear debater, and blocker questions), funding_rate_risk (explicitly discussed across multiple turns), leverage_unwind_risk and liquidation_cascade_risk are touched on via the bear case and risk manager's elevated risk band. Confidence of 0.65 is reasonable given 2 dissenting agents and genuine FOMC binary-outcome uncertainty, though slightly generous given the thin fundamental data (no TVL/volume/audit data retrieved); mild over-confidence keeps calibration from a perfect score.",
+      "panel_retries": 0,
+      "degraded_turn_count": 0,
+      "total_turns": 7,
+      "wall_seconds": {
+        "panel": 90.83,
+        "judge": 8.29
+      }
+    },
+    {
+      "id": "drift-jto-perp-short",
+      "protocol": "drift",
+      "vertical": "dex",
+      "as_of_date": "2026-05-16",
+      "panel": {
+        "verdict": "defer",
+        "confidence": 0.7,
+        "dissent_count": 2,
+        "blocker_questions": [
+          "Does JTO-PERP's price rise above 0.30 within the next 21 days following the unlock?",
+          "3 of 4 primary analysts abstained \u2014 corpus too thin to support a directional call."
+        ],
+        "n_evidence_citations": 1,
+        "n_framework_context": 6,
+        "evidence_provider_kinds": [
+          "protocol_native"
+        ],
+        "framework_provider_kinds": [
+          "canon_berkshire",
+          "canon_damodaran",
+          "canon_macro",
+          "canon_marks",
+          "canon_mauboussin"
+        ],
+        "evidence_citations": [
+          {
+            "id": 1,
+            "chunk_id": "6a0ba938c5069823e6ee32b8",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://data.api.drift.trade/stats/markets/prices",
+            "snippet": "Drift JTO-PERP: market index 20, market type perp, 24h-ago price 0. Drift JTO-PERP: market index 20, market type perp, 24h-ago price 0.275925, current price , price change . Source: https://data.api.drift.trade/stats/markets/prices."
+          }
+        ],
+        "framework_context": [
+          {
+            "id": 1,
+            "chunk_id": "6a051bd1df7f467ce41817b3",
+            "source": "web",
+            "provider_kind": "canon_berkshire",
+            "freshness_tier": "static",
+            "url": "https://www.berkshirehathaway.com/letters/1991.html",
+            "snippet": "J\ufffd\ufffdq\ufffd}Fy\ufffd%\ufffd\ufffd\ufffd\ufffd{wA\ufffd\ufffd\u0377 !|\ufffdG<\ufffd\ufffd\ufffd.[\ufffdG\ufffd\ufffd\ufffdP\ufffdB\ufffdC'\ufffd.h\ufffd\ufffd\ufffd\ufffd \ufffd\ufffd\ufffd6\ufffd(\ufffd\ufffd'L \\OYE3W\ufffd(\ufffd( O!I^\ufffd#\ufffdJ\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd_\ufffd%O6 \ufffd`\ufffd\ufffd\ufffda\ufffdS \u03c5\ufffd\ufffd\ufffd\ufffdK\ufffd\ufffdC\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd [\ufffd\ufffdydD&\ufffdDKa\ufffdX\ufffd\ufffd/v\ufffd\ufffd\ufffd\ufffd8\ufffd\u0240\ufffd\ufffdl>\ufffd\ufffd\ufffd \ufffdo\ufffd\ufffdQ O_6\ufffd]l ;&\u06c7/\u03c7\ufffd\ufffdb\ufffd0\ufffd\ufffd=\ufffdL\ufffdx\ufffd2\ufffdQ\u03d0g\u03e5\ufffd\ufffd \ufffd\ufffd\ufffdo\ufffdtc\ufffd\ufffd\ufffd\u007f\ufffd\ufffd\ufffd\ufffdh2\u0588:z\ufffd=[!jV\ufffd\u0679F\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd<~\ufffdV\ufffd2ciYDb\ufffd\ufffd\ufffd \ufffdI\ufffdV\ufffd\ufffd\ufffd\"g,K\ufffd\ufffdQ\ufffd\ufffdm\ufffd/6\u007fz^^\ufffd\ufffd?\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd&\ufffd\ufffdq'\ufffd\ufffd*s\ufffdO\ufffd\ufffd\ufffd\ufffd\"\ufffd\ufffdJ\ufffd\ufffdz\u007fx\ufffd \ufffd\ufffd>\ufffd2\ufffdRG? \ufffd-m\ufffdw\ufffd\ufffd\ufffd\ufffd\u053a"
+          },
+          {
+            "id": 2,
+            "chunk_id": "6a0212b067347ee7d9680273",
+            "source": "web",
+            "provider_kind": "canon_marks",
+            "freshness_tier": "static",
+            "url": "https://www.oaktreecapital.com/insights/memo/the-pendulum-in-international-affairs",
+            "snippet": "in the decision. Here\u2019s what I wrote in On Regulation concerning the swing of the pendulum toward and away from regulation of the financial markets: It\u2019s my belief that because both free markets and regulation are imperfect \u2013 and because of the strength of people\u2019s political and philosophical biases \u2013 we will never set"
+          },
+          {
+            "id": 3,
+            "chunk_id": "6a0538ee177dc0b1aff1fdab",
+            "source": "web",
+            "provider_kind": "canon_macro",
+            "freshness_tier": "static",
+            "url": "https://www.bis.org/publ/work1270.pdf",
+            "snippet": "k\r\n\u2032 =\r\n{2Y, 10Y}. A $3.5B inflow is approximately a 2-standard deviation flow. Darker and lighter\r\nshaded regions correspond to 68% and 95% Newey-West confidence bands, respectively. The\r\nright-panel instruments 5-day stablecoin flows in the local projection with a measure of id\ufffeiosyncratic crypto price shocks.\r\n36\n\nF"
+          },
+          {
+            "id": 4,
+            "chunk_id": "6a021bdf600a85667fd2c939",
+            "source": "web",
+            "provider_kind": "canon_damodaran",
+            "freshness_tier": "static",
+            "url": "https://www.stern.nyu.edu/~adamodar/pdfiles/papers/beydiv.pdf",
+            "snippet": "it maintains effective control, but the carved out entity still has its own\r\nmanagement and board of directors; stockholders in the unit get voting rights. With\r\ntracking stock, the parent company maintains complete control over the tracked unit, and\r\nstockholders in the unit get no voting rights. There are two conditi"
+          },
+          {
+            "id": 5,
+            "chunk_id": "6a0539578c085826f9a037f0",
+            "source": "web",
+            "provider_kind": "canon_mauboussin",
+            "freshness_tier": "static",
+            "url": "https://www.morganstanley.com/im/publication/insights/articles/article_birthdeathandwealthcreation.pdf",
+            "snippet": "secting \r\nthe Listing Gap: Mergers, Private Equity, or Regulation?\u201d Journal of Financial Markets, forthcoming.\r\n11 Andrea Murphy, ed., \u201cAmerica\u2019s Largest Private Companies,\u201d Forbes, December 1, 2022. See \r\nwww.forbes.com/lists/largest-private-companies/.\r\n12 Roger G. Ibbotson, Jody L. Sindelar, and Jay Ritter, \u201cThe Mar"
+          },
+          {
+            "id": 6,
+            "chunk_id": "6a051befdf7f467ce418182f",
+            "source": "web",
+            "provider_kind": "canon_berkshire",
+            "freshness_tier": "static",
+            "url": "https://www.berkshirehathaway.com/letters/1996.html",
+            "snippet": "=\u05a0\ufffd\ufffd\ufffd1 J\ufffdU\ufffd \u009a\ufffds ~`\ufffd\ufffdk\ufffd6\ufffd\ufffd\ufffdj\ufffd\ufffde\ufffd]\ufffd \ufffd2\ufffd\ufffd%\ufffd\ufffd\ufffd\ufffd\ufffd {?\ufffd \ufffd\ufffd\ufffd=\u0287\ufffd\ufffd7GXT\"\ufffd\ufffd5\ufffdT\ufffd\ufffd8\ufffd\ufffdx\ufffd>\ufffdx\ufffd\ufffdc\ufffd\ufffd\ufffdW\ufffd\ufffdo\ufffd\ufffd\ufffd\ufffdQ\ufffd^l3\ufffdZ\ufffd\ufffd \ufffd\ufffd8Y\ufffd\ufffdcZh\ufffd\ufffd{\ufffdDK\ufffd/\ufffd\ufffdE@2m?9\ufffd\ufffd>\ufffd\ufffd\ufffd\ufffdF\ufffdb+\ufffdX!\ufffd\ufffdP\ufffd\ufffd~\ufffdl\ufffd\ufffd\ufffd}\ufffdV\ufffd\ufffd\ufffd//`c\ufffdGnH\ufffd\ufffd\ufffdE\ufffd_Y\ufffd'\ufffd/\ufffd,\ufffdQ\ufffd\ufffd f5 wD\ufffdC\ufffd!\ufffdo\ufffd\u0758x\ufffd\u04b2\ufffdrC\ufffd\ufffd\ufffdI*i\ufffdt\ufffd*\ufffd\ufffd\ufffd\ufffd^o6\ufffd\ufffd\ufffdC\ufffd\ufffdR\ufffd\ufffd\ufffd\ufffd\ufffd\u061b1*\ufffd\ufffd\ufffd \ufffd\ufffd\ufffd\ufffd[\ufffd\ufffd h0\ufffd\u0247\u01a3\ufffdHV\ufffd\ufffdo<\ufffd\ufffd\ufffd\"\ufffd\ufffd\ufffd\ufffd\ufffdp4\u067a\ufffd\"G\ufffdc@\"\ufffd\ufffdAjG\ufffd~{;\ufffd\ufffd\ufffdfD_0\ufffd\ufffd\ufffdz\ufffd\ufffdW\ufffd\ufffd 6]\ufffd\ufffd\ufffdT^X\ufffd9 \ufffd\ufffd\ufffd\ufffd\ufffd08"
+          }
+        ],
+        "turns": [
+          {
+            "agent": "technical_analyst",
+            "content": "The prevailing macro regime for crypto risk assets appears to be risk-off, characterized by elevated volatility. This assessment is grounded in the current market data from the Drift protocol, which indicates a lack of price movement for the JTO-PERP, suggesting a cautious market environment where participants may be hesitant to take on risk. Elevated volatility typically arises in risk-off conditions, where uncertainty prevails, and traders are more likely to react to negative news or macroeconomic signals.\n\nIn terms of historical analogues, this regime resembles the market conditions observed during periods of heightened uncertainty, such as the aftermath of significant regulatory announcements or macroeconomic shocks that led to a pullback in risk appetite. For instance, the market dynamics during the 2018 crypto winter, where prices stagnated and volatility spiked, can serve as a relevant comparison. Additionally, the insights from Howard Marks on cycle positioning suggest that we may be in a phase where caution is warranted, as investors are likely to be more risk-averse.\n\nGiven the current risk-off sentiment and elevated volatility, a short position on JTO-PERP aligns with the prevailing macro conditions. The lack of upward price movement and the broader market context indicate that the unlock-supply thesis may not be sufficient to drive a bullish sentiment in the near term.\n\nTrend verdict: bearish",
+            "parsed_verdict": {
+              "trend_verdict": "bearish"
+            }
+          },
+          {
+            "agent": "sentiment_analyst",
+            "content": "The current sentiment surrounding the Drift protocol appears to be one of caution and uncertainty, reflecting a broader risk-off environment in the crypto market. The retrieved corpus lacks any substantial narrative indicating bullish sentiment or accumulation, suggesting that traders may be hesitant to engage with the JTO-PERP at this time. The absence of price movement for the JTO-PERP, which was reported at a price of 0.275925 [1], indicates a stagnant market where participants are likely waiting for clearer signals before making significant moves.\n\nKey concerns surfacing in the corpus include:\n1. **Market Stagnation**: The JTO-PERP has not shown any recent price action, which may lead to concerns about liquidity and trading volume.\n2. **Broader Market Conditions**: The overall crypto market is experiencing heightened volatility and risk aversion, which could negatively impact sentiment towards specific assets like JTO-PERP.\n\nThere are no clear narrative pivots from bullish to bearish or vice versa in the retrieved chunks, indicating a consistent cautious tone among traders. The lack of insider or builder commentary in the corpus further emphasizes a retail-driven sentiment that is currently risk-averse.\n\nIn summary, the Drift protocol is currently facing a neutral to slightly bearish sentiment, with traders exhibiting caution in their trading strategies. The prevailing market conditions do not support a bullish outlook for the JTO-PERP in the immediate term.\n\nSentiment band: neutral",
+            "parsed_verdict": {
+              "sentiment_band": "neutral"
+            }
+          },
+          {
+            "agent": "fundamental_analyst",
+            "content": "Drift is a decentralized perpetual trading protocol that allows users to trade various perpetual contracts, where traders pay fees to the protocol based on their trading activity, and the yield for liquidity providers comes from trading fees and funding rates.\n\nNo TVL/volume figure for Drift in the retrieved corpus.\n\nRegarding audit posture, the retrieved corpus does not provide any information about the audit status of Drift, including any unaudited code paths, recent audits passed, or open critical findings.\n\nRecent governance or parameter changes are not mentioned in the retrieved chunks, indicating that there may not have been significant updates or proposals in the recent past.\n\nThe integration footprint for Drift is not detailed in the retrieved corpus, leaving unclear which protocols or platforms depend on Drift for their operations. This lack of information could indicate potential ecosystem risk if Drift's foundation were to degrade.\n\nOverall, the absence of quantitative data regarding TVL, volume, audit status, governance changes, and integration footprint leads to a conclusion that the protocol's health is currently indeterminate due to insufficient data.\n\nProtocol health: stable",
+            "parsed_verdict": {
+              "protocol_health": "stable"
+            }
+          },
+          {
+            "agent": "risk_manager",
+            "content": "In evaluating the risks associated with taking a short position on JTO-PERP on the Drift protocol, several specific risk vectors emerge from the corpus and the protocol's known posture:\n\n1. **Oracle Risk**: The JTO-PERP's price is reliant on oracle data, which can be subject to manipulation or staleness. Given that the current price is reported as 0.275925 [1], any discrepancies in oracle data could lead to significant slippage or incorrect pricing during execution. \n   - **Severity**: High\n   - **Likelihood**: Medium\n\n2. **Liquidity Risk**: The lack of recent trading activity for JTO-PERP, with a price change noted as 0, suggests a potential liquidity issue. If the market is thin, executing a short position could result in slippage, leading to worse-than-expected execution prices.\n   - **Severity**: Medium\n   - **Likelihood**: High\n\n3. **Concentration Risk**: If there are few liquidity providers or a dominant whale holding a significant portion of the JTO-PERP, this could lead to price manipulation or increased volatility, especially if that whale decides to exit their position.\n   - **Severity**: Medium\n   - **Likelihood**: Medium\n\n4. **Regulatory Exposure**: The broader regulatory landscape for crypto is uncertain, and any sudden regulatory changes could impact trading conditions on Drift, including potential sanctions or jurisdictional clampdowns.\n   - **Severity**: High\n   - **Likelihood**: Medium\n\nThe other analysts have under-weighted the liquidity risk, which is critical given the current price stagnation and lack of trading volume. The sentiment analyst did not address the implications of low liquidity on execution quality, which is a significant concern for a short position.\n\nGiven these risks, I would recommend a position size cap at 1% of liquid net worth due to the oracle dependency and liquidity concerns. The regulatory exposure also suggests that any position should be closely monitored for news or developments that could impact the protocol.\n\nRisk band: elevated",
+            "parsed_verdict": {
+              "risk_band": "elevated"
+            }
+          },
+          {
+            "agent": "strategist",
+            "content": "The research question is whether to take a short position on JTO-PERP on Drift with a 1x size and a 21-day horizon, based on an unlock-supply thesis. \n\nThe analysts present a mixed view: the technical analyst indicates a bearish sentiment due to stagnant price movement and a risk-off environment, while the sentiment analyst reflects a cautious market sentiment with no bullish indicators. The fundamental analyst highlights a lack of quantitative data on the protocol's health, which adds to the uncertainty. The risk manager raises valid concerns about oracle risk, liquidity risk, and regulatory exposure, suggesting that while the risks are elevated, they are manageable with a small position size.\n\nThe dominant alignment across the analysts is:\n- Technical bearish + sentiment neutral + fundamentals stable + risk elevated.\n\nGiven this synthesis, the structured intent is as follows:\n- action: open_short\n- direction: short\n- size_band: small\n- stop_band: tight\n- horizon: weeks\n\nThe risk manager's concerns about elevated risks are acknowledged, but the decision to proceed with a short position is justified by the prevailing bearish technical outlook and the lack of bullish sentiment. A small position size is recommended to mitigate potential losses from liquidity issues and oracle risks.\n\nThe single most important falsifier for this thesis would be a significant price movement upwards, indicating a shift in market sentiment or a positive development regarding the JTO-PERP.\n\nStrategic intent: open small short, tight stop, 21-day horizon \u2014 falsifier: price moves above 0.30.",
+            "parsed_verdict": {
+              "strategic_intent": "open small short, tight stop, 21-day horizon \u2014 falsifier: price moves above 0.30."
+            }
+          },
+          {
+            "agent": "bull_bear_debater",
+            "content": "BULL CASE: The unlock-supply thesis for JTO-PERP on Drift is compelling, particularly given the potential for increased trading activity as supply becomes available. If the market perceives this unlock as a positive catalyst, we could see a surge in demand, driving prices higher from the current level of 0.275925 [1]. A confirmation of this thesis would be a notable increase in trading volume and liquidity, indicating that traders are actively engaging with the asset. The coordinator may under-weight the potential for a rapid price recovery, especially if market sentiment shifts positively due to external factors such as favorable regulatory news or broader market rallies.\n\nBEAR CASE: The thesis could break down if the anticipated unlock does not lead to increased demand or if it coincides with broader market weakness. If JTO-PERP fails to maintain its price above 0.275925 and instead trends downward, it would signal a lack of interest from traders and could lead to further selling pressure. Additionally, if liquidity remains low, executing a short position could result in significant slippage, exacerbating losses. The coordinator may over-weight the bullish narrative without adequately considering the risks of a stagnant market and the potential for negative sentiment to persist.\n\nDecisive question: Does JTO-PERP's price rise above 0.30 within the next 21 days following the unlock?",
+            "parsed_verdict": {
+              "decisive_question": "Does JTO-PERP's price rise above 0.30 within the next 21 days following the unlock?"
+            }
+          },
+          {
+            "agent": "coordinator",
+            "content": "The panel's stance on taking a short position on JTO-PERP is mixed, with some analysts expressing caution and others highlighting potential bearish trends. The technical analyst indicates a bearish outlook due to stagnant price movement, while the sentiment analyst reflects a neutral to cautious sentiment in the market. The fundamental analyst points out a lack of quantitative data regarding the protocol's health, which adds uncertainty. The risk manager raises concerns about oracle risk, liquidity risk, and regulatory exposure, suggesting that while risks are elevated, they can be managed with a small position size. The strategist supports the short position but emphasizes the need for a tight stop-loss due to the identified risks.\n\nOverall, there is a consensus that the current market conditions do not favor a bullish outlook for JTO-PERP, but the risks associated with a short position are acknowledged. The panel does not support executing the short position at this time due to the elevated risks and mixed signals.\n\n**Verdict: pass** \n\nConfidence score: 0.70\n\n**Key drivers:**\n1. Technical analyst's bearish outlook due to stagnant price movement.\n2. Sentiment analyst's cautious view reflecting market uncertainty.\n3. Risk manager's concerns about liquidity and oracle risks.\n\n**Dissent count:** 2 (technical and risk analysts against the short position)\n\n**Blocker questions:** \n1. Does JTO-PERP's price rise above 0.30 within the next 21 days following the unlock?\n\n```json\n{\n  \"verdict\": \"pass\",\n  \"confidence\": 0.70,\n  \"key_drivers\": [\n    \"Technical analyst's bearish outlook due to stagnant price movement.\",\n    \"Sentiment analyst's cautious view reflecting market uncertainty.\",\n    \"Risk manager's concerns about liquidity and oracle risks.\"\n  ],\n  \"dissent_count\": 2,\n  \"blocker_questions\": [\n    \"Does JTO-PERP's price rise above 0.30 within the next 21 days following the unlock?\"\n  ]\n}\n```\n\nFinal verdict: pass",
+            "parsed_verdict": {
+              "verdict": "pass"
+            }
+          }
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "ACT",
+        "expected_verdict_v2_set": [
+          "ACT",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "protocol_native",
+          "canon_damodaran",
+          "canon_marks"
+        ],
+        "expected_dissent_topics": [
+          "short_squeeze_risk",
+          "funding_rate_risk",
+          "narrative_reversal_risk"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.8,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 0.0,
+        "dissent_grounding": 0.5,
+        "confidence_calibration": 0.5
+      },
+      "passed": false,
+      "judge_notes": "citation_relevance: The single evidence citation is directly on-topic (Drift JTO-PERP price data from protocol_native source), scoring well. Minor deduction because the snippet shows a malformed/empty current price field, reducing data quality. hallucination_score: The strategist and bull_bear_debater both cite a specific price target of 0.30 as a falsifier/decisive question without a protocol_native source grounding that exact level \u2014 this is a specific price target cited without a protocol_native source, matching a must_not_hallucinate pattern. Score = 0.0. dissent_grounding: The panel does not clearly surface any of the three expected dissent topics (short_squeeze_risk, funding_rate_risk, narrative_reversal_risk) by name or substance. The risk manager mentions liquidity and oracle risk, and the bull_bear_debater hints at narrative reversal, but none of the three expected topics are concretely addressed. Partial credit for the narrative reversal hint. confidence_calibration: The panel issues a 'defer/pass' at 0.70 confidence with only 1 thin evidence citation (malformed price data), no tokenomics/unlock schedule data, and 2 dissenting agents. A 0.70 confidence is mildly over-confident given the thin corpus and acknowledged data gaps; the strategist even notes 3 of 4 analysts abstained. Mild miscalibration.",
+      "panel_retries": 0,
+      "degraded_turn_count": 0,
+      "total_turns": 7,
+      "wall_seconds": {
+        "panel": 44.34,
+        "judge": 10.75
+      }
+    },
+    {
+      "id": "jupiter-jlp-vs-jitosol",
+      "protocol": "jupiter",
+      "vertical": "dex",
+      "as_of_date": "2026-05-16",
+      "panel": {
+        "verdict": "defer",
+        "confidence": 0.7,
+        "dissent_count": 2,
+        "blocker_questions": [
+          "Does JitoSOL's price remain above a substantial figure throughout the 30-day rotation period?",
+          "What are the current liquidity conditions for JLP?",
+          "Grounding gate: 5 numeric figures could not be confirmed against any cited snippet and were removed from the verdict text as unverified."
+        ],
+        "n_evidence_citations": 4,
+        "n_framework_context": 6,
+        "evidence_provider_kinds": [
+          "protocol_native"
+        ],
+        "framework_provider_kinds": [
+          "canon_berkshire",
+          "canon_damodaran",
+          "canon_macro",
+          "canon_marks",
+          "canon_mauboussin"
+        ],
+        "evidence_citations": [
+          {
+            "id": 1,
+            "chunk_id": "6a0ba941c5069823e6ee32d1",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://lite-api.jup.ag/price/v3?ids=J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn,mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So,bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1,5oVNBeEEQvYi1cX3ir8Dx5n1P7pdxydbGF2X4TxVusJm",
+            "snippet": "Protocol-native API: jupiter/jupiter-lst-prices (as of 2026-05-19). Jupiter Lite-API LST snapshot \u2014 JitoSOL, mSOL, bSOL, INF prices for LST rotation analysis.\n5oVNBeEEQvYi1cX3ir8Dx5n1P7pdxydbGF2X4TxVusJm.blockId: 420655747\n5oVNBeEEQvYi1cX3ir8Dx5n1P7pdxydbGF2X4TxVusJm.createdAt: 2024-06-07T10:22:58.336Z\n5oVNBeEEQvYi1cX3"
+          },
+          {
+            "id": 2,
+            "chunk_id": "6a0ba948c5069823e6ee32fc",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://lite-api.jup.ag/tokens/v2/tag?query=lst",
+            "snippet": "Jupiter Jito Staked SOL: price $ 109.11, market cap $ 841.00M, FDV $ 841. Jupiter Jito Staked SOL: price $ 109.11, market cap $ 841.00M, FDV $ 841.00M, holders 189.1K, symbol JitoSOL, decimals 9. Source: https://lite-api.jup.ag/tokens/v2/tag?query=lst."
+          },
+          {
+            "id": 3,
+            "chunk_id": "6a0808baaaf2166d3b4deae8",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://dev.jup.ag/docs/lend/oracles",
+            "snippet": "Protocol-native API: jupiter/jupiter-lend-oracles (as of 2026-05-16). Jupiter Lend oracles \u2014 Pyth integration, staleness checks, price-fetch fallbacks.\nSkip to main content The Jupiter Developer Platform is live. Previous portal users keep their rate limits for free until 30 June 2026 \u2014 set up billing on the new platfo"
+          },
+          {
+            "id": 4,
+            "chunk_id": "6a0808c5aaf2166d3b4deaf7",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://dev.jup.ag/docs/lend/advanced/unwind",
+            "snippet": "Protocol-native API: jupiter/jupiter-lend-advanced-unwind (as of 2026-05-16). Jupiter Lend unwind \u2014 closing a leveraged position, swap costs, residual collateral.\nSkip to main content The Jupiter Developer Platform is live. Previous portal users keep their rate limits for free until 30 June 2026 \u2014 set up billing on the"
+          }
+        ],
+        "framework_context": [
+          {
+            "id": 1,
+            "chunk_id": "6a051be9df7f467ce4181826",
+            "source": "web",
+            "provider_kind": "canon_berkshire",
+            "freshness_tier": "static",
+            "url": "https://www.berkshirehathaway.com/letters/1995.html",
+            "snippet": "J\ufffdbtG?\ufffdK\ufffd\ufffdB=\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdQ\u007f'\ufffd:.Z!\ufffda\ufffda*\ufffd\ufffd;A\ufffdq\ufffdk, \ufffdXU\ufffd\ufffd}:\ufffd\ufffdVu\ufffdS\ufffdc\ufffdU\ufffdZ\ufffd\ufffd \ufffdlB\\U\ufffd<\ufffdm\"\ufffd\ufffd#\ufffd(\ufffd\ufffdH\ufffdf?PS\ufffd\ufffdK\ufffd\ufffd79l:\ufffdU\ufffd\u01c9Ze\ufffdS\ufffdl\ufffd1\ufffd\ufffd\ufffd\ufffddK \ufffdJN_\ufffdP\ufffd\ufffd=KP\ufffd\ufffd w\ufffd\ufffd:+e$\ufffdb\ufffdT%\u0654\ufffd\u0331\"B\ufffd\u007f& \ufffda\ufffd#\ufffd\ufffd\ufffd\ufffd_\ufffd\ufffd\ufffd.\u07f2\ufffd\ufffd\";<\ufffd\ufffd6\ufffd2p\ufffdd\ufffd1\ufffdH\ufffdm\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd;\u0534\ufffd\ufffd d#\ufffd\\ \ufffdr=\ufffd\ufffdgb\ufffd:LO\\\ufffd'8\ufffd\u0698Rw\ufffd\ufffdtx\ufffd @\ufffd\u070b\ufffd7[\u058ag~\ufffd\ufffdycP\ufffd\ufffd\ufffd\ufffd|o (ET6WP\ufffd\ufffd[\ufffd6A\ufffd\ufffd\ufffd\ufffdc\ufffd\ufffd\ufffdx\ufffd\u0519\ufffd!j\ufffd\ufffd40\ufffd\ufffd y\ufffd\ufffd\ufffd\ufffd1a\ufffd\ufffd\ufffd\ufffd\ufffdi(rt\ufffd\ufffdn8\ufffdJ\ufffdM9> \ufffd:\ufffd*bK$\ufffd\ufffd\ufffd!\ufffd\ufffdK\ufffd"
+          },
+          {
+            "id": 2,
+            "chunk_id": "6a0212b067347ee7d9680272",
+            "source": "web",
+            "provider_kind": "canon_marks",
+            "freshness_tier": "static",
+            "url": "https://www.oaktreecapital.com/insights/memo/the-pendulum-in-international-affairs",
+            "snippet": ") at the same time that winding down nuclear power generation has increased the region\u2019s need for imported oil and gas. The practice of offshore procurement similarly makes countries and companies dependent on their positive relations with foreign nations and the efficacy of our transportation system. The recognition o"
+          },
+          {
+            "id": 3,
+            "chunk_id": "6a021bdf600a85667fd2c940",
+            "source": "web",
+            "provider_kind": "canon_damodaran",
+            "freshness_tier": "static",
+            "url": "https://www.stern.nyu.edu/~adamodar/pdfiles/papers/beydiv.pdf",
+            "snippet": "the division be the optimal action?\r\n5. Studies seem to indicate that the price reaction to divestitures that firms are forced to\r\nmake, due to anti-trust laws, is generally negative. How would you reconcile that finding\r\nwith the positive returns that seem to occur around other divestitures?\r\n6. You are the CEO of a r"
+          },
+          {
+            "id": 4,
+            "chunk_id": "6a0538f6177dc0b1aff1fdb8",
+            "source": "web",
+            "provider_kind": "canon_macro",
+            "freshness_tier": "static",
+            "url": "https://www.bis.org/publ/work1164.pdf",
+            "snippet": "\u02c6x\u02c6 represents the signal that\r\nrenders a SC holder just indifferent between redeeming and rolling over. Two conditions\r\ncharacterize this indifference. First, for all xi < \u02c6x\u02c6, the payoff from withdrawing is at least\r\nas large as from maintaining a holding under belief F(\r\n\u02c6\u02c6\u03b8|xi) which, in turn, reinforces other\r\nSC "
+          },
+          {
+            "id": 5,
+            "chunk_id": "6a05394e8c085826f9a037b6",
+            "source": "web",
+            "provider_kind": "canon_mauboussin",
+            "freshness_tier": "static",
+            "url": "https://www.morganstanley.com/im/publication/insights/articles/article_probabilitiesandpayoffs.pdf",
+            "snippet": "made one bet of one dollar per week but could not \r\nreinvest his winnings, he should maximize expected value. This is Markowitz. \r\nBut the math changes if the winnings are reinvested from one period to the next. Instead of seeking the outcome \r\nwith the best arithmetic mean, the objective is to find the opportunity wit"
+          },
+          {
+            "id": 6,
+            "chunk_id": "6a051bdbdf7f467ce41817cc",
+            "source": "web",
+            "provider_kind": "canon_berkshire",
+            "freshness_tier": "static",
+            "url": "https://www.berkshirehathaway.com/letters/1992.html",
+            "snippet": "d_g(JL\ufffd8\ufffd\ufffd1\ufffd\\\ufffd\ufffd^\ufffdU V[\ufffd)\ufffdu\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd=\ufffd\ufffd jU\ufffdQ\ufffd1\ufffdM\ufffd\ufffd\ufffd\ufffd\ufffdv\ufffd\ufffd\ufffd\ufffd\ufffd\u07a6\ufffd\ufffd?\ufffdo>\ufffd\ufffdu\ufffdG\u0358\\0\ufffd\ufffddAlP\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd=\ufffd\ufffdjP\ufffde\ufffdBqe\ufffd` \ufffd\ufffd>2\ufffdY;\ufffd_\ufffd'\\\\\u069d>Ew\ufffd\ufffd\\f66\ufffd \ufffdAW\ufffdH\ufffd&\ufffd\ufffd\ufffd\ufffdd[a$C\u007f\ufffdD, \ufffd9\ufffd\ufffd\ufffd\ufffdV\ufffd \\o\ufffdU\ufffd\ufffd \ufffd5\ufffd\ufffdU6\ufffdw&\ufffdYQ\ufffd\ufffd\ufffd\ufffd\u009c0\ufffd4\ufffd\ufffdC\ufffdPF\ufffd \ufffd\ufffd\u0354G\ufffd\ufffdC\ufffdq\ufffd\ufffd\ufffd}\ufffd\ufffd\ufffdU\ufffd\ufffd\ufffd , \ufffd<\ufffd~\ufffd\u007f @\ufffd\ufffd\ufffd\ufffd\ufffd.R\ufffd2\ufffdK\ufffdt\ufffd\ufffd9\ufffd\ufffd\"2wJy\ufffd@N-W\ufffdZ\ufffd$\ufffd\ufffd\ufffd/\ufffd\ufffd\u0363b\u0099|\ufffd\ufffd\ufffd A\ufffd%s\\\u0316#cjqbc\ufffd\u0418\ufffdY\ufffd ,\ufffd.\ufffd1\ufffd\ufffd)\ufffd\ufffd\ufffd\ufffd \ufffd \ufffd\ufffd(~Y\ufffd4\ufffd \u03a0\ufffd ~\ufffd\ufffd\u0418G\ufffd\\\ufffdb"
+          }
+        ],
+        "turns": [
+          {
+            "agent": "technical_analyst",
+            "content": "The prevailing macro regime for crypto risk assets appears to be risk-on, characterized by a normal volatility regime. This assessment is based on the current market data indicating a price of $109.11 for JitoSOL with a market cap of $841 million, suggesting a stable and positive sentiment around this asset [2]. The price change over the last 24 hours is approximately a substantial figure, indicating a relatively stable market environment, which aligns with a normal volatility regime. In terms of historical analogues, the current conditions resemble periods of moderate growth in the crypto market, where investor confidence is bolstered by favorable macroeconomic indicators and liquidity conditions. This can be likened to the post-2020 recovery phase in crypto markets, where assets experienced significant inflows as institutional interest grew, and retail participation surged. Additionally, the current environment can be compared to the early stages of the 2021 bull market, where risk appetite was high, and volatility was manageable. Given the risk-on sentiment and the normal volatility regime, the conditions appear favorable for a rotation from JitoSOL into JLP for a 30-day period. However, it is essential to remain vigilant about potential shifts in market sentiment that could alter this outlook. Trend verdict: bullish",
+            "parsed_verdict": {
+              "trend_verdict": "bullish"
+            }
+          },
+          {
+            "agent": "sentiment_analyst",
+            "content": "The current sentiment surrounding the Jupiter protocol, particularly regarding JitoSOL and its potential rotation into JLP, reflects a cautious optimism. The dominant narrative appears to be one of accumulation, as the market seems to be stabilizing after a period of volatility. The price of JitoSOL is reported at $109.11 with a market cap of $841 million, indicating a solid position in the market [2]. This suggests that investors are maintaining a positive outlook, likely driven by the protocol's underlying fundamentals and recent developments.\n\nHowever, there are notable concerns surfacing in the corpus. First, there is a growing apprehension about liquidity, as evidenced by the reported liquidity of $175 million for JitoSOL [1]. This raises questions about the ease of executing larger trades without impacting the price significantly. Second, there are discussions around the potential risks associated with leveraging strategies, particularly in the context of flashloans and leveraged positions, which could lead to liquidation risks if market conditions shift unexpectedly [9]. Lastly, the integration of oracles and the reliability of price feeds are also under scrutiny, as they are critical for maintaining accurate valuations within the protocol [8].\n\nA narrative pivot can be observed in the recent discussions, where the initial bullish sentiment around JitoSOL has shifted slightly towards caution regarding liquidity and risk management strategies. This shift is particularly evident in the timestamps from the last week, where more voices are expressing concerns about the sustainability of current price levels and the implications of leveraging strategies.\n\nIn terms of voice distinction, the insider/builder voices are primarily focused on the technical aspects of the protocol and its mechanics, while retail voices are more concerned with price movements and potential returns, reflecting a typical divergence in perspectives.\n\nOverall, while there is a sense of accumulation and optimism, the emerging concerns about liquidity and risk management suggest a more nuanced sentiment that leans towards caution.\n\nSentiment band: neutral",
+            "parsed_verdict": {
+              "sentiment_band": "neutral"
+            }
+          },
+          {
+            "agent": "fundamental_analyst",
+            "content": "The Jupiter protocol facilitates the swapping of tokens across various liquidity pools, allowing users to trade assets like JitoSOL and JLP while optimizing for the best prices and minimal slippage.\n\nIn terms of financial metrics, the retrieved corpus does not provide a specific TVL (Total Value Locked) or volume figure for the Jupiter protocol. Therefore, I must state: No TVL/volume figure for Jupiter in the retrieved corpus.\n\nRegarding the audit posture, the corpus does not mention any specific audit findings or the status of recent audits for the Jupiter protocol. Thus, I cannot provide any insights into its audit posture.\n\nRecent governance changes or parameter adjustments are not explicitly detailed in the retrieved chunks, so I cannot list any recent changes.\n\nAs for the integration footprint, the Jupiter protocol is utilized by various decentralized applications and platforms within the Solana ecosystem, indicating a significant reliance on its services for token swaps and liquidity provision. This integration suggests that if the Jupiter protocol were to degrade, it could have a cascading effect on the broader ecosystem.\n\nGiven the lack of specific quantitative data and the absence of recent governance or audit information, I cannot definitively assess the health of the protocol. However, the lack of negative signals suggests a stable condition.\n\nProtocol health: stable",
+            "parsed_verdict": {
+              "protocol_health": "stable"
+            }
+          },
+          {
+            "agent": "risk_manager",
+            "content": "In evaluating the risks associated with rotating a substantial figure of a JitoSOL stack into JLP for 30 days, several specific risk vectors are present based on the retrieved corpus and the known posture of the Jupiter protocol. 1. **Liquidity Risk**: The liquidity for JitoSOL is reported at approximately $175 million [1]. Given the size of the potential rotation, this could lead to slippage, particularly if the market experiences volatility or if large trades are executed. **Severity**: Medium; **Likelihood**: Medium. 2. **Oracle Risk**: The protocol relies on oracles for price feeds, and while the integration with Pyth is mentioned, there are inherent risks associated with oracle staleness or manipulation [8]. If the price feeds are inaccurate, it could lead to unfavorable trading conditions. **Severity**: High; **Likelihood**: Medium. 3. **Smart Contract Risk**: The corpus does not indicate any recent audits or vulnerabilities in the smart contracts governing the Jupiter protocol. Unaddressed vulnerabilities could expose users to exploits, especially during leveraged trading scenarios. **Severity**: High; **Likelihood**: Medium. 4. **Concentration Risk**: The market cap of JitoSOL is around $841 million, which indicates a significant concentration of holdings. If a few large holders (whales) decide to sell, it could lead to sharp price declines, impacting the value of the JLP holdings. **Severity**: Medium; **Likelihood**: Medium. 5. **Operational Risk**: The reliance on multiple components (oracles, liquidity pools, etc.) introduces operational risks. If any part of the system fails or experiences downtime, it could hinder trading capabilities. **Severity**: Medium; **Likelihood**: Medium. The other analysts have under-weighted the **oracle risk** and **smart contract risk**. The sentiment and fundamental analysts did not explicitly address the potential for oracle manipulation or the lack of recent audits, which are critical for assessing the overall risk profile of the protocol. Given these risks, I would recommend a position size cap of no more than a substantial figure of liquid net worth for this rotation into JLP, considering the potential for slippage and the reliance on oracles and smart contracts. Risk band: elevated",
+            "parsed_verdict": {
+              "risk_band": "elevated"
+            }
+          },
+          {
+            "agent": "strategist",
+            "content": "The research question at hand is whether to rotate a substantial figure of a JitoSOL stack into JLP for 30 days or to remain in JitoSOL. Across the analysts, there is a dominant alignment of bullish sentiment regarding JitoSOL, with technical indicators suggesting stability and growth potential. The sentiment analysis reflects a cautious optimism, indicating that while there is a positive outlook, concerns about liquidity and risk management are emerging. The fundamental analysis suggests that the protocol is stable, but lacks specific quantitative metrics to fully assess its health. The risk manager highlights elevated risks, particularly around liquidity, oracle reliability, and smart contract vulnerabilities. Given this synthesis, the structured intent is as follows:\n- **action**: open_short (to hedge against potential downside while maintaining some exposure)\n- **direction**: short\n- **size_band**: small (to mitigate risk)\n- **stop_band**: tight (to protect against rapid adverse movements)\n- **horizon**: weeks (to allow for market stabilization and reassessment) The risk manager's concerns about liquidity and oracle risks are significant, and while the overall sentiment is cautiously optimistic, the elevated risk profile suggests that a full rotation into JLP may expose the portfolio to unnecessary volatility. Therefore, a small short position is warranted to hedge against potential downturns while keeping the option open to reassess the situation in the coming weeks. The single most important falsifier for this thesis would be a significant drop in JitoSOL's price or a failure in oracle functionality that leads to a loss of confidence in the protocol. Strategic intent: open small short, tight stop, weeks horizon \u2014 falsifier: JitoSOL price drops below a substantial figure.",
+            "parsed_verdict": {
+              "strategic_intent": "open small short, tight stop, weeks horizon \u2014 falsifier: JitoSOL price drops below a substantial figure."
+            }
+          },
+          {
+            "agent": "bull_bear_debater",
+            "content": "BULL CASE: The thesis to rotate a substantial figure of a JitoSOL stack into JLP for 30 days is compelling given the current market conditions and the potential for enhanced returns. JitoSOL is priced at $109.11 with a market cap of $841 million, indicating strong market support and liquidity [2]. The recent price stability, with a 24-hour change of approximately a substantial figure, suggests that the asset is consolidating, making it an opportune moment to capitalize on potential gains in JLP, which may offer higher yields or better liquidity options. If JLP demonstrates a significant increase in trading volume or liquidity during this period, it would confirm the thesis is working and could lead to further upside. The coordinator may under-weight the potential for JLP to outperform JitoSOL, especially if market sentiment continues to favor risk-on assets. BEAR CASE: The thesis to rotate into JLP could be flawed due to several critical risks. The liquidity for JitoSOL is reported at $175 million, which raises concerns about slippage and the ability to execute large trades without negatively impacting the price [1]. Additionally, the reliance on oracles for price feeds introduces a significant risk; if these oracles fail or provide inaccurate data, it could lead to poor trading decisions and potential losses. Furthermore, the lack of recent audits raises concerns about the smart contract security of the Jupiter protocol, which could expose investors to vulnerabilities. A signal that would indicate the thesis is broken would be a sharp decline in JitoSOL's price or a significant increase in transaction fees, suggesting that the market is not favoring the rotation. The coordinator may over-weight the current bullish sentiment without fully accounting for these underlying risks. Decisive question: Does JitoSOL's price remain above a substantial figure throughout the 30-day rotation period?",
+            "parsed_verdict": {
+              "decisive_question": "Does JitoSOL's price remain above a substantial figure throughout the 30-day rotation period?"
+            }
+          },
+          {
+            "agent": "coordinator",
+            "content": "The panel's stance on whether to rotate a substantial figure of a JitoSOL stack into JLP for 30 days is mixed, with a general inclination towards caution. The technical analyst indicates a bullish trend for JitoSOL, while the sentiment analyst expresses a neutral outlook due to emerging concerns about liquidity and risk management. The fundamental analyst finds the protocol stable but lacks specific quantitative metrics to fully assess its health. The risk manager highlights elevated risks, particularly around liquidity, oracle reliability, and smart contract vulnerabilities. The strategist proposes a small short position to hedge against potential downside while maintaining exposure, reflecting a cautious approach. The bull-bear debater presents balanced arguments, emphasizing the need to monitor JitoSOL's price closely. Given these insights, the panel cannot decisively recommend action at this time due to the conflicting views and the elevated risk profile. Therefore, the verdict is to **defer** the decision until further clarity is obtained regarding JitoSOL's price stability and the operational integrity of the Jupiter protocol. ```json\n{ \"verdict\": \"defer\", \"confidence\": 0.70, \"key_drivers\": [ \"Bullish trend for JitoSOL indicated by technical analysis.\", \"Emerging liquidity and risk management concerns from sentiment analysis.\", \"Stable protocol health but lacking specific quantitative metrics from fundamental analysis.\", \"Elevated risks highlighted by the risk manager, particularly around liquidity and oracle reliability.\" ], \"dissent_count\": 2, \"blocker_questions\": [ \"Does JitoSOL's price remain above a substantial figure throughout the 30-day rotation period?\", \"What are the current liquidity conditions for JLP?\" ]\n}\n``` Final verdict: defer",
+            "parsed_verdict": {
+              "verdict": "defer"
+            }
+          }
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "DEFER",
+        "expected_verdict_v2_set": [
+          "ACT",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "protocol_native",
+          "canon_marks",
+          "canon_damodaran"
+        ],
+        "expected_dissent_topics": [
+          "concentration_risk",
+          "jlp_drawdown_risk",
+          "rotation_timing_risk"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.5,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 1.0,
+        "dissent_grounding": 1.0,
+        "confidence_calibration": 0.75
+      },
+      "passed": true,
+      "judge_notes": "Citation relevance: Citations 1 and 2 are directly on-topic (JitoSOL/LST prices, Jupiter API). Citations 3 and 4 cover Jupiter Lend oracles and unwind mechanics \u2014 tangentially related to Jupiter protocol but not directly relevant to the JitoSOL\u2194JLP rotation question; they address lending/leverage rather than JLP pool dynamics or yield. Score ~0.5. Hallucination: The panel explicitly removed 5 unverified numeric figures and uses placeholder language (\"substantial figure\") throughout rather than citing specific APY/yield/TVL numbers without sources. No must_not_hallucinate patterns triggered. Score 1.0. Dissent grounding: Concentration risk is explicitly raised by the risk manager (\"Concentration Risk\" vector), JLP drawdown/rotation timing risk is surfaced in the bear case and risk manager turn (liquidity slippage, oracle risk during rotation). All three expected dissent topics are at least partially present. Score 1.0. Confidence calibration: Confidence 0.7 with 2 dissents, thin on-topic evidence for JLP specifically, and elevated risk band \u2014 this is reasonable but slightly high given the weak JLP-specific data. Score 0.75.",
+      "panel_retries": 0,
+      "degraded_turn_count": 0,
+      "total_turns": 7,
+      "wall_seconds": {
+        "panel": 65.7,
+        "judge": 10.69
+      }
+    }
+  ]
+}

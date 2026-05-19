@@ -1,0 +1,108 @@
+{
+  "ticket": "S37-#123",
+  "task": "jito-mev-tip-band hallucination re-verify (second pass) \u2014 confirm the audit-note count-only + multi-occurrence redaction fix (56625e3 + a63e9cf) holds",
+  "fixture": "jito-mev-tip-band",
+  "suite": "defi_trade_rubric_suite.json (single-fixture jito-only temp swap, restored after)",
+  "branch": "s37/integration",
+  "head": "a63e9cf",
+  "n_runs": 5,
+  "tier": "basic",
+  "routing": "panel->OpenRouter, judge->Anthropic (claude-sonnet-4-6)",
+  "hallucination_score_per_run": [
+    1.0,
+    1.0,
+    1.0,
+    0.0,
+    1.0
+  ],
+  "hallucination_score_mean": 0.8,
+  "pre_fix_baseline": "[0,0,0,0,0] mean 0.000 (pre-fix); [0,0,0,1,0] mean 0.200 (after first #123 fix 56625e3)",
+  "headline": "PARTIAL \u2014 4/5 pass hallucination ([1,1,1,0,1], mean 0.800). The grounding-gate fix HELD on all 5 runs: re-inspection of the run-4 artifact shows the audit note is count-only ('7 numeric figures ... were removed', no figures named), blocker questions carry redacted placeholders ('a substantial figure'), and NO raw lamport/SOL/percentage figure survives in any panel turn, envelope, or blocker. Run 4's 0.0 is JUDGE NON-DETERMINISM, not a redaction leak: the judge's own free-form notes self-correct mid-reasoning from 'Score: 0.0' to 'Score: 1.0' ('agents consistently use a substantial figure as a redacted placeholder ... No must_not_hallucinate pattern is clearly triggered'), yet its structured submit_rubric tool call emitted 0.0. No ungrounded figure was ever named by the judge as the trigger.",
+  "redaction_verified": {
+    "method": "deterministic re-inspection of run-4 artifact (the only 0.0)",
+    "audit_note": "count-only \u2014 'Grounding gate: 7 numeric figures could not be confirmed ... were removed' \u2014 zero figures named",
+    "blocker_questions": "redacted placeholders only ('a substantial figure'); regex for lamport/SOL/% figure tokens returns empty",
+    "panel_turns": "numeric tokens limited to list ordinals (1-6), a date (2026/19), and confidence 0.75 \u2014 no ungrounded figure",
+    "parsed_verdict": "empty {} in this artifact shape; envelope fields (verdict=defer, confidence=0.75) carry no figures",
+    "surviving_ungrounded_figure": null
+  },
+  "root_cause_run4": "Judge (claude-sonnet-4-6, temp=0) non-determinism on a clean envelope. The judge tool-call hallucination_score field came back 0.0 while the same response's prose explicitly reasons to 'Score: 1.0'. This is a judge-stability issue, NOT a grounding-gate leak. The #123 fix (count-only audit note + multi-occurrence redaction) is verified intact on all 5 runs.",
+  "recommendation": "The grounding-gate fix is real and holding \u2014 close the redaction leak as fixed. Run 4 is judge wobble on a clean input, not a regression. For a definitive ship-gate read, re-measure at N>=20 to bound judge variance with a CI, or add a judge-consistency guard that flags responses whose prose 'Score:' line disagrees with the tool field. Do NOT attribute run 4 to a redaction failure.",
+  "runs": [
+    {
+      "run": 1,
+      "hallucination_score": 1.0,
+      "verdict": "defer",
+      "all_scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 1.0,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 1.0,
+        "dissent_grounding": 0.8,
+        "confidence_calibration": 0.75
+      },
+      "judge_notes_excerpt": "Citation relevance: Both evidence citations are from the Jito tip-floor protocol-native API (bundles.jito.wtf), directly pertinent to the P75 vs P90 tip-band question \u2014 full score. Hallucination: The panel consistently uses \"substantial figure lamports\" as a placeholder rather than citing specific ungrounded numbers; the grounding gate blocker explicitly notes 3 numeric figures were removed as unv",
+      "artifact": "2026-05-18-s24-defi-rubric-s37-123-r2-jito-r1-1.json"
+    },
+    {
+      "run": 2,
+      "hallucination_score": 1.0,
+      "verdict": "act",
+      "all_scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 1.0,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 1.0,
+        "dissent_grounding": 0.5,
+        "confidence_calibration": 0.5
+      },
+      "judge_notes_excerpt": "Citation relevance: All 4 evidence citations are protocol_native Jito tip-floor sources directly relevant to the P75 vs P90 question \u2014 full marks. Hallucination: The panel consistently uses placeholder language (\"approximately a substantial figure lamports\") rather than citing specific ungrounded numbers, and the blocker_questions note confirms 5 numeric figures were removed as unverified \u2014 no mus",
+      "artifact": "2026-05-18-s24-defi-rubric-s37-123-r2-jito-r2-1.json"
+    },
+    {
+      "run": 3,
+      "hallucination_score": 1.0,
+      "verdict": "defer",
+      "all_scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 1.0,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 1.0,
+        "dissent_grounding": 0.7,
+        "confidence_calibration": 0.75
+      },
+      "judge_notes_excerpt": "All 3 evidence citations are directly on-topic Jito protocol-native sources (tip_floor API endpoints and Jito docs) \u2014 citation_relevance is 1.0. No specific lamport figures appear in the verdict text; the panel explicitly redacted 7 unverified numeric figures and replaced them with 'substantial figure' placeholders, so no must_not_hallucinate patterns are triggered \u2014 hallucination_score is 1.0. Di",
+      "artifact": "2026-05-18-s24-defi-rubric-s37-123-r2-jito-r3-1.json"
+    },
+    {
+      "run": 4,
+      "hallucination_score": 0.0,
+      "verdict": "defer",
+      "all_scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.95,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 0.0,
+        "dissent_grounding": 0.5,
+        "confidence_calibration": 0.5
+      },
+      "judge_notes_excerpt": "Citation relevance is very high: all 9 evidence citations are Jito protocol-native sources (tip_floor API, docs, validator telemetry) directly pertinent to the P75/P90 tip-band question. Hallucination: multiple agents reference \"a substantial figure lamports\" as a placeholder rather than a grounded specific number, which avoids the must_not_hallucinate pattern of citing a specific lamport figure w",
+      "artifact": "2026-05-18-s24-defi-rubric-s37-123-r2-jito-r4-1.json"
+    },
+    {
+      "run": 5,
+      "hallucination_score": 1.0,
+      "verdict": "act",
+      "all_scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 0.95,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 1.0,
+        "dissent_grounding": 0.7,
+        "confidence_calibration": 0.6
+      },
+      "judge_notes_excerpt": "Citation relevance is very high: all 9 evidence citations are Jito protocol-native sources (tip_floor API, docs, validator telemetry) directly relevant to the P75 vs P90 tip-band question. Hallucination score is clean: the panel explicitly removed 5 unverified numeric figures via a grounding gate, and no specific lamport figures are asserted without a protocol_native source; the only SOL figures p",
+      "artifact": "2026-05-18-s24-defi-rubric-s37-123-r2-jito-r5-1.json"
+    }
+  ]
+}

@@ -1,0 +1,391 @@
+{
+  "date": "2026-05-18",
+  "tier": "basic",
+  "suite": "jito_only_suite.json",
+  "n_fixtures_loaded": 1,
+  "n_scored": 1,
+  "contaminated": false,
+  "n_attempted": 1,
+  "n_valid": 1,
+  "n_dropped": 0,
+  "contamination": {
+    "n_attempted": 1,
+    "n_valid": 1,
+    "n_dropped": 0,
+    "drop_rate": 0.0,
+    "threshold": 0.2,
+    "contaminated": false,
+    "note": "0/1 rows dropped as rate-limit garbage (0% <= 20%) \u2014 within tolerance; N=1 surviving rows scored."
+  },
+  "retrieval_pregate": null,
+  "aggregate": {
+    "n": 1,
+    "overall_pass_rate": 0.0,
+    "per_dimension_means": {
+      "verdict_accuracy": 1.0,
+      "citation_relevance": 1.0,
+      "provider_kind_coverage": 1.0,
+      "hallucination_score": 1.0,
+      "dissent_grounding": 0.5,
+      "confidence_calibration": 0.5
+    },
+    "per_dimension_pass_rate": {
+      "verdict_accuracy": 1.0,
+      "citation_relevance": 1.0,
+      "provider_kind_coverage": 1.0,
+      "hallucination_score": 1.0,
+      "dissent_grounding": 1.0,
+      "confidence_calibration": 0.0
+    },
+    "thresholds": {
+      "verdict_accuracy": 0.85,
+      "citation_relevance": 0.5,
+      "provider_kind_coverage": 0.7,
+      "hallucination_score": 0.3,
+      "dissent_grounding": 0.5,
+      "confidence_calibration": 0.55
+    },
+    "statistical_gate": {
+      "method": "bootstrap percentile 95% CI, 10000 resamples, seed=4242; pass = CI_low >= threshold",
+      "per_dimension": {
+        "verdict_accuracy": {
+          "mean": 1.0,
+          "ci_low": 1.0,
+          "ci_high": 1.0,
+          "ci_halfwidth": 0.0,
+          "threshold": 0.85,
+          "point_pass": true,
+          "statistical_pass": true,
+          "margin_to_threshold": 0.15
+        },
+        "citation_relevance": {
+          "mean": 1.0,
+          "ci_low": 1.0,
+          "ci_high": 1.0,
+          "ci_halfwidth": 0.0,
+          "threshold": 0.5,
+          "point_pass": true,
+          "statistical_pass": true,
+          "margin_to_threshold": 0.5
+        },
+        "provider_kind_coverage": {
+          "mean": 1.0,
+          "ci_low": 1.0,
+          "ci_high": 1.0,
+          "ci_halfwidth": 0.0,
+          "threshold": 0.7,
+          "point_pass": true,
+          "statistical_pass": true,
+          "margin_to_threshold": 0.3
+        },
+        "hallucination_score": {
+          "mean": 1.0,
+          "ci_low": 1.0,
+          "ci_high": 1.0,
+          "ci_halfwidth": 0.0,
+          "threshold": 0.3,
+          "point_pass": true,
+          "statistical_pass": true,
+          "margin_to_threshold": 0.7
+        },
+        "dissent_grounding": {
+          "mean": 0.5,
+          "ci_low": 0.5,
+          "ci_high": 0.5,
+          "ci_halfwidth": 0.0,
+          "threshold": 0.5,
+          "point_pass": true,
+          "statistical_pass": true,
+          "margin_to_threshold": 0.0
+        },
+        "confidence_calibration": {
+          "mean": 0.5,
+          "ci_low": 0.5,
+          "ci_high": 0.5,
+          "ci_halfwidth": 0.0,
+          "threshold": 0.55,
+          "point_pass": false,
+          "statistical_pass": false,
+          "margin_to_threshold": -0.05
+        }
+      },
+      "dims_statistically_green": [
+        "citation_relevance",
+        "dissent_grounding",
+        "hallucination_score",
+        "provider_kind_coverage",
+        "verdict_accuracy"
+      ],
+      "dims_point_green": [
+        "citation_relevance",
+        "dissent_grounding",
+        "hallucination_score",
+        "provider_kind_coverage",
+        "verdict_accuracy"
+      ],
+      "n_dims": 6,
+      "n_statistically_green": 5,
+      "ship_gate_pass": false
+    },
+    "n_policy": {
+      "ship_gate_n": 30,
+      "this_run_n": 1,
+      "ship_gate_eligible": false,
+      "note": "N=1 < 30: iteration run only. NOT ship-gate eligible \u2014 CIs too wide to certify a pass."
+    }
+  },
+  "rows": [
+    {
+      "id": "jito-mev-tip-band",
+      "protocol": "jito",
+      "vertical": "dex",
+      "as_of_date": "2026-05-16",
+      "panel": {
+        "verdict": "act",
+        "confidence": 0.5,
+        "dissent_count": 1,
+        "blocker_questions": [
+          "Does the P75 tip floor remain above 7e-06 lamports over the next week?",
+          "What is the current audit status of Jito's smart contracts?",
+          "Grounding gate: the following figures could not be confirmed by any cited snippet and were removed from the verdict text as unverified \u2014 1%, 5.04575e-06, 5e-06, 7e-06, 8.8785e-06."
+        ],
+        "n_evidence_citations": 9,
+        "n_framework_context": 6,
+        "evidence_provider_kinds": [
+          "protocol_native"
+        ],
+        "framework_provider_kinds": [
+          "canon_berkshire",
+          "canon_damodaran",
+          "canon_macro",
+          "canon_marks",
+          "canon_mauboussin"
+        ],
+        "evidence_citations": [
+          {
+            "id": 1,
+            "chunk_id": "6a0baa0da720302f32cef918",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://bundles.jito.wtf/api/v1/bundles/tip_floor",
+            "snippet": "Protocol-native API: jito / jito-mev-tip-floor-live (subkind=mev_tip_data) (as of 2026-05-19).\nEndpoint description: Jito tip-floor percentiles (P25/P50/P75/P95/P99) for bundle landing \u2014 current snapshot. Direct lamport figures that ground 'P75 vs P90' tip-strategy questions in real data.\nSource URL: https://bundles.ji"
+          },
+          {
+            "id": 2,
+            "chunk_id": "6a0548d18e715ddfdb6bcc64",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://bundles.jito.wtf/api/v1/bundles/tip_floor",
+            "snippet": "Protocol-native API: jito / jito-mev-tip-floor-live (subkind=mev_tip_data) (as of 2026-05-14).\nEndpoint description: Jito tip-floor percentiles (P25/P50/P75/P95/P99) for bundle landing \u2014 current snapshot. Direct lamport figures that ground 'P75 vs P90' tip-strategy questions in real data.\nSource URL: https://bundles.ji"
+          },
+          {
+            "id": 3,
+            "chunk_id": "6a08211a5b55deaf57a9ab02",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://bundles.jito.wtf/api/v1/bundles/tip_floor",
+            "snippet": "Protocol-native API: jito / jito-mev-tip-floor-live (subkind=mev_tip_data) (as of 2026-05-16).\nEndpoint description: Jito tip-floor percentiles (P25/P50/P75/P95/P99) for bundle landing \u2014 current snapshot. Direct lamport figures that ground 'P75 vs P90' tip-strategy questions in real data.\nSource URL: https://bundles.ji"
+          },
+          {
+            "id": 4,
+            "chunk_id": "6a03d77e83de92abcb7200d0",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://bundles.jito.wtf/api/v1/bundles/tip_floor",
+            "snippet": "Protocol-native API: jito / jito-tip-floor (as of 2026-05-13).\nEndpoint description: Jito tip-floor percentiles (P25/P50/P75/P95) for bundle landing \u2014 current snapshot. Quote-kind; grounds tip-band decisions in real numbers instead of hallucinated lamport figures.\nSource URL: https://bundles.jito.wtf/api/v1/bundles/tip"
+          },
+          {
+            "id": 5,
+            "chunk_id": "6a04bff201f7e6a8f8783d7a",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://bundles.jito.wtf/api/v1/bundles/tip_floor",
+            "snippet": "Protocol-native API: jito / jito-tip-floor (as of 2026-05-13).\nEndpoint description: Jito tip-floor percentiles (P25/P50/P75/P95/P99) for bundle landing \u2014 current snapshot. Grounds tip-band decisions in real lamport figures.\nSource URL: https://bundles.jito.wtf/api/v1/bundles/tip_floor\nContent kind: quote\n----- body --"
+          },
+          {
+            "id": 6,
+            "chunk_id": "6a0808e0aaf2166d3b4deb56",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://bundles.jito.wtf/api/v1/bundles/tip_floor",
+            "snippet": "Protocol-native API: jito/jito-tip-floor (as of 2026-05-16). Jito bundle tip floor \u2014 25th pct 0.000001 SOL; 50th pct 0.00000208 SOL; 75th pct 0.0000053 SOL; 95th pct 0.0001 SOL; 99th pct 0.00025913 SOL. EMA 50th pct 0.00000229 SOL. Source: https://bundles.jito.wtf/api/v1/bundles/tip_floor."
+          },
+          {
+            "id": 7,
+            "chunk_id": "6a04c00501f7e6a8f8783eab",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://docs.jito.wtf/lowlatencytxnsend/",
+            "snippet": "0014479055000000002 , \"landed_tips_99th_percentile\" : 0.010007999 , \"ema_landed_tips_50th_percentile\" : 9.836078125000002e-06 } ] WebSocket showing tip amounts: \uf0c1 wscat - c wss : // bundles . jito . wtf / api / v1 / bundles / tip_stream Tip Dashboard \uf0c1 To view dashboard please click here . Rate Limits \uf0c1 Default Limits "
+          },
+          {
+            "id": 8,
+            "chunk_id": "6a0808eeaaf2166d3b4deb80",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://docs.jito.wtf/lowlatencytxnsend/",
+            "snippet": "anded_tips_50th_percentile\" : 9.836078125000002e-06 } ] WebSocket showing tip amounts: \uf0c1 wscat - c wss : // bundles . jito . wtf / api / v1 / bundles / tip_stream Tip Dashboard \uf0c1 To view dashboard please click here . Rate Limits \uf0c1 Default Limits \uf0c1 Q: What are the defaults? 1 request per second per IP per region. Rate L"
+          },
+          {
+            "id": 9,
+            "chunk_id": "6a0baa15a720302f32cef91a",
+            "source": "protocol_native",
+            "provider_kind": "protocol_native",
+            "freshness_tier": "daily",
+            "url": "https://kobe.mainnet.jito.network/api/v1/validators",
+            "snippet": "Protocol-native API: jito / jito-mev-validators-telemetry (subkind=mev_tip_data) (as of 2026-05-19).\nEndpoint description: Jito validator-set telemetry \u2014 per-validator MEV share, commission, stake size, performance scores. Useful for reasoning about leader-schedule coverage when sizing tips.\nSource URL: https://kobe.ma"
+          }
+        ],
+        "framework_context": [
+          {
+            "id": 1,
+            "chunk_id": "6a051bc2df7f467ce4181755",
+            "source": "web",
+            "provider_kind": "canon_berkshire",
+            "freshness_tier": "static",
+            "url": "https://www.berkshirehathaway.com/letters/1988.html",
+            "snippet": "p7 ]~\ufffd\ufffd'\ufffd\ufffd\ufffd2\ufffd|\ufffd\ufffd\ufffdoYf\ufffd\ufffd\u03d04\ufffdL\ufffd\u5f4eR4\ufffd\ufffd\u0238@\u0428\ufffdj\ufffd7\ufffds\ufffd\ufffd\ufffd1\ufffdlH\ufffd\ufffd 2Ac\ufffd9ApF\ufffd\ufffd!\ufffd-Mq\ufffd\ufffd\ufffd:\ufffd\ufffdgE+#\ufffd a\ufffd\ufffd\ufffdG\ufffd\ufffdl\ufffdt5\ufffd |\ufffdbxd\ufffd\ufffdJ\ufffd\ufffd)\ufffd!\u039bqC\ufffd\ufffd\ufffd5\ufffd$ \ufffd\ufffdwp\ufffd\ufffdE%d\ufffd\ufffd \ufffd\ufffd\ufffd\ufffdBS\ufffd\ufffd\ufffd4\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\u0193w\ufffd U\ufffd\"\ufffdJ\u0584C\ufffd\ufffd@H\ufffd\ufffdH\ufffd\ufffdi!\ufffdM\ufffdt\ufffd\ufffdk\ufffd\ufffd\ufffd\ufffdT\ufffd\ufffdf\ufffd\ufffdp\u03aab\ufffd\ufffd\ufffd\ufffd \ufffd\ufffd3\ufffd l*\ufffd\ufffd\ufffd_e\ufffd\ufffd\u007fk\ufffd\ufffdp\ufffd2\ufffdJ/\ufffd\ufffd\ufffd\ufffd\ufffdk\ufffdZ\ufffdJ,\uce0f\ufffd(\ufffdv|+\ufffd\ufffd\ufffd\ufffd7;\ufffdx8\ufffd D!\ufffd \ufffd@O\ufffd1`\ufffd\ufffd4\ufffdy+\ufffd\ufffdC \ufffdA_\ufffd\ufffd \ufffd\ufffd\ufffdDy\ufffdX`\ufffd\ufffd\ufffdTUI\u86da\ufffd\ufffd\ufffd\ufffd4\ufffd\ufffd \u060a+Sf\ufffd\ufffd\u077ew\ufffd\ufffdh\ufffd\ufffd\ufffd:\ufffd\ufffd\ufffd/\ufffdf\ufffd]\ufffd\ufffdu\ufffd\ufffd\ufffd"
+          },
+          {
+            "id": 2,
+            "chunk_id": "6a02125867347ee7d9680109",
+            "source": "web",
+            "provider_kind": "canon_marks",
+            "freshness_tier": "static",
+            "url": "https://www.oaktreecapital.com/insights/memo/fewer-losers-or-more-winners",
+            "snippet": "okovic, Rafael Nadal, and Roger Federer. As a pronounced underdog, Eubanks probably recognized that he wasn\u2019t likely to outlast or out-steady Medvedev. Thus, he had to go for winners. If that was Eubanks\u2019s plan, he succeeded in executing it. He achieved 74 winners to Medvedev\u2019s 52, and he aggressively rushed the net 67"
+          },
+          {
+            "id": 3,
+            "chunk_id": "6a0539228c085826f9a036a7",
+            "source": "web",
+            "provider_kind": "canon_mauboussin",
+            "freshness_tier": "static",
+            "url": "https://www.trendfollowing.com/pdfs/UntanglingSkillandLuck.pdf",
+            "snippet": "a very important issue in evaluating investment results, for instance. The \r\nstandard approach is to observe a distribution of outcomes and to make an estimate of the \r\nlikelihood that a really good outcome\u2014a result in the right tail of the distribution\u2014is solely the \r\nproduct of luck. 14 But even near the extremity of"
+          },
+          {
+            "id": 4,
+            "chunk_id": "6a0538f6177dc0b1aff1fdd3",
+            "source": "web",
+            "provider_kind": "canon_macro",
+            "freshness_tier": "static",
+            "url": "https://www.bis.org/publ/work1164.pdf",
+            "snippet": "condition for the issuer. Since only arbitrageurs can\r\nredeem with the issuer, given a switching point x\r\n\u2217\r\n1\r\n, the issuer fails whenever the realized\r\nmass of redemptions is sufficiently large, \u03b8 < \u02dc\u03b8\r\n\u2217\r\n, where\r\n\u02dc\u03b8\r\n\u2217 = \u03bb\u03a6\r\np\r\n\u03b21(x\r\n\u2217\r\n1 \u2212 \u02dc\u03b8\r\n\u2217\r\n\r\n. (34)\r\nWe next turn to the equilibrium strategy of arbitrageurs. "
+          },
+          {
+            "id": 5,
+            "chunk_id": "6a021bc5600a85667fd2c8e1",
+            "source": "web",
+            "provider_kind": "canon_damodaran",
+            "freshness_tier": "static",
+            "url": "https://www.stern.nyu.edu/~adamodar/pdfiles/papers/beta.pdf",
+            "snippet": "33\r\nWeekly 1.38\r\nMonthly 1.13\r\nQuarterly 0.44\r\nAnnual 0.77\r\nUsing shorter return intervals increases the number of observations in the regression,\r\nfor any given time period, but it does come with a cost. Assets do not trade on a\r\ncontinuous basis, and when there is non-trading on the asset, the beta estimated can\r\nbe "
+          },
+          {
+            "id": 6,
+            "chunk_id": "6a051bd1df7f467ce418179e",
+            "source": "web",
+            "provider_kind": "canon_berkshire",
+            "freshness_tier": "static",
+            "url": "https://www.berkshirehathaway.com/letters/1991.html",
+            "snippet": "9\ufffd\ufffd\ufffd\ufffddF\ufffd%BCB\ufffd \ufffdp\ufffd>\ufffd0I\ufffd\ufffdeM\ufffd` ;\ufffd\ufffd%_\ufffd\ufffdV^\ufffd\ufffd\ufffd \ufffd\ufffd\ufffd\u03cd\ub6c4!\ufffd\ufffd\ufffd\ufffdJ\ufffd^;\ufffd\ufffd\ufffd \ufffdA\ufffd\ufffd\ufffd*}v\ufffdP\ufffd\ufffd\ufffd/\\\ufffdbC\ufffd\ufffd\ufffdm\ufffd\ufffd>\ufffd 5\ufffdR\ufffd\ufffd\ufffd\ufffd\ufffd#\ufffdA\ufffdL\ufffd\u060a\ufffd\ufffd\ufffd6)\ufffd{a\ufffdN [t\ufffd\ufffdN6]\u05b0^r\ufffd\ufffd\ufffd\ufffd8\ufffd\ufffd \ufffd\ufffd!\ufffd\ufffdKl\ufffd\ufffd \ufffdr/R\ufffd\ufffd\ufffdT\ufffdQkj`\ufffd\ufffdl\ufffd\"!\ufffd\ufffd^\ufffd\ufffdwX\ufffd\ufffd\u00d2\ufffd\ufffdI`\ufffd58\ufffd\ufffdG\u0501\ufffd\ufffdWLFZ\ufffd\\i\ufffd\ufffd\\c\ufffd=\ufffd\ufffdF\ufffd\ufffd\ufffd\ufffdf\ufffd\ufffd+\ufffd\u00e2Of\ufffdl\ufffdC\ufffd \ufffd^\u00e1?\ufffdq\ufffd\ufffd&;Gn\u0445A\ufffd3\ufffd\ufffd ^ \ufffd\ufffd\ufffd\ufffdG\ufffd (.\ufffdy\ufffd[\ufffd\ufffd\ufffd<\ufffd\ufffd\ufffd60\ufffd\ufffdc\ufffd\ufffd\ufffd {z\ufffd\ufffd\ufffd\ufffdk+\ufffd1\ufffd!\ufffd\ufffdF@\ufffd}6\u02ce\ufffd\ufffdlc|\ufffd\ufffdb\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\"\ufffd5\ufffd\ufffdc\ufffd\ufffd\ufffd\ufffd\ufffd\u2426\ufffdIO\ufffdz U\ufffd"
+          }
+        ],
+        "turns": [
+          {
+            "agent": "technical_analyst",
+            "content": "The current macro regime for Jito's MEV tip strategy appears to be characterized as a \"risk-on\" environment. This assessment is grounded in the recent data showing a steady increase in the 75th percentile (P75) tip floor, which has risen from approximately a substantial figure lamports on May 14 to a substantial figure lamports by May 16 [2: 'landed_tips_75th_percentile': 5.0457a substantial figure, 3: 'landed_tips_75th_percentile': 8.8785e-06]. This upward trend suggests that participants are willing to engage in higher tip amounts, indicative of a more competitive and risk-seeking behavior in the market. Qualitatively, the volatility regime can be described as \"normal.\" The observed increases in tip floors, particularly at the P75 and P90 levels, indicate a healthy level of activity without extreme fluctuations or panic selling. This aligns with a typical environment where traders are actively seeking to optimize their strategies without facing excessive risk or uncertainty. Historically, this regime resembles periods of heightened activity in competitive markets, where participants are incentivized to increase their bids to capture value. For instance, the behavior observed in the early stages of Ethereum's transition to proof-of-stake, where increased staking rewards led to a surge in participation and competitive bidding, serves as a relevant analogue. Additionally, the dynamics seen during the peak of the DeFi summer in 2020, where liquidity and yield farming incentives drove significant engagement, also reflect a similar risk-on sentiment. Given the current data and the upward trend in tip floors, a P75 tip band appears reasonable for the next week, as it aligns with the prevailing risk-on sentiment and normal volatility conditions. Trend verdict: bullish",
+            "parsed_verdict": {
+              "trend_verdict": "bullish"
+            }
+          },
+          {
+            "agent": "sentiment_analyst",
+            "content": "The sentiment surrounding Jito's MEV tip strategy currently reflects a \"builder-mode\" narrative, characterized by a steady increase in the 75th percentile (P75) tip floor over the past week. The P75 tip floor has risen from approximately a substantial figure lamports on May 14 to a substantial figure lamports by May 16 [2: 'landed_tips_75th_percentile': 5.0457a substantial figure, 3: 'landed_tips_75th_percentile': 8.8785e-06]. This upward trend indicates that participants are actively engaging in higher tip amounts, suggesting a competitive environment where users are willing to invest more to secure their transactions. Key concerns surfacing in the corpus include:\n1. **Competitive Pressure**: The increasing tip floors suggest a competitive landscape, where users may need to adjust their strategies to remain effective.\n2. **Market Volatility**: The fluctuations in tip amounts may indicate underlying volatility in the MEV landscape, which could impact transaction success rates.\n3. **Strategic Adjustments**: As the data shows a clear upward trend, participants may need to reconsider their tip strategies, particularly whether to adopt a P75 or P90 approach in the coming week. There have been no significant narrative pivots observed in the recent data, as the overall sentiment remains focused on building and optimizing strategies rather than shifting towards fear or greed. The insider voices, primarily from protocol-native sources, emphasize the importance of adjusting tip amounts based on current market conditions, indicating a proactive approach among builders and developers. Overall, the current sentiment suggests that a P75 tip band is reasonable for the next week, given the competitive environment and the upward trend in tip floors. Sentiment band: neutral",
+            "parsed_verdict": {
+              "sentiment_band": "neutral"
+            }
+          },
+          {
+            "agent": "fundamental_analyst",
+            "content": "Jito is a protocol designed to optimize MEV (Miner Extractable Value) extraction by allowing users to submit transaction bundles with tips to incentivize validators. Users pay tips to validators, and the yield comes from the successful execution of these bundles in a competitive environment. The trajectory of the P75 tip floor indicates a significant upward trend. The P75 tip floor increased from approximately a substantial figure lamports on May 14 to a substantial figure lamports by May 16 [2: 'landed_tips_75th_percentile': 5.0457a substantial figure, 3: 'landed_tips_75th_percentile': 8.8785e-06]. This suggests a growing willingness among users to pay higher tips, reflecting a competitive environment for MEV opportunities. Regarding audit posture, the retrieved corpus does not provide specific information about any recent audits, critical findings, or unaudited code paths for Jito. Therefore, it is unclear whether there are any unresolved issues or if the protocol has undergone recent audits. Recent parameter changes or governance proposals were not explicitly mentioned in the retrieved chunks, indicating a lack of visible governance activity or parameter adjustments at this time. In terms of integration footprint, the corpus does not detail specific protocols or projects that depend on Jito downstream. However, given its role in the MEV landscape, it is likely that various DeFi applications and protocols may rely on Jito for transaction optimization and value extraction. Overall, the data indicates a strengthening foundation for Jito, driven by increasing tip amounts and user engagement. However, the lack of information on audit status and governance changes presents a gap in the overall assessment. Protocol health: growing",
+            "parsed_verdict": {
+              "protocol_health": "growing"
+            }
+          },
+          {
+            "agent": "risk_manager",
+            "content": "In evaluating the risks associated with a high-frequency arb bot strategy on Jito, several risk vectors emerge from the corpus and the protocol's known posture. 1. **Smart Contract Risk**: There is no explicit mention of recent audits or vulnerabilities in the Jito smart contracts within the retrieved corpus. This absence raises concerns about potential exploits or bugs, particularly in critical functions such as the liquidation logic or tip processing. Given the competitive nature of MEV extraction, any exploit could lead to significant financial losses. **Severity: High; Likelihood: Medium**. 2. **Oracle Staleness or Manipulation**: The data provided does not indicate any specific oracle mechanisms being used in Jito. However, if the protocol relies on external price feeds or oracles for determining tip amounts or transaction execution, there is a risk of staleness or manipulation, especially in volatile market conditions. **Severity: Medium; Likelihood: Medium**. 3. **Concentration Risk**: The corpus does not provide insights into the distribution of stakes among validators or the presence of whale dominance. If a small number of validators control a significant portion of the network, this could lead to centralization risks, impacting the fairness and efficiency of the MEV extraction process. **Severity: Medium; Likelihood: Medium**. 4. **Operational Risk**: The reliance on a decentralized network of validators introduces operational risks, particularly concerning key management and multisig signers. If key management practices are not robust, it could lead to unauthorized access or loss of funds. **Severity: High; Likelihood: Medium**. 5. **Regulatory Exposure**: The corpus does not mention any specific regulatory concerns or compliance measures taken by Jito. However, the evolving regulatory landscape for cryptocurrencies poses a risk of sudden changes that could impact the protocol's operations or user engagement. **Severity: Medium; Likelihood: Medium**. The risks identified suggest a cautious approach to position sizing. Given the high severity of smart contract and operational risks, I recommend a size cap of a substantial figure of liquid net worth for this strategy, particularly until further clarity on the protocol's audit status and governance posture is established. Risk band: elevated",
+            "parsed_verdict": {
+              "risk_band": "elevated"
+            }
+          },
+          {
+            "agent": "strategist",
+            "content": "The research question asks whether a P75 tip band is reasonable for a high-frequency arb bot on Jito, or if a P90 band is necessary for the next seven days. The analysts present a consensus that the current environment is bullish, with the technical analyst noting a significant upward trend in the P75 tip floor, which has increased from approximately a substantial figure lamports on May 14 to a substantial figure lamports by May 16 [2: 'landed_tips_75th_percentile': 5.0457a substantial figure, 3: 'landed_tips_75th_percentile': 8.8785e-06]. The sentiment analyst supports this by indicating a builder-mode narrative, where participants are actively engaging and willing to pay higher tips, reflecting a competitive environment. The fundamental analyst highlights the growing health of the protocol, although there are concerns regarding audit status and governance activity. The risk manager raises valid concerns about smart contract risks and operational risks, suggesting a cautious approach to position sizing. Given the bullish sentiment and growing tip floors, a P75 tip band appears reasonable for the next week. However, the risk manager's concerns about elevated risks necessitate a cautious approach. Thus, I recommend a strategy that incorporates a P75 tip band while remaining vigilant about potential risks. To address the risk manager's concerns, I propose a size cap of a substantial figure of liquid net worth for this strategy, which allows for participation in the current bullish environment while managing exposure to the identified risks. The most important falsifier for this thesis would be a significant drop in the P75 tip floor below the recent levels, indicating a shift in market sentiment or a reduction in competitive activity. Strategic intent: open small long with a P75 tip band, normal stop, weeks horizon \u2014 falsifier: P75 tip floor drops below 5e-06 lamports.",
+            "parsed_verdict": {
+              "strategic_intent": "open small long with a P75 tip band, normal stop, weeks horizon \u2014 falsifier: P75 tip floor drops below a substantial figure lamports."
+            }
+          },
+          {
+            "agent": "bull_bear_debater",
+            "content": "BULL CASE: The bull case for adopting a P75 tip band for the high-frequency arb bot on Jito is supported by the recent upward trend in the P75 tip floor, which has risen from approximately a substantial figure lamports on May 14 to a substantial figure lamports by May 16 [2: 'landed_tips_75th_percentile': 5.0457a substantial figure, 3: 'landed_tips_75th_percentile': 8.8785e-06]. This increase indicates a growing willingness among participants to engage in higher tip amounts, suggesting a competitive environment where a P75 band is not only reasonable but potentially under-sized. If this trend continues, it could signal that the arb bot is well-positioned to capitalize on the increasing activity and competition in the market. A confirmation of this thesis would be sustained increases in the P75 tip floor, indicating strong market engagement and a healthy competitive landscape. BEAR CASE: The bear case against the P75 tip band centers on the potential risks associated with the current market dynamics. While the P75 tip floor has increased, there are concerns about the sustainability of this trend, particularly given the lack of recent audits or governance updates for Jito. If the P75 tip floor were to drop significantly below its current levels, it would indicate a shift in market sentiment or a reduction in competitive activity, effectively breaking the thesis that a P75 band is sufficient. Additionally, the risk manager's concerns about smart contract vulnerabilities and operational risks suggest that the protocol may not be as robust as needed for a high-frequency strategy, leading to potential losses if these risks materialize. Decisive question: Does the P75 tip floor remain above a substantial figure lamports over the next week?",
+            "parsed_verdict": {
+              "decisive_question": "Does the P75 tip floor remain above a substantial figure lamports over the next week?"
+            }
+          },
+          {
+            "agent": "coordinator",
+            "content": "The panel's stance on the question of whether a P75 tip band is reasonable for a high-frequency arb bot on Jito shows a general alignment towards supporting the P75 strategy, with some caution regarding risks. The technical analyst and sentiment analyst both highlight the upward trend in the P75 tip floor, indicating a competitive environment that supports the use of a P75 band. The fundamental analyst notes the growing health of the protocol but raises concerns about the lack of recent audits, while the risk manager emphasizes operational and smart contract risks. The strategist proposes a cautious approach with a size cap, and the bull-bear debater outlines both bullish and bearish cases, ultimately framing the decisive question around the sustainability of the P75 tip floor. Given the overall bullish sentiment and the upward trend in the P75 tip floor, the panel supports executing the strategist's intent to open a small long position with a P75 tip band. However, the identified risks warrant a cautious approach. **Call the verdict**: act. **Confidence score**: 0.75. The panel shows strong alignment, but the concerns raised by the risk manager introduce some uncertainty. **Key drivers**:\n1. Upward trend in the P75 tip floor, indicating a competitive environment (technical analyst).\n2. Builder-mode sentiment reflecting active engagement and willingness to pay higher tips (sentiment analyst).\n3. Growing health of the protocol, despite concerns about audit status (fundamental analyst).\n4. Caution regarding smart contract and operational risks (risk manager). **Dissent count**: 1 (the risk manager's caution). **Blocker questions**: 1. Does the P75 tip floor remain above a substantial figure lamports over the next week?\n2. What is the current audit status of Jito's smart contracts? ```json\n{ \"verdict\": \"act\", \"confidence\": 0.75, \"key_drivers\": [ \"Upward trend in the P75 tip floor, indicating a competitive environment\", \"Builder-mode sentiment reflecting active engagement and willingness to pay higher tips\", \"Growing health of the protocol, despite concerns about audit status\", \"Caution regarding smart contract and operational risks\" ], \"dissent_count\": 1, \"blocker_questions\": [ \"Does the P75 tip floor remain above 7e-06 lamports over the next week?\", \"What is the current audit status of Jito's smart contracts?\" ]\n}\n``` Final verdict: act",
+            "parsed_verdict": {
+              "verdict": "act"
+            }
+          }
+        ]
+      },
+      "fixture_expected": {
+        "expected_verdict_v2": "ACT",
+        "expected_verdict_v2_set": [
+          "ACT",
+          "DEFER"
+        ],
+        "must_cite_provider_kinds": [
+          "protocol_native",
+          "canon_mauboussin",
+          "canon_damodaran"
+        ],
+        "expected_dissent_topics": [
+          "mempool_depth_volatility",
+          "tip_inflation_risk",
+          "bot_competition_risk"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "citation_relevance": 1.0,
+        "provider_kind_coverage": 1.0,
+        "hallucination_score": 1.0,
+        "dissent_grounding": 0.5,
+        "confidence_calibration": 0.5
+      },
+      "passed": false,
+      "judge_notes": "Citation relevance: All 9 evidence citations are directly from Jito protocol-native sources (tip_floor API, docs, validator telemetry) \u2014 fully on-topic. Hallucination: The panel explicitly redacted unverified specific lamport figures (1%, 5.04575e-06, 5e-06, 7e-06, 8.8785e-06) via the grounding gate in blocker_questions, and agent turns use \"substantial figure\" placeholders rather than asserting bare numbers. Citation 6 does contain specific SOL figures (0.0000053, 0.00000208, etc.) grounded in a protocol_native source, so those are not hallucinations. No must_not_hallucinate patterns are triggered. Dissent grounding: The panel surfaces bot_competition_risk (competitive pressure, tip inflation) and some tip_inflation_risk hints, but mempool_depth_volatility is not concretely raised \u2014 only hinted at via \"market volatility\" language. Expected dissent topics are partially but not fully covered; scoring 0.5. Confidence calibration: The coordinator initially stated 0.75 but the envelope reports 0.5. With one dissenter, thin audit data, and unverified specific figures removed, 0.5 is more appropriate than 0.75 \u2014 the final envelope confidence of 0.5 is reasonably calibrated given the uncertainty, though the coordinator's internal reasoning suggested 0.75 which would be mild over-confidence; the final envelope value of 0.5 is well-calibrated.",
+      "panel_retries": 0,
+      "degraded_turn_count": 0,
+      "total_turns": 7,
+      "wall_seconds": {
+        "panel": 45.39,
+        "judge": 12.82
+      }
+    }
+  ]
+}

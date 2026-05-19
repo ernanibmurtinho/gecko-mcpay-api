@@ -36,7 +36,9 @@ from typing import Any, Protocol, cast
 
 from gecko_core.observability import emit_event
 from gecko_core.orchestration.trade_panel.agents import build_groupchat
+from gecko_core.orchestration.trade_panel.grounding_gate import apply_grounding_gate
 from gecko_core.orchestration.trade_panel.models import (
+    CITATION_SNIPPET_MAX_LEN,
     Citation,
     TradePanelTurn,
     TradePanelVerdict,
@@ -147,6 +149,16 @@ def _opening_prompt(idea: str, protocol: str, chunks: list[dict[str, Any]]) -> s
     only (see canary 2026-05-13-canary-postfix). This is a persona-
     structure directive, not a coordinator verdict-shape edit, and is
     safe under the plateau-memory caveat.
+
+    S36-#108: the QUANTITATIVE GROUNDING block was sharpened from the
+    S29-#33 ``unsourced:``-prefix phrasing into an explicit "say there
+    is no figure in the corpus" instruction with a verbatim model
+    template. This is belt-and-suspenders only — the load-bearing fix
+    is the code-side ``grounding_gate`` (S36-#106), which deterministically
+    converts ungrounded numerics into honest abstains regardless of
+    whether the model obeys this prompt. Per
+    ``memory/feedback_prompt_iteration_plateau`` the prompt is not
+    expected to bind reliably on gpt-4o-mini; do not tune it further.
     """
     n_chunks = len(chunks)
     # S28 #25 — softened from the S26 #19 "cite-broadly" directive. With
@@ -170,19 +182,23 @@ def _opening_prompt(idea: str, protocol: str, chunks: list[dict[str, Any]]) -> s
             "  Phantom citation (claiming a chunk you did not read in body "
             "text) is a panel failure mode and disqualifies the turn.\n"
             "\nQUANTITATIVE GROUNDING (mandatory for every non-coordinator voice):\n"
-            "  When you write a specific number — TVL, APR/APY, price, volume, "
-            "ratio, percentage, dollar figure — you MUST either:\n"
-            "    (a) QUOTE the exact substring from the cited chunk that "
-            "contains that number, in the same line — "
-            "e.g. `TVL is $1,505,498,759 [3: 'tvl: 1505498759']`, OR\n"
-            "    (b) Write the claim WITHOUT a citation and prefix it "
-            "`unsourced:` — e.g. `unsourced: yields appear competitive vs peers`.\n"
-            "  Do NOT cite a chunk number for a figure that does not appear "
-            "verbatim in that chunk. Inferring a plausible TVL/APR/price from "
-            "field names, related magnitudes, or surrounding context is a "
-            "hallucination and disqualifies the turn. When in doubt, write "
-            "the qualitative claim with `unsourced:` rather than fabricate a "
-            "specific number.\n"
+            "  Rule: every specific number you write — TVL, APR/APY, price, "
+            "volume, ratio, percentage, dollar figure — must appear VERBATIM "
+            "in a chunk you cite on the same line. Two cases, no third:\n"
+            "    (a) The number IS in a chunk — quote the exact substring "
+            "inline: `TVL is $1,505,498,759 [3: 'tvl: 1505498759']`.\n"
+            "    (b) The number is NOT in any chunk — do NOT write the "
+            "number at all. Instead say plainly that the corpus has no "
+            "figure: `No TVL figure for Kamino in the retrieved corpus.` or "
+            "`I don't know the current APY — no chunk reports it.` Then make "
+            "your point qualitatively.\n"
+            "  An honest 'no figure in the corpus for X' is a CORRECT, "
+            "expected answer and never penalizes your turn. A fabricated or "
+            "guessed number — inferred from a field name, a related "
+            "magnitude, a canon/macro chunk, or prior knowledge — is a "
+            "hallucination and disqualifies the entire turn. When you cannot "
+            "ground a number, state the gap; never invent a value to sound "
+            "decisive.\n"
         )
     )
     return (
@@ -332,6 +348,76 @@ def _count_abstains(turns: list[TradePanelTurn]) -> int:
         if isinstance(val, str) and val.strip().lower() in _ABSTAIN_TOKENS[turn.agent]:
             count += 1
     return count
+
+
+# --- S37-WS2 — coordinator verdict escalation rules ----------------------
+# Two deterministic DEFER escalations on already-parsed turn tokens.
+# Per repo memory feedback_prompt_iteration_plateau, coordinator verdict
+# logic belongs in CODE, not a persona prompt — gpt-4o-mini rounds toward
+# caution on any defer-related prompt instruction. The #115 N=50 diagnosis
+# (docs/eval/2026-05-18-s37-A-verdict-accuracy-diagnosis.md) traced all 6
+# verdict_accuracy misses to coordinator reasoning; these two rules recover
+# 4 of them. The 2 jupiter-lst-rotation-msol rows are an upstream
+# panel-reasoning gap and are explicitly out of scope here.
+
+# Strategist closing-line tokens that mean "do not act now" — observe /
+# hold / wait / monitor. Rule 1 reads these off the strategist's
+# `strategic_intent`; the strategist turn is free-text so we substring-match.
+_STRATEGIST_NONACTION_TOKENS = ("observe", "hold", "wait", "monitor")
+
+# Framing substrings that flag the proposed action as a rotation, an all-in
+# concentration call, or a short — none of which the act/pass/defer model
+# represents cleanly. Rule 2 keys off these. Matched against the strategist
+# `strategic_intent` and the coordinator's own prose body (both restate the
+# research question's framing).
+_ROTATION_FRAMING_TOKENS = ("rotate", "rotation", "100%", "all-in", "all in", "short")
+
+# Risk bands at or above this severity satisfy Rule 2's "elevated risk" gate.
+_ELEVATED_RISK_BANDS = {"elevated", "unacceptable"}
+
+
+def _risk_band(turns: list[TradePanelTurn]) -> str | None:
+    """Return the risk_manager's closing-line band, lowercased, or None."""
+    for turn in turns:
+        if turn.agent != RISK_MANAGER:
+            continue
+        val = (turn.parsed_verdict or {}).get("risk_band")
+        if isinstance(val, str) and val.strip():
+            return val.strip().lower()
+    return None
+
+
+def _strategist_intent_line(turns: list[TradePanelTurn]) -> str:
+    """Return the strategist's `strategic_intent` closing line, lowercased."""
+    for turn in turns:
+        if turn.agent != STRATEGIST:
+            continue
+        val = (turn.parsed_verdict or {}).get("strategic_intent")
+        if isinstance(val, str):
+            return val.strip().lower()
+    return ""
+
+
+def _strategist_says_nonaction(turns: list[TradePanelTurn]) -> bool:
+    """True when the strategist intent contains an observe/hold/wait token."""
+    line = _strategist_intent_line(turns)
+    return any(tok in line for tok in _STRATEGIST_NONACTION_TOKENS)
+
+
+def _has_rotation_framing(turns: list[TradePanelTurn]) -> bool:
+    """True when the strategist intent or coordinator prose frames the
+    proposed action as a rotation / all-in concentration / short.
+
+    Keys off already-parsed turn tokens (no research-question threading):
+    the strategist closing line and the coordinator's prose body both
+    restate the question's framing, so a rotation/100%/short call is
+    visible on the recorded `turns[]` alone.
+    """
+    haystack = _strategist_intent_line(turns)
+    for turn in turns:
+        if turn.agent == COORDINATOR:
+            haystack += " " + (turn.content or "").lower()
+    return any(tok in haystack for tok in _ROTATION_FRAMING_TOKENS)
 
 
 # S24 night-shift confidence anchor — coordinator prompt instructs the
@@ -517,6 +603,51 @@ def _build_verdict_from_coordinator(
             *blocker_questions,
             f"{derived_abstains} of 4 primary analysts abstained — corpus too thin "
             "to support a directional call.",
+        ]
+        verdict = "defer"
+
+    # S37-WS2 Rule 1 — risk-veto DEFER escalation. The risk_manager holds a
+    # defined veto role (personas ROLE_TASKS: veto on oracle/slippage/
+    # contract/concentration risk). An `unacceptable` risk band is, by that
+    # role, structurally a defer trigger on its own — it should not need 2
+    # more voices to agree (the S24 dissent_count>=3 clause over-suppresses
+    # DEFER on exactly the high-risk fixtures where DEFER is calibrated).
+    # When the risk band is `unacceptable` AND the coordinator emitted a
+    # directional verdict AND the strategist itself said observe/hold/wait,
+    # escalate to defer. #115 diagnosis: recovers kamino-sol-leverage-entry
+    # and drift-jto-perp-short. Narrow on purpose — it does NOT fire on a
+    # genuine act/pass where the strategist proposes a concrete entry.
+    if (
+        verdict in {"act", "pass"}
+        and _risk_band(turns) == "unacceptable"
+        and _strategist_says_nonaction(turns)
+    ):
+        blocker_questions = [
+            *blocker_questions,
+            "Risk manager flagged risk as unacceptable and the strategist "
+            "declined to act — defer until the named risk is resolved.",
+        ]
+        verdict = "defer"
+
+    # S37-WS2 Rule 2 — rotation-framing DEFER escalation. act/pass/defer
+    # have no model for "the proposed action is a rotation / all-in
+    # concentration call / short", so "don't rotate" collapses to `pass`.
+    # On a rotation/100%/short-framed question the fixtures want the
+    # concentration risk *flagged* (DEFER), not the idea silently rejected
+    # (PASS). When the coordinator emitted `pass` on such a framed question
+    # AND the risk band is elevated-or-worse, escalate to defer. #115
+    # diagnosis: recovers both jupiter-jlp-vs-jitosol rows. Gated on `pass`
+    # only (a `pass` is the under-flagged reject; an `act` is the panel
+    # affirmatively endorsing the rotation and is left untouched).
+    if (
+        verdict == "pass"
+        and _has_rotation_framing(turns)
+        and (_risk_band(turns) in _ELEVATED_RISK_BANDS)
+    ):
+        blocker_questions = [
+            *blocker_questions,
+            "Rotation / all-in concentration framing with elevated risk — "
+            "defer to flag the concentration call rather than silently reject it.",
         ]
         verdict = "defer"
 
@@ -1518,7 +1649,20 @@ def _strategist_intent_from_turn(turn: TradePanelTurn | None, protocol: str) -> 
     return intent
 
 
-_CITATION_SNIPPET_LIMIT: int = 240
+# S36-#106 — snippet cap raised 240 → 320. The S36-WS1 hallucination
+# diagnosis found the cited numeric figure was being truncated out of the
+# judge's view: the panel cut snippets at 240, the rubric scorer cut again
+# at 200, and protocol-native chunks led with a provenance header so the
+# APY/TVL/price landed past char 200. Part 1 of S36-WS2 makes the chunk
+# renderers number-first; this raises the cap so even a docs-prose chunk
+# whose figure sits a little later still survives. The rubric scorer
+# (score_defi_trade_rubric.py) is reconciled to NOT truncate a second
+# time — it grades the exact snippet text the panel emits, so the
+# grounding gate and the judge read identical text by construction.
+# S36-#111 — sourced from the canonical constant in models.py so the
+# truncation window and Citation.snippet's max_length validator cannot
+# drift (the 240-vs-320 mismatch that scored the #110 N=50 run as N=0).
+_CITATION_SNIPPET_LIMIT: int = CITATION_SNIPPET_MAX_LEN
 
 
 def _coerce_provider_kind(raw: Any) -> ProviderKind:
@@ -1783,6 +1927,16 @@ async def run_trade_panel_with_retrieval(
         update["framework_context"] = framework_context
     if update:
         verdict = verdict.model_copy(update=update)
+
+    # S36-#106 — code-side numeric grounding-or-abstain gate. Runs
+    # unconditionally so the production path and the eval path agree. It
+    # scans every numeric claim in the verdict against the EXACT citation
+    # snippet text the rubric judge sees (post-truncation `Citation.snippet`
+    # of the lists attached just above), so a claim that passes the gate
+    # passes the judge by construction. On weak grounding it floors
+    # `confidence` and appends an explicit blocker — it never spends, never
+    # calls the model, and never flips the verdict literal.
+    verdict, _grounding_report = apply_grounding_gate(verdict)
 
     if not enable_backtest:
         return verdict
