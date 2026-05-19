@@ -220,8 +220,10 @@ class TestRedaction:
         assert report.abstained
         assert adjusted.confidence == 0.8
 
-    def test_blocker_question_still_names_the_redacted_figures(self) -> None:
-        # The blocker append is a legitimate audit signal — kept.
+    def test_blocker_question_audit_note_is_a_count_not_the_figures(self) -> None:
+        # S37-#123 — the audit note is kept as a signal, but it states a
+        # COUNT only. It must not re-print the figures: blocker_questions is
+        # a judge-read surface, so naming them re-introduced the hallucination.
         verdict = _verdict(
             key_drivers=["TVL $500M", "APY 99%"],
             evidence=[_cite(1, "endpoint description, no figures")],
@@ -229,7 +231,8 @@ class TestRedaction:
         )
         adjusted, _report = apply_grounding_gate(verdict)
         assert any("Grounding gate" in q for q in adjusted.blocker_questions)
-        assert any("$500M" in q for q in adjusted.blocker_questions)
+        assert all("$500M" not in q for q in adjusted.blocker_questions)
+        assert all("99%" not in q for q in adjusted.blocker_questions)
 
     def test_fully_grounded_verdict_is_untouched(self) -> None:
         verdict = _verdict(
@@ -342,3 +345,55 @@ class TestParsedVerdictRedaction:
         )
         adjusted, _report = apply_grounding_gate(verdict)
         assert adjusted.turns[0].parsed_verdict is None
+
+
+class TestAuditNoteAndMultiOccurrence:
+    """S37-#123 — two leaks behind the #122 jito hallucination fail.
+
+    (1) The gate's own audit note re-printed every redacted figure into
+    blocker_questions — a judge-read surface — so the judge scored them
+    again. The note must state a count only.
+    (2) ``_redact_span`` replaced only the FIRST occurrence; a figure
+    repeated across clauses survived.
+    """
+
+    def test_audit_note_states_a_count_not_the_figures(self) -> None:
+        verdict = _verdict(
+            key_drivers=["APY of 26.12% with TVL of $5,000,000"],
+            turns=[TradePanelTurn(agent="strategist", content="APY of 26.12%")],
+            evidence=[_cite(1, "no figures here")],
+        )
+        adjusted, report = apply_grounding_gate(verdict)
+        assert report.abstained
+        note = adjusted.blocker_questions[-1]
+        assert note.startswith("Grounding gate:")
+        # The note must NOT re-print any redacted figure.
+        for raw in {u.raw for u in report.ungrounded}:
+            assert raw not in note
+
+    def test_repeated_figure_is_fully_redacted(self) -> None:
+        # The same ungrounded figure twice — both must go (S37-#123 r5,
+        # where a repeated lamport figure survived in the coordinator turn).
+        turn = TradePanelTurn(
+            agent="coordinator",
+            content="Tip floor near 7.449e-06. Risk: a move above 7.449e-06.",
+        )
+        verdict = _verdict(
+            key_drivers=["tip floor 7.449e-06"],
+            turns=[turn],
+            evidence=[_cite(1, "no tip figures in this snippet")],
+        )
+        adjusted, _report = apply_grounding_gate(verdict)
+        assert "7.449e-06" not in adjusted.turns[0].content
+
+    def test_figure_in_preexisting_blocker_is_redacted(self) -> None:
+        verdict = TradePanelVerdict(
+            verdict="act",
+            confidence=0.8,
+            key_drivers=["APY of 26.12%"],
+            turns=[TradePanelTurn(agent="strategist", content="APY of 26.12%")],
+            blocker_questions=["Is the 26.12% APY sustainable?"],
+            evidence_citations=[_cite(1, "no figures here")],
+        )
+        adjusted, _report = apply_grounding_gate(verdict)
+        assert all("26.12%" not in b for b in adjusted.blocker_questions)

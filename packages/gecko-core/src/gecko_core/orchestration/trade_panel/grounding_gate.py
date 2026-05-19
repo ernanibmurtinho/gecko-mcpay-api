@@ -395,25 +395,34 @@ def _redact_span(text: str, raw: str, descriptor: str | None) -> str:
         re.sub(r"\s+", r"\\s*", re.escape(raw.strip())),
         re.IGNORECASE,
     )
-    m = span_pat.search(text)
-    if m is None:
+    if span_pat.search(text) is None:
         return text
 
     if descriptor is not None:
         # Qualitative rephrase: number -> "<descriptor> figure". The noun
         # keeps it grammatical without parsing the surrounding metric word.
-        rephrased = text[: m.start()] + descriptor + " figure" + text[m.end() :]
+        # ``.sub`` replaces EVERY occurrence — a figure repeated across
+        # clauses (panel body + a trailing "decisive question:" line) must
+        # all be redacted, not just the first match (S37-#123 r5: a repeated
+        # lamport figure survived in the coordinator turn).
+        rephrased = span_pat.sub(descriptor + " figure", text)
         return re.sub(r"\s{2,}", " ", rephrased).strip()
 
-    # Drop the whole clause containing the span. Find the clause bounds by
-    # walking out to the nearest clause separators on each side.
-    starts = [b.end() for b in _CLAUSE_SPLIT.finditer(text) if b.end() <= m.start()]
-    ends = [b.start() for b in _CLAUSE_SPLIT.finditer(text) if b.start() >= m.end()]
-    clause_start = max(starts) if starts else 0
-    clause_end = min(ends) if ends else len(text)
-    cleaned = (text[:clause_start] + text[clause_end:]).strip()
+    # Drop the clause around each occurrence. Each pass removes the clause
+    # bracketing the first remaining match, so the span count strictly
+    # decreases and the loop terminates.
+    out = text
+    while True:
+        m = span_pat.search(out)
+        if m is None:
+            break
+        starts = [b.end() for b in _CLAUSE_SPLIT.finditer(out) if b.end() <= m.start()]
+        ends = [b.start() for b in _CLAUSE_SPLIT.finditer(out) if b.start() >= m.end()]
+        clause_start = max(starts) if starts else 0
+        clause_end = min(ends) if ends else len(out)
+        out = out[:clause_start] + out[clause_end:]
     # Tidy doubled separators / leading punctuation left by the excision.
-    cleaned = re.sub(r"\s*([.;,])\s*\1+", r"\1 ", cleaned)
+    cleaned = re.sub(r"\s*([.;,])\s*\1+", r"\1 ", out)
     cleaned = re.sub(r"^\s*[.;,]\s*", "", cleaned).strip()
     cleaned = re.sub(r"\s{2,}", " ", cleaned)
     return cleaned
@@ -478,8 +487,11 @@ def apply_grounding_gate(verdict: TradePanelVerdict) -> tuple[TradePanelVerdict,
         grounded (the conservative fallback — never swap an ungrounded
         number for an ungrounded adjective).
 
-    A blocker question naming the redacted figures is still appended (a
-    legitimate audit signal). The ``confidence × grounded_fraction``
+    A blocker question is appended noting *how many* figures were removed —
+    a count only, never the figures themselves (S37-#123: the judge reads
+    ``blocker_questions``, so re-printing the figures there silently
+    re-introduced the hallucination the gate had just scrubbed). The
+    ``confidence × grounded_fraction``
     mutation is **removed** (#116): once the text is scrubbed the verdict
     is honest, so confidence reflects the cleaned verdict rather than being
     driven toward 0.0 — that multiplication is what manufactured the
@@ -512,13 +524,25 @@ def apply_grounding_gate(verdict: TradePanelVerdict) -> tuple[TradePanelVerdict,
         for t in verdict.turns
     ]
 
+    # S37-#123 — blocker_questions are a judge-read surface too: redact any
+    # ungrounded figure out of the pre-existing blockers, and — critically —
+    # the gate's own audit note must NOT re-print the removed figures. The
+    # old note listed them verbatim, so the judge read the note and scored
+    # every figure it named as a fresh hallucination (the dominant cause of
+    # jito-mev-tip-band failing 0/5 at #122/#123). The note now states a
+    # count only; the figures themselves stay in the structured log.
+    redacted_blockers = [
+        _redact_text(b, ungrounded_raws, snippets) for b in verdict.blocker_questions
+    ]
+    redacted_blockers = [b for b in redacted_blockers if b.strip()]
+    n_removed = len(ungrounded_raws)
     note = (
-        "Grounding gate: the following figures could not be confirmed by any "
-        "cited snippet and were removed from the verdict text as unverified — "
-        + ", ".join(ungrounded_raws)
-        + "."
+        f"Grounding gate: {n_removed} numeric figure"
+        f"{'' if n_removed == 1 else 's'} could not be confirmed against any "
+        f"cited snippet and {'was' if n_removed == 1 else 'were'} removed from "
+        "the verdict text as unverified."
     )
-    new_blockers = [*verdict.blocker_questions, note]
+    new_blockers = [*redacted_blockers, note]
 
     # S37-WS1a — confidence is NOT multiplied down. The text is now honest;
     # the coordinator's reported confidence stands. Removing the multiplier
